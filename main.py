@@ -1,5 +1,5 @@
-import discord, os, logging
-from classes.views import StartGameView
+import discord, os, logging, data
+from classes.abstractor import GameAbstractor
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,7 +9,8 @@ intents.message_content = True
 bot = discord.Client(intents=intents)
 logger = logging.getLogger(__name__)
 
-players = []
+config = {}
+abstractors: list[GameAbstractor] = []
 
 @bot.event
 async def on_ready():
@@ -19,12 +20,14 @@ async def on_ready():
 async def on_message(message: discord.Message):
 	if message.author == bot.user:
 		return
-	
-	await message.channel.send(embed=discord.Embed(
-		title="AI Plays Mafia",
-		description="The series by Turing Games, now as a Discord bot!",
-		color=discord.Color.blurple()
-	), view=StartGameView(players))
 
-TOKEN = os.getenv("TOKEN")
-bot.run(TOKEN, root_logger=True)
+	for abstractor in abstractors:
+		abstractor.on_message(message)
+
+if __name__ == "__main__":
+	config = data.load()
+	for channel in config.channels:
+		abstractors.append(GameAbstractor(channel))
+	
+	TOKEN = os.getenv("TOKEN")
+	bot.run(TOKEN, root_logger=True)
