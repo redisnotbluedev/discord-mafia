@@ -12,8 +12,9 @@ class StartGameView(discord.ui.View):
 			description="The series by Turing Games, now as a Discord bot!",
 			color=discord.Color.green()
 		)
-		#self.abstractor.players.append(interaction.user)
-		embed.add_field(name="Players", value="No players yet")#f"- {interaction.user.display_name or interaction.user.name}", inline=False)
+		
+		self.abstractor.players.append(interaction.user)
+		embed.add_field(name="Players", value=f"- {interaction.user.display_name or interaction.user.name}", inline=False)
 		self.abstractor.running = True
 		await interaction.response.edit_message(embed=embed, view=JoinGameView(self.abstractor))
 
