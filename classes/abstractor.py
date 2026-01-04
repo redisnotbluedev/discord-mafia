@@ -13,7 +13,7 @@ class GameAbstractor:
 		self.running: bool = False
 
 		config = data.load()
-		self.last_lobby_id: int | None = config.get("last_lobbies", {}).get(self.channel_key)
+		self.last_lobby_id: int | None = config.get("profiles").get(self.channel_key, {}).get("last_lobby")
 
 	async def _delete_last_lobby(self) -> None:
 		if not self.last_lobby_id:
@@ -55,5 +55,6 @@ class GameAbstractor:
 
 		self.last_lobby_id = new_msg.id
 		config = data.load()
-		config.setdefault("last_lobbies", {})[self.channel_key] = self.last_lobby_id
+		config.setdefault("profiles", {}).setdefault(self.channel_key, {})["last_lobby"] = self.last_lobby_id
+
 		data.save(config)

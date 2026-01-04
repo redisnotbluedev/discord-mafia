@@ -14,14 +14,11 @@ class ModerationCog(commands.Cog):
 			channel = interaction.channel
 			config = data.load()
 			
-			if channel.id in config.get("channels", []):
+			if str(channel.id) in config.get("profiles", {}):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 			
-			if "channels" in config:
-				config.channels.append(channel.id)
-			else:
-				config["channels"] = [channel.id]
+			config.setdefault("profiles", {})[channel.id] = {}
 			data.save(config)
 			
 			self.bot.abstractors.append(GameAbstractor(channel))

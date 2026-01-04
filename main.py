@@ -13,7 +13,6 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="", intents=intents)
 logger = logging.getLogger(__name__)
 
-config = {}
 bot.abstractors = []
 
 @bot.event
@@ -25,8 +24,8 @@ async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 
-	config = data.load()
-	for channel in config.get("channels", []):
+	profiles = data.load().get("profiles", {})
+	for channel in profiles:
 		bot.abstractors.append(GameAbstractor(channel, bot))
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
 
