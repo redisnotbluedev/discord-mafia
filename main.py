@@ -14,7 +14,7 @@ bot = commands.Bot(command_prefix="", intents=intents)
 logger = logging.getLogger(__name__)
 
 config = {}
-abstractors: list[GameAbstractor] = []
+bot.abstractors = []
 
 @bot.event
 async def on_ready():
@@ -24,7 +24,7 @@ async def on_ready():
 async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
-	
+
 	await bot.tree.sync()
 	logger.info("Synced all bot commands!")
 
@@ -33,13 +33,13 @@ async def on_message(message: discord.Message):
 	if message.author == bot.user:
 		return
 
-	for abstractor in abstractors:
-		abstractor.on_message(message)
+	for abstractor in bot.abstractors:
+		await abstractor.on_message(message)
 
 if __name__ == "__main__":
 	config = data.load()
 	for channel in config.get("channels", []):
-		abstractors.append(GameAbstractor(channel))
+		bot.abstractors.append(GameAbstractor(channel))
 	
 	TOKEN = os.getenv("TOKEN")
 	bot.run(TOKEN, root_logger=True)
