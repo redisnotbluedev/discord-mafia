@@ -25,6 +25,11 @@ async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 
+	config = data.load()
+	for channel in config.get("channels", []):
+		bot.abstractors.append(GameAbstractor(channel))
+	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
+
 	await bot.tree.sync()
 	logger.info("Synced all bot commands!")
 
@@ -36,10 +41,6 @@ async def on_message(message: discord.Message):
 	for abstractor in bot.abstractors:
 		await abstractor.on_message(message)
 
-if __name__ == "__main__":
-	config = data.load()
-	for channel in config.get("channels", []):
-		bot.abstractors.append(GameAbstractor(channel))
-	
+if __name__ == "__main__":	
 	TOKEN = os.getenv("TOKEN")
 	bot.run(TOKEN, root_logger=True)
