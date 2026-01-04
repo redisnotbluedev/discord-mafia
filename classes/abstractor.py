@@ -18,7 +18,7 @@ class GameAbstractor:
 			if self.last_lobby:
 				await self.last_lobby.delete()
 			
-			last_lobby = await message.channel.send(embed=discord.Embed(
+			self.last_lobby = await message.channel.send(embed=discord.Embed(
 				title="AI Plays Mafia",
 				description="The series by Turing Games, now as a Discord bot!",
 				color=discord.Color.blurple()
