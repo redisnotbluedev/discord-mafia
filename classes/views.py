@@ -1,9 +1,8 @@
 import discord
-from classes.abstractor import GameAbstractor
 
 class StartGameView(discord.ui.View):
-	def __init__(self, abstractor: GameAbstractor):
-		self.abstractor = GameAbstractor
+	def __init__(self, abstractor):
+		self.abstractor = abstractor
 		super().__init__(timeout=300)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)

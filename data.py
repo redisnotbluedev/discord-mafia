@@ -2,8 +2,13 @@ import json
 
 def save(data: dict):
 	with open("data.json", "w") as f:
-		json.dump(f)
+		json.dump(data, f)
 
 def load():
-	with open("data.json") as f:
-		return json.load(f) or {}
+	try:
+		with open("data.json", "r") as f:
+			return json.load(f) or {}
+	except (FileNotFoundError, json.JSONDecodeError):
+		with open("data.json", "w") as f:
+			f.write("{}")
+		return {}

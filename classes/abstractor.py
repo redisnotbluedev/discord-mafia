@@ -1,5 +1,5 @@
 import discord
-from views import StartGameView
+from classes.views import StartGameView
 
 class GameAbstractor:
 	players: list[discord.User] = []

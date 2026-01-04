@@ -1,2 +1,7 @@
 .env
+data.json
+
 venv/*
+**/__pycache__/*
+*.pyc
+*.pyo
