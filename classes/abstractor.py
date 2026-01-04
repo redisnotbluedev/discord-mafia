@@ -8,29 +8,32 @@ class GameAbstractor:
 	running = False
 	last_lobby: discord.Message = None
 
-	def __init__(self, channel: str):
+	def __init__(self, channel: int):
 		self.channel = channel
+		self.channel_key = str(channel)
 		config = data.load()
-		self.last_lobby = config.get("last_lobbies", {}).get(self.channel, None)
-	
+		self.last_lobby = config.get("last_lobbies", {}).get(self.channel_key, None)
+
 	async def on_message(self, message: discord.Message):
-		if message.channel.id != int(self.channel): return
-		
+		if message.channel.id != self.channel:
+			return
+
 		if not self.running:
 			if self.last_lobby:
 				await self.last_lobby.delete()
-			
-			self.last_lobby = await message.channel.send(embed=discord.Embed(
-				title="AI Plays Mafia",
-				description="The series by Turing Games, now as a Discord bot!",
-				color=discord.Color.blurple()
-			), view=StartGameView(self))
+
+			self.last_lobby = await message.channel.send(
+				embed=discord.Embed(
+					title="AI Plays Mafia",
+					description="The series by Turing Games, now as a Discord bot!",
+					color=discord.Color.blurple(),
+				),
+				view=StartGameView(self),
+			)
 
 			config = data.load()
-			if "last_lobbies" in config:
-				config["last_lobbies"][self.channel] = self.last_lobby.id
-			else:
-				config["last_lobbies"] = {self.channel: self.last_lobby.id}
+			last_lobbies = config.setdefault("last_lobbies", {})
+			last_lobbies[self.channel_key] = self.last_lobby.id
 			data.save(config)
 		else:
 			logger.info("Skipping message send as the game is already running!")
