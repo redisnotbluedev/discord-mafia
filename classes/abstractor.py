@@ -28,7 +28,7 @@ class GameAbstractor:
 
 			config = data.load()
 			if "last_lobbies" in config:
-				config.last_lobbies[self.channel] = self.last_lobby.id
+				config["last_lobbies"][self.channel] = self.last_lobby.id
 			else:
 				config["last_lobbies"] = {self.channel: self.last_lobby.id}
 			data.save(config)
