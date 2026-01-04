@@ -1,16 +1,19 @@
 import discord, logging, data
 from classes.views import StartGameView
+from discord.ext import commands
 
 logger = logging.getLogger(__name__)
 
 class GameAbstractor:
 	players: list[discord.User] = []
 	running = False
-	last_lobby: discord.Message = None
+	last_lobby: int = None
 
-	def __init__(self, channel: int):
+	def __init__(self, channel: int, bot: commands.Bot):
 		self.channel = channel
 		self.channel_key = str(channel)
+		self.bot = bot
+
 		config = data.load()
 		self.last_lobby = config.get("last_lobbies", {}).get(self.channel_key, None)
 
@@ -20,16 +23,16 @@ class GameAbstractor:
 
 		if not self.running:
 			if self.last_lobby:
-				await self.last_lobby.delete()
+				await (await self.bot.get_channel(self.channel).fetch_message(self.last_lobby)).delete()
 
-			self.last_lobby = await message.channel.send(
+			self.last_lobby = (await message.channel.send(
 				embed=discord.Embed(
 					title="AI Plays Mafia",
 					description="The series by Turing Games, now as a Discord bot!",
 					color=discord.Color.blurple(),
 				),
 				view=StartGameView(self),
-			)
+			)).id
 
 			config = data.load()
 			last_lobbies = config.setdefault("last_lobbies", {})
