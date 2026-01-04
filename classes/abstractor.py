@@ -8,13 +8,13 @@ class GameAbstractor:
 	running = False
 	last_lobby: discord.Message = None
 
-	def __init__(self, channel: int):
+	def __init__(self, channel: str):
 		self.channel = channel
 		config = data.load()
-		self.last_lobby = config.get("last_lobbies", {self.channel: None})[self.channel]
+		self.last_lobby = config.get("last_lobbies", {}).get(self.channel, None)
 	
 	async def on_message(self, message: discord.Message):
-		if message.channel.id != self.channel: return
+		if message.channel.id != int(self.channel): return
 		
 		if not self.running:
 			if self.last_lobby:
