@@ -16,7 +16,7 @@ class GameAbstractor:
 		
 		if not self.running:
 			if self.last_lobby:
-				await self.last_lobby.delete()
+				self.last_lobby.delete()
 			
 			self.last_lobby = await message.channel.send(embed=discord.Embed(
 				title="AI Plays Mafia",
