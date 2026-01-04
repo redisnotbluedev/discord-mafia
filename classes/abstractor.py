@@ -16,4 +16,4 @@ class GameAbstractor:
 				title="AI Plays Mafia",
 				description="The series by Turing Games, now as a Discord bot!",
 				color=discord.Color.blurple()
-			), view=StartGameView(self.players))
+			), view=StartGameView(self))

@@ -18,11 +18,14 @@ class ModerationCog(commands.Cog):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 			
-			config.get("channels", []).append(channel.id)
+			if "channels" in config:
+				config.channels.append(channel.id)
+			else:
+				config["channels"] = [channel.id]
 			data.save(config)
 			
 			self.bot.abstractors.append(GameAbstractor(channel))
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
 		except Exception as e:
-			await interaction.response.send_message(f"Failed to set up game: {e}", ephemeral=True)
+			await interaction.response.send_message(f"Failed to set up game: {e}")

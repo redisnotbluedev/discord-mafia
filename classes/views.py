@@ -15,11 +15,11 @@ class StartGameView(discord.ui.View):
 		#self.abstractor.players.append(interaction.user)
 		embed.add_field(name="Players", value="No players yet")#f"- {interaction.user.display_name or interaction.user.name}", inline=False)
 		self.abstractor.running = True
-		await interaction.response.edit_message(embed=embed, view=JoinGameView(self.players))
+		await interaction.response.edit_message(embed=embed, view=JoinGameView(self.abstractor))
 
 class JoinGameView(discord.ui.View):
-	def __init__(self, players):
-		self.players = players
+	def __init__(self, abstractor):
+		self.abstractor = abstractor
 		super().__init__(timeout=300)
 
 	@discord.ui.button(label="Join", style=discord.ButtonStyle.secondary)
