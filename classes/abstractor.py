@@ -31,5 +31,6 @@ class GameAbstractor:
 				config.last_lobbies[self.channel] = self.last_lobby.id
 			else:
 				config["last_lobbies"] = {self.channel: self.last_lobby.id}
+			data.save(config)
 		else:
 			logger.info("Skipping message send as the game is already running!")
