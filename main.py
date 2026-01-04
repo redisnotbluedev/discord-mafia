@@ -26,7 +26,7 @@ async def setup_hook():
 
 	profiles = data.load().get("profiles", {})
 	for channel in profiles:
-		bot.abstractors.append(GameAbstractor(channel, bot))
+		bot.abstractors.append(GameAbstractor(int(channel), bot))
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
 
 	await bot.tree.sync()
