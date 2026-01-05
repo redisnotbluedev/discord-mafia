@@ -48,12 +48,13 @@ class JoinGameView(discord.ui.View):
 			description="The series by Turing Games, now as a Discord bot!",
 			color=discord.Color.green()
 		)
-		embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]))
 
 		if interaction.user in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
-				await interaction.message.edit_message(embed=embed)
+				self.abstractor.players.remove(interaction.user)
+				embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
+				await interaction.message.edit(embed=embed)
 				
 			async def no(i: discord.Interaction):
 				await i.response.edit_message(content="You canceled this action.", view=None)
@@ -65,4 +66,5 @@ class JoinGameView(discord.ui.View):
 			)
 		else:
 			self.abstractor.players.append(interaction.user)
+			embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
 			await interaction.response.edit_message(embed=embed)
