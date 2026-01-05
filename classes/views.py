@@ -132,7 +132,7 @@ class SettingsView(discord.ui.View):
 	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0, custom_id="town_down")
 	async def town_subtract(self, interaction: discord.Interaction, _):
 		self.game.config["town"] -= 1
-		await self.render()
+		await self.render(interaction)
 
 	@discord.ui.button(label="1", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
@@ -140,4 +140,4 @@ class SettingsView(discord.ui.View):
 	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="town_up")
 	async def town_add(self, interaction: discord.Interaction, _):
 		self.game.config["town"] += 1
-		await self.render()
+		await self.render(interaction)
