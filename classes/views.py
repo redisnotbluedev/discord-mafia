@@ -46,7 +46,7 @@ class JoinGameView(discord.ui.View):
 			color=discord.Color.green()
 		)
 
-		embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>", inline=False)
+		embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({self.abstractor.players}/5) players to start", inline=False)
 		embed.add_field(name="Players", value="\n".join([f"- {"<:owner:1457538443327311872> " if u == self.abstractor.owner else ""}{u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
 
 		return embed
