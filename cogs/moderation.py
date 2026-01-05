@@ -25,5 +25,7 @@ class ModerationCog(commands.Cog):
 			data.save(config)
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
+		except discord.errors.Forbidden:
+			await interaction.response.send_message("Please grant the bot the `Manage Webhooks` permission.", ephemeral=True)
 		except Exception as e:
 			await interaction.response.send_message(f"Failed to set up game: {e}")
