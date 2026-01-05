@@ -1,4 +1,4 @@
-import discord, logging, data
+import discord, logging, data, asyncio
 from classes.views import StartGameView
 from discord.ext import commands
 
@@ -40,21 +40,24 @@ class GameAbstractor:
 
 		if self.running:
 			logger.info("Skipping message send as the game is already running!")
-			return
+			return 
 
-		await self._delete_last_lobby()
-
-		new_msg = await message.channel.send(
-			embed=discord.Embed(
-				title="AI Plays Mafia",
-				description="The series by Turing Games, now as a Discord bot!",
-				color=discord.Color.blurple(),
+		new_msg = await asyncio.gather(
+			message.channel.send(
+				embed=discord.Embed(
+					title="AI Plays Mafia",
+					description="The series by Turing Games, now as a Discord bot!",
+					color=discord.Color.blurple(),
+				),
+				view=StartGameView(self),
 			),
-			view=StartGameView(self),
-		)
-
+			self._delete_last_lobby()
+		)[0]
+		
 		self.last_lobby_id = new_msg.id
+		self.save_config()
+
+	def save_config(self):
 		config = data.load()
 		config.setdefault("profiles", {}).setdefault(self.channel_key, {})["last_lobby"] = self.last_lobby_id
-
 		data.save(config)
