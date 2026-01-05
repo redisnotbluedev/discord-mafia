@@ -122,7 +122,7 @@ class SettingsView(discord.ui.View):
 		town = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
 		get("town").label = town
 		get("town_down").disabled = town <= 1
-		get("town_up").disabled = town > len(self.game.abstractor.players)
+		get("town_up").disabled = town >= len(self.game.abstractor.players) - 1
 		
 		if interaction:
 			await interaction.response.edit_message(view=self)
