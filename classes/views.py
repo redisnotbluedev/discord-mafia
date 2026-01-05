@@ -102,7 +102,7 @@ class JoinGameView(discord.ui.View):
 		
 		view = SettingsView(self.game)
 		await view.render()
-		await interaction.response.send_message(
+		view.message = await interaction.response.send_message(
 			embed=discord.Embed(title="Settings", description="Change the configuration of this game."),
 			view=view,
 			ephemeral=True
@@ -111,20 +111,29 @@ class JoinGameView(discord.ui.View):
 class SettingsView(discord.ui.View):
 	def __init__(self, game: MafiaGame):
 		self.game = game
+		self.message = None
 		super().__init__(timeout=300)
 	
-	async def render(self, message: discord.Message = None):
-		discord.utils.get(self.children, custom_id="town").label = self.game.config.get("town", len(self.game.abstractor.players) // 2)
-		if message:
-			message.edit(view=self)
+	async def render(self):
+		discord.utils.get(self.children, custom_id="town").label = self.game.config.setdefault("town", len(self.game.abstractor.players) // 2)
+		if self.message:
+			self.message.edit(view=self)
 
 	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0)
 	async def town_subtract(self, interaction: discord.Interaction, _):
-		pass
+		town = self.game.config["town"]
+		if town > 1:
+			self.game.config["town"] -= 1
+		
+		self.render()
 
 	@discord.ui.button(label="0", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
 
 	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0)
 	async def town_add(self, interaction: discord.Interaction, _):
-		pass
+		town = self.game.config["town"]
+		if town < len(self.game.abstractor.players) - 1:
+			self.game.config["town"] += 1
+		
+		self.render()
