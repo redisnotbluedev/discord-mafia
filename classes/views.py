@@ -1,5 +1,19 @@
 import discord
 
+class ConfirmView(discord.ui.view):
+	def __init__(self, yes, no):
+		self.yes = yes
+		self.no = no
+		super().__init__(timeout=300)
+	
+	@discord.ui.button(label="Yes", style=discord.ButtonStyle.green)
+	async def on_yes(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await self.yes(interaction)
+	
+	@discord.ui.button(label="No", style=discord.ButtonStyle.red)
+	async def on_no(self, interaction: discord.Interaction, button: discord.ui.Button):
+		await self.no(interaction)
+
 class StartGameView(discord.ui.View):
 	def __init__(self, abstractor):
 		self.abstractor = abstractor
@@ -27,17 +41,28 @@ class JoinGameView(discord.ui.View):
 		self.abstractor = abstractor
 		super().__init__(timeout=300)
 
-	@discord.ui.button(label="Join", style=discord.ButtonStyle.secondary)
+	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.green)
 	async def join_game(self, interaction: discord.Interaction, button: discord.ui.Button):
-		if interaction.user in self.abstractor.players:
-			await interaction.response.send_message("You're already in the game!", ephemeral=True)
-			return
-
 		embed: discord.Embed = discord.Embed(
 			title="AI Plays Mafia",
 			description="The series by Turing Games, now as a Discord bot!",
 			color=discord.Color.green()
 		)
-		self.abstractor.players.append(interaction.user)
 		embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]))
-		await interaction.response.edit_message(embed=embed)
+
+		if interaction.user in self.abstractor.players:
+			async def yes(i: discord.Interaction):
+				await i.response.edit_message(content="You left the game.", view=None)
+				await interaction.message.edit_message(embed=embed)
+				
+			async def no(i: discord.Interaction):
+				await i.response.edit_message(content="You canceled this action.", view=None)
+			
+			await interaction.response.send_message(
+				content="Are you sure you want to leave the game?\nYou can always re-join after.",
+				view=ConfirmView(yes, no),
+				ephemeral=True
+			)
+		else:
+			self.abstractor.players.append(interaction.user)
+			await interaction.response.edit_message(embed=embed)
