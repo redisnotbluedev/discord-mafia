@@ -125,7 +125,7 @@ class SettingsView(discord.ui.View):
 		if town > 1:
 			self.game.config["town"] -= 1
 		
-		self.render()
+		await self.render()
 
 	@discord.ui.button(label="0", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
@@ -136,4 +136,4 @@ class SettingsView(discord.ui.View):
 		if town < len(self.game.abstractor.players) - 1:
 			self.game.config["town"] += 1
 		
-		self.render()
+		await self.render()
