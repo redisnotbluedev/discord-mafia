@@ -113,7 +113,7 @@ class SettingsView(discord.ui.View):
 		self.game = game
 	
 	async def render(self, message: discord.Message = None):
-		self.town.label = self.game.config.get("town", self.game.abstractor.players // 2)
+		self.town.label = self.game.config.get("town", len(self.game.abstractor.players) // 2)
 		if message:
 			message.edit(view=self)
 
