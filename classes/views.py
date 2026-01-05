@@ -94,7 +94,7 @@ class JoinGameView(discord.ui.View):
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 	
-	@discord.ui.button(label="<:settings:1457586025105850470>", style=discord.ButtonStyle.gray)
+	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):
 		if interaction.user != self.abstractor.owner:
 			await interaction.response.send_message("You need to be the owner of this game to change the settings.", ephemeral=True)
