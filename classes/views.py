@@ -101,7 +101,7 @@ class JoinGameView(discord.ui.View):
 			return
 		
 		view = SettingsView(self.game)
-		view.render()
+		await view.render()
 		await interaction.response.send_message(
 			embed=discord.Embed(title="Settings", description="Change the configuration of this game."),
 			view=view,
