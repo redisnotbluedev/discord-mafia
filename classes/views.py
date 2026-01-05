@@ -33,9 +33,9 @@ class StartGameView(discord.ui.View):
 		await interaction.response.edit_message(embed=embed, view=view)
 
 class JoinGameView(discord.ui.View):
-	def __init__(self, abstractor, start_at: int):
+	def __init__(self, abstractor, start_at):
 		self.abstractor = abstractor
-		self.start_at = start_at
+		self.start_at = int(start_at)
 		super().__init__(timeout=300)
 
 	def generate_embed(self):
