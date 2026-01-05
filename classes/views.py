@@ -112,9 +112,10 @@ class SettingsView(discord.ui.View):
 	def __init__(self, game: MafiaGame):
 		self.game = game
 	
-	async def render(self, message: discord.Message):
+	async def render(self, message: discord.Message = None):
 		self.town.label = self.game.config.get("town", self.game.abstractor.players // 2)
-		message.edit(view=self)
+		if message:
+			message.edit(view=self)
 
 	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0)
 	async def town_subtract(self, interaction: discord.Interaction, _):
