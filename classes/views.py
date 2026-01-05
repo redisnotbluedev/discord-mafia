@@ -121,6 +121,7 @@ class SettingsView(discord.ui.View):
 		
 		town = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
 		get("town").label = town
+		get("town").emoji = discord.PartialEmoji(name="town", id=1457633573870768223)
 		get("town_down").disabled = town <= 1
 		get("town_up").disabled = town >= len(self.game.abstractor.players) - 1
 		
@@ -134,7 +135,7 @@ class SettingsView(discord.ui.View):
 		self.game.config["town"] -= 1
 		await self.render(interaction)
 
-	@discord.ui.button(label="1", disabled=True, row=0, custom_id="town")
+	@discord.ui.button(emoji=discord.PartialEmoji(name="town", id=1457633573870768223), label="1", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
 
 	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="town_up")
