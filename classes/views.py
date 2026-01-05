@@ -1,6 +1,6 @@
 import discord
 
-class ConfirmView(discord.ui.view):
+class ConfirmView(discord.ui.View):
 	def __init__(self, yes, no):
 		self.yes = yes
 		self.no = no
