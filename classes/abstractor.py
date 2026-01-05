@@ -11,6 +11,7 @@ class GameAbstractor:
 		self.bot = bot
 		self.players: list[discord.User] = []
 		self.running: bool = False
+		self.owner: discord.User = None
 
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles").get(self.channel_key, {}).get("last_lobby")
