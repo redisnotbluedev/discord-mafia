@@ -4,6 +4,8 @@ import asyncio, time
 class MafiaGame:
 	def __init__(self, abstractor: GameAbstractor):
 		self.abstractor = abstractor
+		self.players = {}
+		self.config = {}
 	
 	def schedule(self, start_at: int):
 		async def task():
@@ -14,4 +16,8 @@ class MafiaGame:
 
 	async def start_game(self):
 		bot = self.abstractor.bot
+
+		for player in self.players:
+			pass
+		
 		await bot.get_channel(self.abstractor.channel).send("Starting game...")
