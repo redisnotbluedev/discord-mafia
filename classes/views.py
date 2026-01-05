@@ -9,11 +9,11 @@ class ConfirmView(discord.ui.View):
 		super().__init__(timeout=300)
 	
 	@discord.ui.button(label="Yes", style=discord.ButtonStyle.green)
-	async def on_yes(self, interaction: discord.Interaction, button: discord.ui.Button):
+	async def on_yes(self, interaction: discord.Interaction, _):
 		await self.yes(interaction)
 	
 	@discord.ui.button(label="No", style=discord.ButtonStyle.red)
-	async def on_no(self, interaction: discord.Interaction, button: discord.ui.Button):
+	async def on_no(self, interaction: discord.Interaction, _):
 		await self.no(interaction)
 
 class StartGameView(discord.ui.View):
@@ -22,7 +22,7 @@ class StartGameView(discord.ui.View):
 		super().__init__(timeout=300)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)
-	async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+	async def start_game(self, interaction: discord.Interaction, _):
 		if self.abstractor.running:
 			return
 
@@ -59,7 +59,7 @@ class JoinGameView(discord.ui.View):
 		return embed
 
 	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
-	async def join_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+	async def join_game(self, interaction: discord.Interaction, _):
 		if interaction.user in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
@@ -82,7 +82,7 @@ class JoinGameView(discord.ui.View):
 				await i.response.edit_message(content="You canceled this action.", view=None)
 			
 			await interaction.response.send_message(
-				content="\n".join([
+				"\n".join([
 					"Are you sure you want to leave the game?",
 					"You can always re-join after." if interaction.user != self.abstractor.owner else "This will end the game."
 				]),
@@ -93,3 +93,36 @@ class JoinGameView(discord.ui.View):
 			self.abstractor.players.append(interaction.user)
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
+	
+	@discord.ui.button(label="<:settings:1457586025105850470>", style=discord.ButtonStyle.gray)
+	async def settings(self, interaction: discord.Interaction, _):
+		if interaction.user != self.abstractor.owner:
+			await interaction.response.send_message("You need to be the owner of this game to change the settings.", ephemeral=True)
+			return
+		
+		view = SettingsView(self.game)
+		view.render()
+		await interaction.response.send_message(
+			embed=discord.Embed(title="Settings", description="Change the configuration of this game."),
+			view=view,
+			ephemeral=True
+		)
+
+class SettingsView(discord.ui.View):
+	def __init__(self, game: MafiaGame):
+		self.game = game
+	
+	async def render(self, message: discord.Message):
+		self.town.label = self.game.config.get("town", self.game.abstractor.players // 2)
+		message.edit(view=self)
+
+	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0)
+	async def town_subtract(self, interaction: discord.Interaction, _):
+		pass
+
+	@discord.ui.button(label="0", disabled=True, row=0)
+	async def town(self, interaction: discord.Interaction, _): pass
+
+	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0)
+	async def town_add(self, interaction: discord.Interaction, _):
+		pass
