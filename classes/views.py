@@ -1,4 +1,4 @@
-import discord
+import discord, time
 
 class ConfirmView(discord.ui.View):
 	def __init__(self, yes, no):
@@ -34,20 +34,26 @@ class StartGameView(discord.ui.View):
 		self.abstractor.last_lobby_id = None
 		self.abstractor.save_config()
 		
-		await interaction.response.edit_message(embed=embed, view=JoinGameView(self.abstractor))
+		await interaction.response.edit_message(embed=embed, view=JoinGameView(
+			self.abstractor,
+			time.time() + 60 * 5
+		))
 
 class JoinGameView(discord.ui.View):
-	def __init__(self, abstractor):
+	def __init__(self, abstractor, start_at):
 		self.abstractor = abstractor
+		self.start_at = start_at
 		super().__init__(timeout=300)
 
-	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.green)
+	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
 	async def join_game(self, interaction: discord.Interaction, button: discord.ui.Button):
 		embed: discord.Embed = discord.Embed(
 			title="AI Plays Mafia",
 			description="The series by Turing Games, now as a Discord bot!",
 			color=discord.Color.green()
 		)
+
+		embed.add_field(name="Game starting soon", value=f"Game starting <t:{self.start_at}:R>", inline=False)
 
 		if interaction.user in self.abstractor.players:
 			async def yes(i: discord.Interaction):
