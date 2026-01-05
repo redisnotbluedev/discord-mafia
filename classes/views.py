@@ -15,7 +15,11 @@ class StartGameView(discord.ui.View):
 		
 		self.abstractor.players.append(interaction.user)
 		embed.add_field(name="Players", value=f"- {interaction.user.display_name or interaction.user.name}", inline=False)
+		
 		self.abstractor.running = True
+		self.abstractor.last_lobby_id = None
+		self.abstractor.save_config()
+		
 		await interaction.response.edit_message(embed=embed, view=JoinGameView(self.abstractor))
 
 class JoinGameView(discord.ui.View):
