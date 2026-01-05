@@ -56,8 +56,19 @@ class JoinGameView(discord.ui.View):
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
 				self.abstractor.players.remove(interaction.user)
-				embed = self.generate_embed()
-				await interaction.message.edit(embed=embed)
+
+				if len(self.abstractor.players) < 1:
+					await interaction.message.edit(
+						embed=discord.Embed(
+							title="AI Plays Mafia",
+							description="The series by Turing Games, now as a Discord bot!",
+							color=discord.Color.blurple(),
+						),
+						view=StartGameView(self.abstractor)
+					)
+				else:
+					embed = self.generate_embed()
+					await interaction.message.edit(embed=embed)
 				
 			async def no(i: discord.Interaction):
 				await i.response.edit_message(content="You canceled this action.", view=None)
