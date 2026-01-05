@@ -116,25 +116,26 @@ class SettingsView(discord.ui.View):
 		super().__init__(timeout=300)
 	
 	async def render(self):
-		discord.utils.get(self.children, custom_id="town").label = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
+		def get(id):
+			return discord.utils.get(self.children, custom_id=id)
+		
+		town = self.game.config["town"]
+		get("town").label = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
+		get("town_down").disabled = town <= 1
+		get("town_up").disabled = town > len(self.game.abstractor.players)
+		
 		if self.message:
 			await self.message.edit(view=self)
 
-	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0)
+	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0, custom_id="town_down")
 	async def town_subtract(self, interaction: discord.Interaction, _):
-		town = self.game.config["town"]
-		if town > 1:
-			self.game.config["town"] -= 1
-		
+		self.game.config["town"] -= 1
 		await self.render()
 
 	@discord.ui.button(label="1", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
 
-	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0)
+	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="town_up")
 	async def town_add(self, interaction: discord.Interaction, _):
-		town = self.game.config["town"]
-		if town < len(self.game.abstractor.players) - 1:
-			self.game.config["town"] += 1
-		
+		self.game.config["town"] += 1
 		await self.render()
