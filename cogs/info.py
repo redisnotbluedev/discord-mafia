@@ -25,12 +25,12 @@ class InfoCog(commands.Cog):
 			discord.py version: `{discord.__version__}`
 			CPU usage: `{psutil.cpu_percent(interval=1)}%`
 			RAM usage: `{psutil.virtual_memory().percent}%`
-		""")
+		""", inline=False)
 		embed.add_field(name="Credits", value=f"""
 			Original series by <@1454202276473340071> ([YouTube](https://www.youtube.com/@turing_games))
 			Bot adaption by <@1337909802931716197>
 			Icons from [lucide.dev](https://lucide.dev)
 			[GitHub](https://github.com/redisnotbluedev/discord-mafia)
-		""")
+		""", inline=False)
 
 		await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none())
