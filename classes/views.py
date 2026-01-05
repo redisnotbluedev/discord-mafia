@@ -102,11 +102,12 @@ class JoinGameView(discord.ui.View):
 		
 		view = SettingsView(self.game)
 		await view.render()
-		view.message = await interaction.response.send_message(
+		await interaction.response.send_message(
 			embed=discord.Embed(title="Settings", description="Change the configuration of this game."),
 			view=view,
 			ephemeral=True
 		)
+		view.message = await interaction.original_response()
 
 class SettingsView(discord.ui.View):
 	def __init__(self, game: MafiaGame):
