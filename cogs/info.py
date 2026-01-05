@@ -27,7 +27,7 @@ class InfoCog(commands.Cog):
 			RAM usage: `{psutil.virtual_memory().percent}%`
 		""", inline=False)
 		embed.add_field(name="Credits", value=f"""
-			Original series by <@1454202276473340071> ([YouTube](https://www.youtube.com/@turing_games))
+			Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			Bot adaption by <@1337909802931716197>
 			Icons from [lucide.dev](https://lucide.dev)
 			[GitHub](https://github.com/redisnotbluedev/discord-mafia)
