@@ -1,4 +1,6 @@
 import discord, time
+from classes.game import MafiaGame
+from classes.abstractor import GameAbstractor
 
 class ConfirmView(discord.ui.View):
 	def __init__(self, yes, no):
@@ -16,11 +18,14 @@ class ConfirmView(discord.ui.View):
 
 class StartGameView(discord.ui.View):
 	def __init__(self, abstractor):
-		self.abstractor = abstractor
+		self.abstractor: GameAbstractor = abstractor
 		super().__init__(timeout=300)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)
-	async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):		
+	async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+		if self.abstractor.running:
+			return
+
 		self.abstractor.players.append(interaction.user)
 		
 		self.abstractor.running = True
@@ -35,8 +40,10 @@ class StartGameView(discord.ui.View):
 
 class JoinGameView(discord.ui.View):
 	def __init__(self, abstractor, start_at):
-		self.abstractor = abstractor
+		self.abstractor: GameAbstractor = abstractor
 		self.start_at = int(start_at)
+		self.game = MafiaGame(self.abstractor)
+		self.game.schedule(start_at)
 		super().__init__(timeout=300)
 
 	def generate_embed(self):

@@ -1,5 +1,4 @@
 import discord, logging, data, asyncio
-from classes.views import StartGameView
 from discord.ext import commands
 
 logger = logging.getLogger(__name__)
@@ -36,6 +35,8 @@ class GameAbstractor:
 			logger.error("Failed to delete message %s: %s", self.last_lobby_id, exc)
 
 	async def on_message(self, message: discord.Message):
+		from classes.views import StartGameView
+
 		if message.channel.id != self.channel:
 			return
 
