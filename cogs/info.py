@@ -33,4 +33,4 @@ class InfoCog(commands.Cog):
 			[GitHub](https://github.com/redisnotbluedev/discord-mafia)
 		""")
 
-		await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none)
+		await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none())
