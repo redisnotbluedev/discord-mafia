@@ -116,7 +116,7 @@ class SettingsView(discord.ui.View):
 		super().__init__(timeout=300)
 	
 	async def render(self):
-		discord.utils.get(self.children, custom_id="town").label = self.game.config.setdefault("town", len(self.game.abstractor.players) // 2)
+		discord.utils.get(self.children, custom_id="town").label = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
 		if self.message:
 			await self.message.edit(view=self)
 
@@ -128,7 +128,7 @@ class SettingsView(discord.ui.View):
 		
 		await self.render()
 
-	@discord.ui.button(label="0", disabled=True, row=0, custom_id="town")
+	@discord.ui.button(label="1", disabled=True, row=0, custom_id="town")
 	async def town(self, interaction: discord.Interaction, _): pass
 
 	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0)
