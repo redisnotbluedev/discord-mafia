@@ -58,7 +58,7 @@ class JoinGameView(discord.ui.View):
 				await i.response.edit_message(content="You left the game.", view=None)
 				self.abstractor.players.remove(interaction.user)
 
-				if len(self.abstractor.players) < 1:
+				if interaction.user == self.abstractor.owner:
 					await interaction.message.edit(
 						embed=discord.Embed(
 							title="AI Plays Mafia",
@@ -75,7 +75,10 @@ class JoinGameView(discord.ui.View):
 				await i.response.edit_message(content="You canceled this action.", view=None)
 			
 			await interaction.response.send_message(
-				content="Are you sure you want to leave the game?\nYou can always re-join after.",
+				content="\n".join([
+					"Are you sure you want to leave the game?",
+					"You can always re-join after." if interaction.user != self.abstractor.owner else "This will end the game."
+				]),
 				view=ConfirmView(yes, no),
 				ephemeral=True
 			)
