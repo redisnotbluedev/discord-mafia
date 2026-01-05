@@ -20,24 +20,17 @@ class StartGameView(discord.ui.View):
 		super().__init__(timeout=300)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)
-	async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
-		embed: discord.Embed = discord.Embed(
-			title="AI Plays Mafia",
-			description="The series by Turing Games, now as a Discord bot!",
-			color=discord.Color.green()
-		)
-		
+	async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):		
 		self.abstractor.players.append(interaction.user)
-		embed.add_field(name="Players", value=f"- {interaction.user.display_name or interaction.user.name}", inline=False)
 		
 		self.abstractor.running = True
 		self.abstractor.last_lobby_id = None
 		self.abstractor.save_config()
-		
-		await interaction.response.edit_message(embed=embed, view=JoinGameView(
-			self.abstractor,
-			time.time() + 60 * 5
-		))
+
+		view = JoinGameView(self.abstractor, time.time() + 60 * 5)
+		embed = view.generate_embed()
+
+		await interaction.response.edit_message(embed=embed, view=view)
 
 class JoinGameView(discord.ui.View):
 	def __init__(self, abstractor, start_at):
@@ -45,8 +38,7 @@ class JoinGameView(discord.ui.View):
 		self.start_at = start_at
 		super().__init__(timeout=300)
 
-	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
-	async def join_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+	def generate_embed(self):
 		embed: discord.Embed = discord.Embed(
 			title="AI Plays Mafia",
 			description="The series by Turing Games, now as a Discord bot!",
@@ -54,12 +46,19 @@ class JoinGameView(discord.ui.View):
 		)
 
 		embed.add_field(name="Game starting soon", value=f"Game starting <t:{self.start_at}:R>", inline=False)
+		embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
+
+		return embed
+
+	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
+	async def join_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+		embed = self.generate_embed()
 
 		if interaction.user in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
 				self.abstractor.players.remove(interaction.user)
-				embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
+				embed.set_field_at(1, name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
 				await interaction.message.edit(embed=embed)
 				
 			async def no(i: discord.Interaction):
@@ -72,5 +71,4 @@ class JoinGameView(discord.ui.View):
 			)
 		else:
 			self.abstractor.players.append(interaction.user)
-			embed.add_field(name="Players", value="\n".join([f"- {u.display_name or u.name}" for u in self.abstractor.players]) if self.abstractor.players else "No players yet!")
 			await interaction.response.edit_message(embed=embed)
