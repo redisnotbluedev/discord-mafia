@@ -52,9 +52,9 @@ class GameAbstractor:
 				view=StartGameView(self),
 			),
 			self._delete_last_lobby()
-		)[0]
+		)
 		
-		self.last_lobby_id = new_msg.id
+		self.last_lobby_id = new_msg[0].id
 		self.save_config()
 
 	def save_config(self):
