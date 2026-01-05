@@ -18,10 +18,11 @@ class ModerationCog(commands.Cog):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 			
-			config.setdefault("profiles", {})[channel.id] = {}
+			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
+			config.setdefault("profiles", {})[channel.id] = {"webhook": webhook.url}
+			self.bot.abstractors.append(GameAbstractor(channel, self.bot))
+
 			data.save(config)
-			
-			self.bot.abstractors.append(GameAbstractor(channel))
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
 		except Exception as e:
