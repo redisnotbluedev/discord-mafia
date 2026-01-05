@@ -111,6 +111,7 @@ class JoinGameView(discord.ui.View):
 class SettingsView(discord.ui.View):
 	def __init__(self, game: MafiaGame):
 		self.game = game
+		super.__init__(timeout=300)
 	
 	async def render(self, message: discord.Message = None):
 		discord.utils.get(self.children, custom_id="town").label = self.game.config.get("town", len(self.game.abstractor.players) // 2)
