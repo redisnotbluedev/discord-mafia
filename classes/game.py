@@ -8,7 +8,7 @@ class MafiaGame:
 	def schedule(self, start_at: int):
 		async def task():
 			await asyncio.sleep(start_at - time.time())
-			self.start_game()
+			await self.start_game()
 		
 		asyncio.create_task(task())
 
