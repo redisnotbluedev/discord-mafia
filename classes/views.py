@@ -115,7 +115,7 @@ class SettingsView(discord.ui.View):
 		self.message = None
 		super().__init__(timeout=300)
 	
-	async def render(self):
+	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 		
@@ -124,7 +124,9 @@ class SettingsView(discord.ui.View):
 		get("town_down").disabled = town <= 1
 		get("town_up").disabled = town > len(self.game.abstractor.players)
 		
-		if self.message:
+		if interaction:
+			await interaction.response.edit_message(view=self)
+		elif self.message:
 			await self.message.edit(view=self)
 
 	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0, custom_id="town_down")
