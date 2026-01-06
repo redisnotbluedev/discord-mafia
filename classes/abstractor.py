@@ -1,5 +1,6 @@
 import discord, logging, data, asyncio
 from discord.ext import commands
+from classes.player import Player
 
 logger = logging.getLogger(__name__)
 
@@ -8,7 +9,7 @@ class GameAbstractor:
 		self.channel = channel
 		self.channel_key = str(channel)
 		self.bot = bot
-		self.players: list[discord.User] = []
+		self.players: list[Player] = []
 		self.running: bool = False
 		self.owner: discord.User = None
 

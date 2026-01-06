@@ -8,6 +8,7 @@ class MafiaGame:
 		self.abstractor = abstractor
 		self.lobby: JoinGameView = None
 		self.message: discord.Message = None
+		self.start_job: asyncio.Task = None
 		self.attempts = 0
 		self.players = {}
 		self.config = {}
@@ -21,7 +22,7 @@ class MafiaGame:
 					await self.message.channel.send("Not enough players to start the game!\nPlease restart with more players.")
 					await self.message.delete()
 					self.abstractor.running = True
-					self.abstractor.on_message(True)
+					await self.abstractor.on_message(True)
 					return
 
 				await self.message.channel.send("Not enough players to start the game!")
@@ -29,7 +30,8 @@ class MafiaGame:
 				await self.message.edit(embed=self.lobby.generate_embed())
 				self.schedule(self.lobby.start_at)
 		
-		asyncio.create_task(task())
+		new_task = asyncio.create_task(task())
+		self.start_job = new_task
 
 	async def start_game(self):
 		if len(self.players) < 5: return False

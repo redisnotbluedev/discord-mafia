@@ -1,6 +1,7 @@
 import discord, time
 from classes.game import MafiaGame
 from classes.abstractor import GameAbstractor
+from classes.player import Player, create_ai_players
 
 class ConfirmView(discord.ui.View):
 	def __init__(self, yes, no):
@@ -26,7 +27,8 @@ class StartGameView(discord.ui.View):
 		if self.abstractor.running:
 			return
 
-		self.abstractor.players.append(interaction.user)
+		self.abstractor.players.append(Player(interaction.user))
+		self.abstractor.players.extend(create_ai_players())
 		
 		self.abstractor.running = True
 		self.abstractor.last_lobby_id = None
@@ -46,7 +48,7 @@ class JoinGameView(discord.ui.View):
 		self.game = MafiaGame(self.abstractor)
 		self.game.message = message
 		self.game.schedule(start_at)
-		super().__init__(timeout=None)
+		super().__init__(timeout=1000)
 
 	def generate_embed(self):
 		embed: discord.Embed = discord.Embed(
