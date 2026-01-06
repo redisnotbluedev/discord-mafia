@@ -27,8 +27,10 @@ class StartGameView(discord.ui.View):
 		if self.abstractor.running:
 			return
 
-		self.abstractor.players.append(Player(interaction.user))
-		self.abstractor.players.extend(create_ai_players())
+		self.abstractor.players[interaction.user.id] = Player(interaction.user)
+		for ai_player in create_ai_players():
+			# Use hash of AI name as key since AIAbstraction doesn't have an id
+			self.abstractor.players[hash(ai_player.user.name)] = ai_player
 		
 		self.abstractor.running = True
 		self.abstractor.last_lobby_id = None
@@ -59,7 +61,7 @@ class JoinGameView(discord.ui.View):
 
 		embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
 		player_list = []
-		for player in self.abstractor.players:
+		for player in self.abstractor.players.values():
 			result = "- "
 			user = player.user
 			
@@ -71,16 +73,16 @@ class JoinGameView(discord.ui.View):
 			
 			player_list.append(result)
 				
-		embed.add_field(name="Players", value="\n".join(player_list) if self.abstractor.players else "No players yet!")
+		embed.add_field(name="Players", value="\n".join(player_list) if player_list else "No players yet!")
 
 		return embed
 
 	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
 	async def join_game(self, interaction: discord.Interaction, _):
-		if Player(interaction.user) in self.abstractor.players:
+		if interaction.user.id in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
-				self.abstractor.players.remove(Player(interaction.user))
+				del self.abstractor.players[interaction.user.id]
 
 				if interaction.user == self.abstractor.owner:
 					await interaction.message.edit(
@@ -108,7 +110,7 @@ class JoinGameView(discord.ui.View):
 				ephemeral=True
 			)
 		else:
-			self.abstractor.players.append(Player(interaction.user))
+			self.abstractor.players[interaction.user.id] = Player(interaction.user)
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 	

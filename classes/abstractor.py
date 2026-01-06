@@ -9,7 +9,7 @@ class GameAbstractor:
 		self.channel = channel
 		self.channel_key = str(channel)
 		self.bot = bot
-		self.players: list[Player] = []
+		self.players: dict[int, Player] = {}  # user_id -> Player
 		self.running: bool = False
 		self.owner: discord.User = None
 

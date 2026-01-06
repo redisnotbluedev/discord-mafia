@@ -34,11 +34,11 @@ class MafiaGame:
 		self.start_job = new_task
 
 	async def start_game(self):
-		if len(self.players) < 5: return False
+		if len(self.abstractor.players) < 5: return False
 
 		bot = self.abstractor.bot
 
-		for player in self.players:
+		for player in self.abstractor.players.values():
 			pass
 		
 		await bot.get_channel(self.abstractor.channel).send("Starting game...")
