@@ -11,6 +11,13 @@ class ModerationCog(commands.Cog):
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
 		try:
+			if interaction.guild.me.guild_permissions.manage_roles:
+				await interaction.response.send_message("The bot needs the `Manage Roles` permission to set up private chats.")
+				return
+			if interaction.guild.me.guild_permissions.manage_webhooks:
+				await interaction.response.send_message("The bot needs the `Manage Webhooks` permission to set up AI messages.")
+				return
+
 			channel = interaction.channel
 			config = data.load()
 			
@@ -22,7 +29,8 @@ class ModerationCog(commands.Cog):
 			config.setdefault("profiles", {})[channel.id] = {"webhook": webhook.url}
 
 			if not str(interaction.guild.id) in config.get("guilds", {}):
-				pass
+				player = await interaction.guild.create_role(name="Mafia Player")
+				config.setdefault("guilds", {})[channel.id] = {"player_role": player.id}
 
 			self.bot.abstractors.append(GameAbstractor(channel.id, self.bot))
 
