@@ -60,7 +60,7 @@ class JoinGameView(discord.ui.View):
 		embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
 		player_list = []
 		for player in self.abstractor.players:
-			result = "  - "
+			result = "- "
 			user = player.user
 			
 			if user is discord.User:
