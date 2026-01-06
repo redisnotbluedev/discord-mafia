@@ -122,8 +122,8 @@ class SettingsView(discord.ui.View):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 		
-		town = self.game.config.setdefault("town", max(round(len(self.game.abstractor.players) / 2) - 2), 1)
-		mafia = self.game.config.setdefault("mafia", max(round(len(self.game.abstractor.players) / 2)), 1)
+		town = self.game.config.setdefault("town", max(round(len(self.game.abstractor.players) / 2) - 2, 1))
+		mafia = self.game.config.setdefault("mafia", max(round(len(self.game.abstractor.players) / 2), 1))
 		
 		get("town").label = town
 		get("town_down").disabled = town <= 1
