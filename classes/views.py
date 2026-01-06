@@ -76,6 +76,7 @@ class JoinGameView(discord.ui.View):
 						),
 						view=StartGameView(self.abstractor)
 					)
+					self.abstractor.running = False
 				else:
 					embed = self.generate_embed()
 					await interaction.message.edit(embed=embed)
