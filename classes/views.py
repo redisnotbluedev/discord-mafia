@@ -119,6 +119,7 @@ class JoinGameView(discord.ui.View):
 	async def start(self, interaction: discord.Interaction, _):
 		self.game.start_job.cancel()
 		self.game.schedule(time.time())
+		await interaction.response.edit_message()
 
 	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):
