@@ -42,3 +42,4 @@ class MafiaGame:
 			pass
 		
 		await bot.get_channel(self.abstractor.channel).send("Starting game...")
+		return True
