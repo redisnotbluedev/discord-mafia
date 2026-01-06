@@ -93,6 +93,7 @@ class JoinGameView(discord.ui.View):
 						),
 						view=StartGameView(self.abstractor)
 					)
+					self.game.start_job.cancel()
 					self.abstractor.running = False
 				else:
 					embed = self.generate_embed()
@@ -114,6 +115,11 @@ class JoinGameView(discord.ui.View):
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 	
+	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
+	async def start(self, interaction: discord.Interaction, _):
+		self.game.start_job.cancel()
+		self.game.schedule(time.time())
+
 	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):
 		if interaction.user != self.abstractor.owner:
@@ -139,44 +145,60 @@ class SettingsView(discord.ui.View):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 		
-		town = self.game.config.setdefault("town", max(round(len(self.game.abstractor.players) / 2) - 2, 1))
-		mafia = self.game.config.setdefault("mafia", max(round(len(self.game.abstractor.players) / 2), 1))
+		total_players = len(self.game.abstractor.players)
 		
-		get("town").label = town
-		get("town_down").disabled = town <= 1
-		get("town_up").disabled = town >= len(self.game.abstractor.players) - 3
+		# Smart distribution: Mafia = ~1/3 of players, but keep Town >= 3
+		mafia = max(1, min(total_players // 3, total_players - 3))
+		town = total_players - mafia
+		
+		self.game.config.setdefault("mafia", mafia)
+		self.game.config.setdefault("town", town)
+		
+		mafia = self.game.config["mafia"]
+		town = self.game.config["town"]
+		
+		# Mafia bar
+		mafia_bar = "🔪" * mafia
+		get("mafia_display").label = f"{mafia_bar} ({mafia})"
+		get("mafia_up").disabled = mafia >= total_players - 3
 
-		get("mafia").label = mafia
-		get("mafia_down").disabled = mafia <= 1
-		get("mafia_up").disabled = mafia >= len(self.game.abstractor.players) - 1
+		# Town bar - show doctor and sheriff separately
+		town_regular = max(town - 2, 0)  # Subtract doctor and sheriff
+		town_bar = "🏡" * town_regular + "🧑‍⚕️" + "🤠"
+		if town_regular < town - 2:
+			# If town is < 2, adjust what roles exist
+			if town == 1:
+				town_bar = "🏡"
+			elif town == 2:
+				town_bar = "🏡🧑‍⚕️"
+		get("town_display").label = f"{town_bar} ({town})"
+		get("town_up").disabled = town >= total_players - 1
 		
 		if interaction:
 			await interaction.response.edit_message(view=self)
 		elif self.message:
 			await self.message.edit(view=self)
 
-	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=0, custom_id="town_down")
-	async def town_subtract(self, interaction: discord.Interaction, _):
-		self.game.config["town"] -= 1
-		await self.render(interaction)
-
-	@discord.ui.button(emoji=discord.PartialEmoji(name="town", id=1457633573870768223), label="1", disabled=True, row=0, custom_id="town")
-	async def town_count(self, i, b): pass
-
-	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="town_up")
-	async def town_add(self, interaction: discord.Interaction, _):
-		self.game.config["town"] += 1
-		await self.render(interaction)
-
-	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=1, custom_id="mafia_down")
-	async def mafia_subtract(self, interaction: discord.Interaction, _):
-		self.game.config["mafia"] -= 1
-		await self.render(interaction)
-
-	@discord.ui.button(emoji=discord.PartialEmoji(name="mafia", id=1457641678298157160), label="1", disabled=True, row=1, custom_id="mafia")
-	async def mafia_count(self, i, b): pass
-
-	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=1, custom_id="mafia_up")
+	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="mafia_up")
 	async def mafia_add(self, interaction: discord.Interaction, _):
-		self.game.config["mafia"] += 1
+		total_players = len(self.game.abstractor.players)
+		self.game.config["mafia"] = min(self.game.config["mafia"] + 1, total_players - 3)
+		# If town + mafia exceeds total, auto-decrement town
+		if self.game.config["town"] + self.game.config["mafia"] > total_players:
+			self.game.config["town"] = max(1, total_players - self.game.config["mafia"])
 		await self.render(interaction)
+
+	@discord.ui.button(label="🔪 (1)", style=discord.ButtonStyle.gray, row=0, custom_id="mafia_display", disabled=True)
+	async def mafia_display(self, i, b): pass
+
+	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=1, custom_id="town_up")
+	async def town_add(self, interaction: discord.Interaction, _):
+		total_players = len(self.game.abstractor.players)
+		self.game.config["town"] = min(self.game.config["town"] + 1, total_players - 1)
+		# If town + mafia exceeds total, auto-decrement mafia
+		if self.game.config["town"] + self.game.config["mafia"] > total_players:
+			self.game.config["mafia"] = max(1, total_players - self.game.config["town"])
+		await self.render(interaction)
+
+	@discord.ui.button(label="🏡 (1)", style=discord.ButtonStyle.gray, row=1, custom_id="town_display", disabled=True)
+	async def town_display(self, i, b): pass

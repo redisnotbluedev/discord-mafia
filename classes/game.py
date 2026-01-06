@@ -36,6 +36,7 @@ class MafiaGame:
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
 		bot = self.abstractor.bot
+		self.message.edit(view=None)
 
 		for player in self.abstractor.players.values():
 			pass
