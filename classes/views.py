@@ -121,11 +121,18 @@ class SettingsView(discord.ui.View):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 		
-		town = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2))
+		town = self.game.config.setdefault("town", round(len(self.game.abstractor.players) / 2) - 2)
+		mafia = self.game.config.setdefault("mafia", round(len(self.game.abstractor.players) / 2))
+		doctor = self.game.config.setdefault("doctors", 1)
+		sheriff = self.game.config.setdefault("sheriff", 1)
+
 		get("town").label = town
-		get("town").emoji = discord.PartialEmoji(name="town", id=1457633573870768223)
 		get("town_down").disabled = town <= 1
-		get("town_up").disabled = town >= len(self.game.abstractor.players) - 1
+		get("town_up").disabled = town >= len(self.game.abstractor.players) - 3
+
+		get("mafia").label = mafia
+		get("mafia_down").disabled = mafia <= 1
+		get("mafia_up").disabled = mafia >= len(self.game.abstractor.players) - 1
 		
 		if interaction:
 			await interaction.response.edit_message(view=self)
@@ -138,9 +145,22 @@ class SettingsView(discord.ui.View):
 		await self.render(interaction)
 
 	@discord.ui.button(emoji=discord.PartialEmoji(name="town", id=1457633573870768223), label="1", disabled=True, row=0, custom_id="town")
-	async def town(self, interaction: discord.Interaction, _): pass
+	async def town(self, i, b): pass
 
 	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="town_up")
 	async def town_add(self, interaction: discord.Interaction, _):
 		self.game.config["town"] += 1
+		await self.render(interaction)
+
+	@discord.ui.button(label="-", style=discord.ButtonStyle.red, row=1, custom_id="mafia_down")
+	async def town_subtract(self, interaction: discord.Interaction, _):
+		self.game.config["mafia"] -= 1
+		await self.render(interaction)
+
+	@discord.ui.button(emoji=discord.PartialEmoji(name="mafia", id=1457641678298157160), label="1", disabled=True, row=1, custom_id="mafia")
+	async def town(self, i, b): pass
+
+	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=1, custom_id="mafia_up")
+	async def town_add(self, interaction: discord.Interaction, _):
+		self.game.config["mafia"] += 1
 		await self.render(interaction)
