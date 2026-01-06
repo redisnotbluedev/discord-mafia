@@ -11,7 +11,7 @@ class ModerationCog(commands.Cog):
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
 		try:
-			channel = interaction.channel.id
+			channel = interaction.channel
 			config = data.load()
 			
 			if str(channel.id) in config.get("profiles", {}):
@@ -24,7 +24,7 @@ class ModerationCog(commands.Cog):
 			if not str(interaction.guild.id) in config.get("guilds", {}):
 				pass
 
-			self.bot.abstractors.append(GameAbstractor(channel, self.bot))
+			self.bot.abstractors.append(GameAbstractor(channel.id, self.bot))
 
 			data.save(config)
 
