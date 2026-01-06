@@ -1,6 +1,6 @@
 from discord.ext import commands
 from discord import app_commands
-import discord, data
+import discord, data, traceback
 
 from classes.abstractor import GameAbstractor
 
@@ -29,7 +29,6 @@ class ModerationCog(commands.Cog):
 			data.save(config)
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
-		except discord.errors.Forbidden:
-			await interaction.response.send_message("Please grant the bot the `Manage Webhooks` permission.", ephemeral=True)
-		except Exception as e:
-			await interaction.response.send_message(f"Failed to set up game: {e}")
+		except Exception:
+			e = traceback.format_exc()
+			await interaction.response.send_message(f"Failed to set up game:\n```python\n{e}\n```")

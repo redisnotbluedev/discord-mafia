@@ -13,7 +13,7 @@ class GameAbstractor:
 		self.owner: discord.User = None
 
 		config = data.load()
-		self.last_lobby_id: int | None = config.get("profiles").get(self.channel_key, {}).get("last_lobby")
+		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
 
 	async def _delete_last_lobby(self) -> None:
 		if not self.last_lobby_id:
