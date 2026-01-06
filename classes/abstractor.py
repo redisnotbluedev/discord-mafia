@@ -34,10 +34,13 @@ class GameAbstractor:
 		except discord.HTTPException as exc:
 			logger.error("Failed to delete message %s: %s", self.last_lobby_id, exc)
 
-	async def on_message(self, message: discord.Message):
+	async def on_message(self, message: discord.Message | bool):
 		from classes.views import StartGameView
 
-		if message.channel.id != self.channel:
+		if isinstance(message, discord.Message):
+			if message.channel.id != self.channel:
+				return
+		elif not message:
 			return
 
 		if self.running:

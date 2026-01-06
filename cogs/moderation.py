@@ -20,6 +20,10 @@ class ModerationCog(commands.Cog):
 			
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
 			config.setdefault("profiles", {})[channel.id] = {"webhook": webhook.url}
+
+			if not str(interaction.guild.id) in config.get("guilds", {}):
+				pass
+
 			self.bot.abstractors.append(GameAbstractor(channel, self.bot))
 
 			data.save(config)
