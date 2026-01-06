@@ -12,10 +12,11 @@ class ModerationCog(commands.Cog):
 	async def setup(self, interaction: discord.Interaction):
 		try:
 			permissions = interaction.channel.permissions_for(interaction.guild.me)
-			if permissions.manage_roles:
+
+			if not permissions.manage_roles:
 				await interaction.response.send_message("The bot needs the `Manage Roles` permission to set up private chats.")
 				return
-			if permissions.manage_webhooks:
+			if not permissions.manage_webhooks:
 				await interaction.response.send_message("The bot needs the `Manage Webhooks` permission to set up AI messages.")
 				return
 
