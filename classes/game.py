@@ -16,9 +16,9 @@ class MafiaGame:
 			await asyncio.sleep(start_at - time.time())
 			if not await self.start_game():
 				await self.message.channel.send("Not enough players to start the game!")
-				self.lobby.start_at = time.time() + 60 * 5
+				self.lobby.start_at = int(time.time()) + 60 * 5
 				await self.message.edit(embed=self.lobby.generate_embed())
-				asyncio.create_task(task())
+				self.schedule(self.lobby.start_at)
 		
 		asyncio.create_task(task())
 
