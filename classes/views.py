@@ -19,7 +19,7 @@ class ConfirmView(discord.ui.View):
 class StartGameView(discord.ui.View):
 	def __init__(self, abstractor):
 		self.abstractor: GameAbstractor = abstractor
-		super().__init__(timeout=300)
+		super().__init__(timeout=None)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)
 	async def start_game(self, interaction: discord.Interaction, _):
@@ -46,7 +46,7 @@ class JoinGameView(discord.ui.View):
 		self.game = MafiaGame(self.abstractor)
 		self.game.message = message
 		self.game.schedule(start_at)
-		super().__init__(timeout=300)
+		super().__init__(timeout=None)
 
 	def generate_embed(self):
 		embed: discord.Embed = discord.Embed(
@@ -116,7 +116,7 @@ class SettingsView(discord.ui.View):
 	def __init__(self, game: MafiaGame):
 		self.game = game
 		self.message = None
-		super().__init__(timeout=300)
+		super().__init__(timeout=None)
 	
 	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
