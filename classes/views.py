@@ -77,10 +77,10 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
 	async def join_game(self, interaction: discord.Interaction, _):
-		if interaction.user in self.abstractor.players:
+		if Player(interaction.user) in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
-				self.abstractor.players.remove(interaction.user)
+				self.abstractor.players.remove(Player(interaction.user))
 
 				if interaction.user == self.abstractor.owner:
 					await interaction.message.edit(
@@ -108,7 +108,7 @@ class JoinGameView(discord.ui.View):
 				ephemeral=True
 			)
 		else:
-			self.abstractor.players.append(interaction.user)
+			self.abstractor.players.append(Player(interaction.user))
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 	
