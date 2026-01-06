@@ -33,16 +33,18 @@ class StartGameView(discord.ui.View):
 		self.abstractor.owner = interaction.user
 		self.abstractor.save_config()
 
-		view = JoinGameView(self.abstractor, time.time() + 60 * 5)
+		view = JoinGameView(self.abstractor, interaction.message, time.time() + 60 * 5)
 		embed = view.generate_embed()
+		view.game.lobby = view
 
 		await interaction.response.edit_message(embed=embed, view=view)
 
 class JoinGameView(discord.ui.View):
-	def __init__(self, abstractor, start_at):
+	def __init__(self, abstractor, message, start_at):
 		self.abstractor: GameAbstractor = abstractor
 		self.start_at = int(start_at)
 		self.game = MafiaGame(self.abstractor)
+		self.game.message = message
 		self.game.schedule(start_at)
 		super().__init__(timeout=300)
 
