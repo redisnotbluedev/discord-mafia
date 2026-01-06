@@ -63,7 +63,7 @@ class JoinGameView(discord.ui.View):
 			result = "- "
 			user = player.user
 			
-			if user is discord.User:
+			if isinstance(user, discord.User):
 				if user == self.abstractor.owner: result += "<:owner:1457538443327311872> "
 				result += user.display_name or user.name
 			else:
