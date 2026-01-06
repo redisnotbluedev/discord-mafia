@@ -11,10 +11,11 @@ class ModerationCog(commands.Cog):
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
 		try:
-			if interaction.guild.me.guild_permissions.manage_roles:
+			permissions = interaction.channel.permissions_for(self.bot.user)
+			if permissions.manage_roles:
 				await interaction.response.send_message("The bot needs the `Manage Roles` permission to set up private chats.")
 				return
-			if interaction.guild.me.guild_permissions.manage_webhooks:
+			if permissions.manage_webhooks:
 				await interaction.response.send_message("The bot needs the `Manage Webhooks` permission to set up AI messages.")
 				return
 
