@@ -11,7 +11,7 @@ class ModerationCog(commands.Cog):
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
 		try:
-			channel = interaction.channel
+			channel = interaction.channel.id
 			config = data.load()
 			
 			if str(channel.id) in config.get("profiles", {}):
