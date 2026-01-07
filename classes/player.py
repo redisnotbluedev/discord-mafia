@@ -1,3 +1,4 @@
+from enum import Enum
 import discord
 
 models = {
@@ -39,6 +40,12 @@ models = {
 	}
 }
 
+class Role(Enum):
+	TOWN = 0
+	MAFIA = 1
+	DOCTOR = 2
+	SHERIFF = 3
+
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
 		self.model = model
@@ -47,8 +54,9 @@ class AIAbstraction:
 		self.player = Player(self)
 
 class Player:
-	def __init__(self, user: discord.User | AIAbstraction):
+	def __init__(self, user: discord.Member | AIAbstraction):
 		self.user = user
+		self.role = None
 
 def create_ai_players() -> list[Player]:
 	players = []
