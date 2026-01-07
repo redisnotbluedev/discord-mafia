@@ -31,7 +31,7 @@ async def setup_hook():
 		bot.abstractors.append(GameAbstractor(int(channel), bot))
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
 
-	await bot.tree.sync()
+	await bot.tree.sync(guild=discord.Object(id=1457229133632241725))
 	logger.info("Synced all bot commands!")
 
 @bot.event
