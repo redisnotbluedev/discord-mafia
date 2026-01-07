@@ -33,6 +33,12 @@ class ModerationCog(commands.Cog):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 			
+			await channel.set_permissions(
+				interaction.guild.me,
+				send_messages=True,
+				create_private_threads=True
+			)
+
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
 			config.setdefault("profiles", {})[channel.id] = {"webhook": webhook.url}
 
