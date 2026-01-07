@@ -1,4 +1,4 @@
-# https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=69525145600&integration_type=0&scope=applications.commands+bot
+# https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=344134625280&integration_type=0&scope=bot+applications.commands
 
 import discord, os, logging, data, traceback, textwrap
 from discord.ext import commands
@@ -26,7 +26,7 @@ async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 	logger.info("all global tree cmds: %s", [c.name for c in bot.tree.get_commands()])
-	
+
 	profiles = data.load().get("profiles", {})
 	for channel in profiles:
 		bot.abstractors.append(GameAbstractor(int(channel), bot))

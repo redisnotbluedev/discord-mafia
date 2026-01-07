@@ -52,7 +52,7 @@ class MafiaGame:
 			if isinstance(user, discord.Member):
 				await user.add_roles(player_role)
 
-		mafia_chat = await channel.create_thread(name="Mafia Private Chat")
+		mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 
 		for player in self.players:
 			if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
