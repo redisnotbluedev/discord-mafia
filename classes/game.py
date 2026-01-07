@@ -55,7 +55,7 @@ class MafiaGame:
 		mafia_chat = await channel.create_thread(name="Mafia Private Chat")
 
 		for player in self.players:
-			if player.role == Role.MAFIA and isinstance(player.user, discord.User):
+			if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
 				await mafia_chat.add_user(player.user)
 
 		await channel.set_permissions(
