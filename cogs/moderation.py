@@ -13,11 +13,17 @@ class ModerationCog(commands.Cog):
 		try:
 			permissions = interaction.channel.permissions_for(interaction.guild.me)
 
+			if not permissions.send_messages:
+				await interaction.response.send_message("The bot needs the `Send Messages` permission.")
+				return
 			if not permissions.manage_roles:
 				await interaction.response.send_message("The bot needs the `Manage Roles` permission to set up private chats.")
 				return
 			if not permissions.manage_webhooks:
 				await interaction.response.send_message("The bot needs the `Manage Webhooks` permission to set up AI messages.")
+				return
+			if not permissions.create_private_threads:
+				await interaction.response.send_message("The bot needs the `Create Private Threads` permission to create private chats.")
 				return
 
 			channel = interaction.channel
