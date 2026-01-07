@@ -1,6 +1,6 @@
 # https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=69525145600&integration_type=0&scope=applications.commands+bot
 
-import discord, os, logging, data
+import discord, os, logging, data, traceback, textwrap
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -25,14 +25,20 @@ async def on_ready():
 async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
-
+	logger.info("all global tree cmds: %s", [c.name for c in bot.tree.get_commands()])
+	
 	profiles = data.load().get("profiles", {})
 	for channel in profiles:
 		bot.abstractors.append(GameAbstractor(int(channel), bot))
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
 
-	await bot.tree.sync(guild=discord.Object(id=1457229133632241725))
-	logger.info("Synced all bot commands!")
+	guild = discord.Object(id=1457229133632241725)
+	bot.tree.copy_global_to(guild=guild)
+	synced = await bot.tree.sync(guild=guild)
+	logger.info("synced: %s", [c.name for c in synced])
+
+	cmds = bot.tree.get_commands(guild=guild)
+	logger.info("tree commands: %s", [c.name for c in cmds])
 
 @bot.event
 async def on_message(message: discord.Message):

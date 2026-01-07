@@ -45,18 +45,42 @@ class MafiaGame:
 		config = data.load()
 		channel = self.message.channel
 		guild = self.message.guild
+		player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
 
 		for player in self.players:
 			user = player.user
 			if isinstance(user, discord.Member):
-				print(config)
-				await user.add_roles(self.message.guild.get_role(
-					config["guilds"][str(guild.id)]["player_role"]
-				))
-			else:
-				pass
+				await user.add_roles(player_role)
+
+		mafia_chat = await channel.create_thread(name="Mafia Private Chat")
+
+		for player in self.players:
+			if player.role == Role.MAFIA and isinstance(player.user, discord.User):
+				await mafia_chat.add_user(player.user)
+
+		await channel.set_permissions(
+			guild.default_role,
+			send_messages=False,
+			add_reactions=False,
+			create_public_threads=False,
+			create_private_threads=False
+		)
+		await channel.set_permissions(
+			player_role,
+			send_messages=True,
+			add_reactions=True
+		)
 
 		await channel.send("Starting game...")
+
+		await channel.set_permissions(
+			guild.default_role,
+			send_messages=None,
+			add_reactions=None,
+			create_public_threads=None,
+			create_private_threads=None
+		)
+
 		return True
 
 	def setup_roles(self):
@@ -93,3 +117,8 @@ class MafiaGame:
 
 			self.players.append(player)
 			players_rolled += 1
+		
+		log = []
+		for player in self.players:
+			log.append(f"{player.role} - {player.user.name}")
+		logger.info("\n".join(log))
