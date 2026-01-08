@@ -32,6 +32,7 @@ class StartGameView(discord.ui.View):
 			# Use hash of AI name as key since AIAbstraction doesn't have an id
 			self.abstractor.players[hash(ai_player.user.name)] = ai_player
 		
+		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True
 		self.abstractor.last_lobby_id = None
 		self.abstractor.owner = interaction.user
@@ -111,15 +112,19 @@ class JoinGameView(discord.ui.View):
 				ephemeral=True
 			)
 		else:
+			self.abstractor.interactions[interaction.user.id] = interaction
 			self.abstractor.players[interaction.user.id] = Player(interaction.user)
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 	
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
-		self.game.start_job.cancel()
-		self.game.schedule(time.time())
-		await interaction.response.edit_message()
+		if interaction.user == self.abstractor.owner:
+			self.game.start_job.cancel()
+			self.game.schedule(time.time())
+			await interaction.response.edit_message()
+		else:
+			await interaction.response.send_message("haha no", ephemeral=True)
 
 	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):
