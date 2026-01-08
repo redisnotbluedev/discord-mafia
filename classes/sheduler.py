@@ -81,11 +81,11 @@ class MafiaSheduler:
 				add_reactions=True
 			)
 
-			async def send(text):
-				await channel.send(text)
+			async def send(text: str | None = None, embed: discord.Embed | None = None, view: discord.ui.View | None = None):
+				await channel.send(text, embed=embed, view=view)
 			
-			async def send_mafia(text):
-				await mafia_chat.send(text)
+			async def send_mafia(text: str | None = None, embed: discord.Embed | None = None, view: discord.ui.View | None = None):
+				await mafia_chat.send(text, embed=embed, view=view)
 
 			self.game.send = send
 			self.game.mafia_send = send_mafia
