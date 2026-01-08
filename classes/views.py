@@ -1,5 +1,5 @@
 import discord, time
-from classes.game import MafiaGame
+from classes.sheduler import MafiaSheduler
 from classes.abstractor import GameAbstractor
 from classes.player import Player, create_ai_players
 
@@ -47,7 +47,7 @@ class JoinGameView(discord.ui.View):
 	def __init__(self, abstractor, message, start_at):
 		self.abstractor: GameAbstractor = abstractor
 		self.start_at = int(start_at)
-		self.game = MafiaGame(self.abstractor)
+		self.game = MafiaSheduler(self.abstractor)
 		self.game.message = message
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
@@ -137,7 +137,7 @@ class JoinGameView(discord.ui.View):
 		view.message = await interaction.original_response()
 
 class SettingsView(discord.ui.View):
-	def __init__(self, game: MafiaGame):
+	def __init__(self, game: MafiaSheduler):
 		self.game = game
 		self.message = None
 		super().__init__(timeout=None)
