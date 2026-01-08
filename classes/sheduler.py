@@ -73,7 +73,15 @@ class MafiaSheduler:
 
 		await channel.send("Starting game...")
 
-		await self.run()
+		async def send(text):
+			await channel.send(text)
+		
+		async def send_mafia(text):
+			await mafia_chat.send(text)
+
+		self.game.send = send
+		self.game.mafia_send = send_mafia
+		await self.game.run()
 
 		await channel.set_permissions(
 			guild.default_role,
