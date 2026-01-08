@@ -12,7 +12,7 @@ class GameAbstractor:
 		self.players: dict[int, Player] = {}  # user_id -> Player
 		self.running: bool = False
 		self.owner: discord.User = None
-		self.interactions: dict[int, discord.Interaction] = []
+		self.interactions: dict[int, discord.Interaction] = {}
 
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
