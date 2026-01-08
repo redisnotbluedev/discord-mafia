@@ -71,6 +71,7 @@ class Player:
 	def __init__(self, user: discord.Member | AIAbstraction):
 		self.user = user
 		self.role = None
+		self.alive = True
 
 def create_ai_players() -> list[Player]:
 	players = []
