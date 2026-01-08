@@ -16,6 +16,9 @@ class ModerationCog(commands.Cog):
 			if not permissions.send_messages:
 				await interaction.response.send_message("The bot needs the `Send Messages` permission.")
 				return
+			if not permissions.send_messages_in_threads:
+				await interaction.response.send_message("The bot needs the `Send Messages in Threads` permission.")
+				return
 			if not permissions.manage_roles:
 				await interaction.response.send_message("The bot needs the `Manage Roles` permission to set up private chats.")
 				return
@@ -24,6 +27,12 @@ class ModerationCog(commands.Cog):
 				return
 			if not permissions.create_private_threads:
 				await interaction.response.send_message("The bot needs the `Create Private Threads` permission to create private chats.")
+				return
+			if not permissions.manage_messages:
+				await interaction.response.send_message("The bot needs the `Manage Messages` permission to invite members to private chats.")
+				return
+			if not permissions.manage_threads:
+				await interaction.response.send_message("The bot needs the `Manage Threads` to lock private chats.")
 				return
 
 			channel = interaction.channel

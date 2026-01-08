@@ -51,7 +51,11 @@ class MafiaSheduler:
 			user = player.user
 			if isinstance(user, discord.Member):
 				await user.add_roles(player_role)
-
+				
+				i = self.abstractor.interactions.get(user.id)
+				if i:
+					i.followup.send("You are %s." % player.role, ephemeral=True)
+		
 		mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 
 		for player in self.game.players:
@@ -90,6 +94,8 @@ class MafiaSheduler:
 			create_public_threads=None,
 			create_private_threads=None
 		)
+
+		await mafia_chat.edit(archived=True)
 
 		return True
 
