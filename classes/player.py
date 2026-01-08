@@ -46,6 +46,9 @@ class Role(Enum):
 	DOCTOR = 2
 	SHERIFF = 3
 
+	def __str__(self):
+		return self.name
+
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
 		self.model = model
