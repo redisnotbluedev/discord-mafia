@@ -1,7 +1,7 @@
 from classes.abstractor import GameAbstractor
 from classes.game import MafiaGame
 from classes.player import Player, Role
-import asyncio, time, discord, random, data, logging
+import asyncio, time, discord, random, data, logging, traceback
 
 logger = logging.getLogger(__name__)
 
@@ -39,65 +39,72 @@ class MafiaSheduler:
 
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
-		await self.message.edit(view=None)
+		try:
+			await self.message.edit(view=None)
 
-		await channel.send("Starting game...")
-		
-		self.setup_roles()
-		config = data.load()
-		channel = self.message.channel
-		guild = self.message.guild
-		player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
+			config = data.load()
+			channel = self.message.channel
+			guild = self.message.guild
 
-		for player in self.game.players:
-			user = player.user
-			if isinstance(user, discord.Member):
-				await user.add_roles(player_role)
-				
-				i = self.abstractor.interactions.get(user.id)
-				if i:
-					i.followup.send("You are %s." % player.role, ephemeral=True)
-		
-		mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
+			await channel.send("Starting game...")
+			
+			self.setup_roles()
+			player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
 
-		for player in self.game.players:
-			if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
-				await mafia_chat.add_user(player.user)
+			for player in self.game.players:
+				user = player.user
+				if isinstance(user, discord.Member):
+					await user.add_roles(player_role)
+					
+					i = self.abstractor.interactions.get(user.id)
+					if i:
+						i.followup.send("You are %s." % player.role, ephemeral=True)
+			
+			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 
-		await channel.set_permissions(
-			guild.default_role,
-			send_messages=False,
-			add_reactions=False,
-			create_public_threads=False,
-			create_private_threads=False
-		)
-		await channel.set_permissions(
-			player_role,
-			send_messages=True,
-			add_reactions=True
-		)
+			for player in self.game.players:
+				if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
+					await mafia_chat.add_user(player.user)
 
-		async def send(text):
-			await channel.send(text)
-		
-		async def send_mafia(text):
-			await mafia_chat.send(text)
+			await channel.set_permissions(
+				guild.default_role,
+				send_messages=False,
+				add_reactions=False,
+				create_public_threads=False,
+				create_private_threads=False
+			)
+			await channel.set_permissions(
+				player_role,
+				send_messages=True,
+				add_reactions=True
+			)
 
-		self.game.send = send
-		self.game.mafia_send = send_mafia
-		await self.game.run()
+			async def send(text):
+				await channel.send(text)
+			
+			async def send_mafia(text):
+				await mafia_chat.send(text)
 
-		await channel.set_permissions(
-			guild.default_role,
-			send_messages=None,
-			add_reactions=None,
-			create_public_threads=None,
-			create_private_threads=None
-		)
+			self.game.send = send
+			self.game.mafia_send = send_mafia
+			await self.game.run()
 
-		await mafia_chat.edit(locked=True)
+			await channel.set_permissions(
+				guild.default_role,
+				send_messages=None,
+				add_reactions=None,
+				create_public_threads=None,
+				create_private_threads=None
+			)
 
-		return True
+			await mafia_chat.edit(locked=True)
+
+		except Exception:
+			error = traceback.format_exc()
+			await self.message.channel.send(f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer.")
+
+		finally:
+			return True
 
 	def setup_roles(self):
 		total_players = len(self.abstractor.players)
@@ -138,6 +145,3 @@ class MafiaSheduler:
 		for player in self.game.players:
 			log.append(f"{player.role} - {player.user.name}")
 		logger.info("\n".join(log))
-	
-	async def run(self):
-		pass
