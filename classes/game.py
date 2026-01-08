@@ -1,9 +1,13 @@
 from classes.player import Role
+import asyncio, logging
+
+logger = logging.getLogger(__name__)
 
 class MafiaGame():
 	def __init__(self):
 		self.players = []
 		self.day_number = 0
+		self.night_actions = {}
 		self.send: function = None
 		self.mafia_send: function = None
 	
@@ -35,3 +39,31 @@ class MafiaGame():
 				break
 
 		return self.is_game_over() or "No one"
+	
+	async def run_night_phase(self):
+		await self.send(f"**Night {self.day_number} falls...**")
+
+		tasks = [self.mafia_choose_target()]
+		players = self.get_alive_players()
+		if sum(1 for p in players if p.role == Role.DOCTOR): tasks.append(self.doctor_choose_save())
+		if sum(1 for p in players if p.role == Role.SHERIFF): tasks.append(self.sheriff_investigate())
+		await asyncio.gather(*tasks)
+
+		kill = self.night_actions.get("mafia_kill")
+		save = self.night_actions.get("doctor_save")
+
+		if kill and kill != save:
+			kill.alive = False
+			await self.send(f"""> {
+				kill.user.display_name or kill.user.name
+			} was killed by the Mafia.
+			-# {
+				len(self.get_alive_players())
+			} players left.""")
+		else:
+			await self.send("Nobody died last night.")
+		
+		self.night_actions.clear()
+	
+	async def run_day_phase(self):
+		pass
