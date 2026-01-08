@@ -58,7 +58,9 @@ class MafiaSheduler:
 					
 					i = self.abstractor.interactions.get(user.id)
 					if i:
-						await i.followup.send("You are %s." % player.role, ephemeral=True)
+						await i.followup.send(f"""
+							You are {player.role.describe()}
+						""", ephemeral=True)
 			
 			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 

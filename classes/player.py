@@ -47,7 +47,18 @@ class Role(Enum):
 	SHERIFF = 3
 
 	def __str__(self):
-		return self.name
+		return self.name.title()
+	
+	def describe(self):
+		match self:
+			case Role.TOWN:
+				return "a **Townsperson**.\n> You are an ordinary citizen. Your goal is to identify and eliminate the Mafia during day votes. You have no special abilities, but you can use your voice and vote to help the town survive."
+			case Role.MAFIA:
+				return "part of the **Mafia**.\n> You are part of the Mafia! During the night phase, you and your fellow Mafia members secretly choose one player to eliminate. Your goal is to eliminate all other players without being caught. During the day, blend in and avoid suspicion."
+			case Role.DOCTOR:
+				return "a **Doctor**.\n> You can save one player from elimination each night. Choose wisely! If you select the same player the Mafia targeted, you'll prevent their death. You **are** allowed to save yourself, and you must help the town identify the Mafia during day votes."
+			case Role.SHERIFF:
+				return "a **Sheriff**.\n> You can investigate one player each night to determine if they are part of the Mafia. Use this information carefully during day discussions to guide the town's votes, but be cautious - revealing yourself may make you a target!"
 
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
