@@ -89,21 +89,24 @@ class MafiaSheduler:
 			self.game.mafia_send = send_mafia
 			await self.game.run()
 
-			await channel.set_permissions(
-				guild.default_role,
-				send_messages=None,
-				add_reactions=None,
-				create_public_threads=None,
-				create_private_threads=None
-			)
-
-			await mafia_chat.edit(locked=True)
-
 		except Exception:
 			error = traceback.format_exc()
 			await self.message.channel.send(f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer.")
 
 		finally:
+			if channel:
+				await channel.set_permissions(
+					guild.default_role,
+					send_messages=None,
+					add_reactions=None,
+					create_public_threads=None,
+					create_private_threads=None
+				)
+			if mafia_chat:
+				await mafia_chat.edit(locked=True)
+			
+			self.abstractor.running = False
+
 			return True
 
 	def setup_roles(self):
