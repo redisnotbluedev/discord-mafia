@@ -95,7 +95,7 @@ class MafiaSheduler:
 			create_private_threads=None
 		)
 
-		await mafia_chat.edit(archived=True)
+		await mafia_chat.edit(locked=True)
 
 		return True
 
