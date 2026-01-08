@@ -40,6 +40,8 @@ class MafiaSheduler:
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
 		await self.message.edit(view=None)
+
+		await channel.send("Starting game...")
 		
 		self.setup_roles()
 		config = data.load()
@@ -74,8 +76,6 @@ class MafiaSheduler:
 			send_messages=True,
 			add_reactions=True
 		)
-
-		await channel.send("Starting game...")
 
 		async def send(text):
 			await channel.send(text)
