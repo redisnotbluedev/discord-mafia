@@ -1,4 +1,4 @@
-# https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=344134625280&integration_type=0&scope=bot+applications.commands
+# https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=361582569472&integration_type=0&scope=bot+applications.commands
 
 import discord, os, logging, data
 from discord.ext import commands
