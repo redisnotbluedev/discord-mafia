@@ -6,4 +6,4 @@ class MafiaGame():
 		self.mafia_send: function = None
 	
 	async def run(self):
-		pass
+		return "No one"

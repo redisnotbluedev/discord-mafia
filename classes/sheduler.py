@@ -87,7 +87,9 @@ class MafiaSheduler:
 
 			self.game.send = send
 			self.game.mafia_send = send_mafia
-			await self.game.run()
+
+			winner = await self.game.run()
+			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
 
 		except Exception:
 			error = traceback.format_exc()
