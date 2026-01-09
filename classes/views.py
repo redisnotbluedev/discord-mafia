@@ -208,3 +208,14 @@ class SettingsView(discord.ui.View):
 
 	@discord.ui.button(label="🏡 (1)", style=discord.ButtonStyle.gray, row=1, custom_id="town_display", disabled=True)
 	async def town_display(self, i, b): pass
+
+class VoteSelect(discord.ui.Select):
+	def __init__(self):
+		super().__init__()
+
+class VoteView(discord.ui.View):
+	def __init__(self):
+		super().__init__(timeout=None)
+		self.add_item(VoteSelect())
+	
+	
