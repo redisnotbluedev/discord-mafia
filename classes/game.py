@@ -66,4 +66,14 @@ class MafiaGame():
 		self.night_actions.clear()
 	
 	async def run_day_phase(self):
-		pass
+		if not self.get_alive_players():
+			return
+		
+		await self.discussion_phase()
+		victim = await self.voting_phase()
+		
+		if victim:
+			victim.alive = False
+			await self.send(f"> **{victim.user.display_name or victim.user.name}** was eliminated!\nThey were {victim.role}.")
+		else:
+			await self.send("No one was eliminated.")
