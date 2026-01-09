@@ -1,4 +1,5 @@
 from classes.player import Role
+from classes.views import VoteView
 import asyncio, logging
 
 logger = logging.getLogger(__name__)
@@ -77,3 +78,18 @@ class MafiaGame():
 			await self.send(f"> **{victim.user.display_name or victim.user.name}** was eliminated!\nThey were {victim.role}.")
 		else:
 			await self.send("No one was eliminated.")
+	
+	async def mafia_choose_target(self):
+		self.mafia_send("Mafia, choose your target!", view=VoteView())
+
+	async def doctor_choose_save(self):
+		pass
+
+	async def sheriff_investigate(self):
+		pass
+
+	async def discussion_phase(self):
+		pass
+
+	async def voting_phase(self):
+		pass
