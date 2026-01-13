@@ -5,11 +5,12 @@ import asyncio, logging, discord
 logger = logging.getLogger(__name__)
 
 class MafiaGame():
-	def __init__(self, message):
+	def __init__(self, message, thread):
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
-		self.lobby_message: discord.Message = message
+		self.channel: discord.Channel = message.channel
+		self.mafia_chat: discord.Thread = None
 
 	def get_alive_players(self):
 		return [p for p in self.players if p.alive]
@@ -41,7 +42,7 @@ class MafiaGame():
 		return self.is_game_over() or "No one"
 
 	async def run_night_phase(self):
-		await self.message.channel.send(f"**Night {self.day_number} falls...**")
+		await self.channel.send(f"**Night {self.day_number} falls...**")
 
 		tasks = [self.mafia_choose_target()]
 		players = self.get_alive_players()
@@ -54,14 +55,14 @@ class MafiaGame():
 
 		if kill and kill != save:
 			kill.alive = False
-			await self.message.channel.send(f"""> {
+			await self.channel.send(f"""> {
 				kill.user.display_name or kill.user.name
 			} was killed by the Mafia.
 			-# {
 				len(self.get_alive_players())
 			} players left.""")
 		else:
-			await self.send("Nobody died last night.")
+			await self.channel.send("Nobody died last night.")
 
 		self.night_actions.clear()
 
@@ -74,12 +75,12 @@ class MafiaGame():
 
 		if victim:
 			victim.alive = False
-			await self.send(f"> **{victim.user.display_name or victim.user.name}** was eliminated!\nThey were {victim.role}.")
+			await self.channel.send(f"> **{victim.user.display_name or victim.user.name}** was eliminated!\nThey were {victim.role}.")
 		else:
-			await self.send("No one was eliminated.")
+			await self.channel.send("No one was eliminated.")
 
 	async def mafia_choose_target(self):
-		self.mafia_send("Mafia, choose your target!", view=VoteView())
+		await self.mafia_chat.send("Mafia, choose your target!", view=VoteView())
 
 	async def doctor_choose_save(self):
 		pass

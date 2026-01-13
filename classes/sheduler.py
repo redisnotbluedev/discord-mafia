@@ -63,6 +63,7 @@ class MafiaSheduler:
 						""", ephemeral=True)
 
 			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
+			self.game.mafia_chat = mafia_chat
 
 			for player in self.game.players:
 				if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
