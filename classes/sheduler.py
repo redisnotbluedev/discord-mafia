@@ -14,9 +14,9 @@ class MafiaSheduler:
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
-		self.game = MafiaGame()
+		self.game = MafiaGame(self.message)
 		self.config = {}
-	
+
 	def schedule(self, start_at: int):
 		async def task():
 			await asyncio.sleep(start_at - time.time())
@@ -33,7 +33,7 @@ class MafiaSheduler:
 				self.lobby.start_at = int(time.time()) + 60 * 5
 				await self.message.edit(embed=self.lobby.generate_embed())
 				self.schedule(self.lobby.start_at)
-		
+
 		new_task = asyncio.create_task(task())
 		self.start_job = new_task
 
@@ -47,7 +47,7 @@ class MafiaSheduler:
 			guild = self.message.guild
 
 			await channel.send("Starting game...")
-			
+
 			self.setup_roles()
 			player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
 
@@ -55,13 +55,13 @@ class MafiaSheduler:
 				user = player.user
 				if isinstance(user, discord.Member):
 					await user.add_roles(player_role)
-					
+
 					i = self.abstractor.interactions.get(user.id)
 					if i:
 						await i.followup.send(f"""
 							You are {player.role.describe()}
 						""", ephemeral=True)
-			
+
 			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 
 			for player in self.game.players:
@@ -81,15 +81,6 @@ class MafiaSheduler:
 				add_reactions=True
 			)
 
-			async def send(text: str | None = None, embed: discord.Embed | None = None, view: discord.ui.View | None = None):
-				await channel.send(text, embed=embed, view=view)
-			
-			async def send_mafia(text: str | None = None, embed: discord.Embed | None = None, view: discord.ui.View | None = None):
-				await mafia_chat.send(text, embed=embed, view=view)
-
-			self.game.send = send
-			self.game.mafia_send = send_mafia
-
 			winner = await self.game.run()
 			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
 
@@ -108,7 +99,7 @@ class MafiaSheduler:
 				)
 			if mafia_chat:
 				await mafia_chat.edit(locked=True)
-			
+
 			self.abstractor.running = False
 
 			return True
@@ -129,7 +120,7 @@ class MafiaSheduler:
 
 			self.game.players.append(player)
 			players_rolled += 1
-		
+
 		doctor = Player(players[players_rolled].user)
 		doctor.role = Role.DOCTOR
 		self.game.players.append(doctor)
@@ -147,7 +138,7 @@ class MafiaSheduler:
 
 			self.game.players.append(player)
 			players_rolled += 1
-		
+
 		log = []
 		for player in self.game.players:
 			log.append(f"{player.role} - {player.user.name}")

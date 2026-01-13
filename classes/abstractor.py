@@ -13,7 +13,6 @@ class GameAbstractor:
 		self.running: bool = False
 		self.owner: discord.User = None
 		self.interactions: dict[int, discord.Interaction] = {}
-
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
 
@@ -47,7 +46,7 @@ class GameAbstractor:
 
 		if self.running:
 			logger.info("Skipping message send as the game is already running!")
-			return 
+			return
 
 		new_msg = await asyncio.gather(
 			message.channel.send(
@@ -60,7 +59,7 @@ class GameAbstractor:
 			),
 			self._delete_last_lobby()
 		)
-		
+
 		self.last_lobby_id = new_msg[0].id
 		self.save_config()
 

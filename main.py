@@ -11,7 +11,7 @@ from cogs.info import InfoCog
 load_dotenv()
 
 intents = discord.Intents.default()
-intents.message_content = True 
+intents.message_content = True
 bot = commands.Bot(command_prefix="", intents=intents)
 logger = logging.getLogger(__name__)
 
@@ -42,6 +42,6 @@ async def on_message(message: discord.Message):
 	for abstractor in bot.abstractors:
 		await abstractor.on_message(message)
 
-if __name__ == "__main__":	
+if __name__ == "__main__":
 	TOKEN = os.getenv("TOKEN")
 	bot.run(TOKEN, root_logger=True)
