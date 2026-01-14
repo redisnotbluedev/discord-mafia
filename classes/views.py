@@ -30,7 +30,7 @@ class StartGameView(discord.ui.View):
 		self.abstractor.players[interaction.user.id] = Player(interaction.user)
 		for ai_player in create_ai_players():
 			# Use hash of AI name as key since AIAbstraction doesn't have an id
-			self.abstractor.players[hash(ai_player.user.name)] = ai_player
+			self.abstractor.players[hash(ai_player.name)] = ai_player
 
 		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True

@@ -1,6 +1,5 @@
 from classes.player import Role
 from classes.turnmanager import TurnManager
-from classes.views import VoteView
 import logging, discord, os
 from openai import OpenAI
 
@@ -13,7 +12,9 @@ class MafiaGame():
 		self.night_actions = {}
 		self.channel: discord.Channel = None   # todo
 		self.mafia_chat: discord.Thread = None # todo
+
 		self.turns: TurnManager = None
+		self.mafia_turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: OpenAI = OpenAI(
 			base_url="https://mapleai.de/v1",
@@ -90,11 +91,17 @@ class MafiaGame():
 			await self.channel.send("No one was eliminated.")
 
 	async def mafia_choose_target(self):
-		await self.mafia_chat.send("Mafia, choose your target!\n", view=VoteView(
-			players=[],
-			placeholder="Choose who to kill tonight.",
-			emoji="🔪"
-		))
+		mafia = filter(p for p in self.players if p.role == Role.MAFIA)
+
+		if not self.mafia_turns:
+			self.mafia_turns = TurnManager(
+				mafia,
+				self.mafia_chat,
+				self.bot,
+				self.generator
+			)
+
+		await self.mafia_turns.run_round()
 
 	async def doctor_choose_save(self):
 		pass
