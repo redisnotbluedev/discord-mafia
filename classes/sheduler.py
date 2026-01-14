@@ -14,7 +14,7 @@ class MafiaSheduler:
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
-		self.game = MafiaGame(self.message)
+		self.game = MafiaGame(abstractor)
 		self.config = {}
 
 	def schedule(self, start_at: int):
@@ -26,7 +26,8 @@ class MafiaSheduler:
 					await self.message.channel.send("Not enough players to start the game!\nPlease restart with more players.")
 					await self.message.delete()
 					self.abstractor.running = True
-					await self.abstractor.on_message(True)
+					await self.abstractor.on_message(True) # God idek what this does but I implemented it so I should know...
+					# Oh it cancels it and then sends a ghost message to move the lobby down
 					return
 
 				await self.message.channel.send("Not enough players to start the game!")
@@ -40,6 +41,7 @@ class MafiaSheduler:
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
 		try:
+			self.abstractor.game = self.game
 			await self.message.edit(view=None)
 
 			config = data.load()
@@ -64,6 +66,7 @@ class MafiaSheduler:
 
 			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
+			self.game.channel = channel
 
 			for player in self.game.players:
 				if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
@@ -75,11 +78,6 @@ class MafiaSheduler:
 				add_reactions=False,
 				create_public_threads=False,
 				create_private_threads=False
-			)
-			await channel.set_permissions(
-				player_role,
-				send_messages=True,
-				add_reactions=True
 			)
 
 			winner = await self.game.run()

@@ -1,6 +1,7 @@
 import discord, logging, data, asyncio
 from discord.ext import commands
 from classes.player import Player
+from classes.game import MafiaGame
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class GameAbstractor:
 		self.interactions: dict[int, discord.Interaction] = {}
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
+		self.game: MafiaGame = None
 
 	async def _delete_last_lobby(self) -> None:
 		if not self.last_lobby_id:
@@ -45,6 +47,8 @@ class GameAbstractor:
 			return
 
 		if self.running:
+			if self.game:
+				self.game.turns.on_message(message)
 			logger.info("Skipping message send as the game is already running!")
 			return
 

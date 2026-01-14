@@ -2,39 +2,39 @@ from enum import Enum
 import discord
 
 models = {
-	"mapleai~gpt-5.2": {
+	"gpt-5.2": {
 		"name": "ChatGPT 5.2",
 		"avatar": None
 	},
-	"mapleai~gpt-4o": {
+	"gpt-4o": {
 		"name": "ChatGPT 4o",
 		"avatar": None
 	},
-	"mapleai~kimi-k2-0905": {
+	"kimi-k2-0905": {
 		"name": "Kimi K2",
 		"avatar": None
 	},
-	"mapleai~deepseek-r1-0528": {
+	"deepseek-r1-0528": {
 		"name": "DeepSeek R1",
 		"avatar": None
 	},
-	"mapleai~gemini-3-flash-preview": {
+	"gemini-3-flash-preview": {
 		"name": "Gemini 3 Flash",
 		"avatar": None
 	},
-	"mapleai~gemini-3-pro-preview": {
+	"gemini-3-pro-preview": {
 		"name": "Gemini 3 Pro",
 		"avatar": None
 	},
-	"mapleai~claude-opus-4.5": {
+	"claude-opus-4.5": {
 		"name": "Claude Opus 4.5",
 		"avatar": None
 	},
-	"mapleai~claude-sonnet-4.5": {
+	"claude-sonnet-4.5": {
 		"name": "Claude Sonnet 4.5",
 		"avatar": None
 	},
-	"mapleai~grok-4": {
+	"grok-4": {
 		"name": "Grok 4",
 		"avatar": None
 	}
@@ -48,7 +48,7 @@ class Role(Enum):
 
 	def __str__(self):
 		return self.name.title()
-	
+
 	def describe(self):
 		match self:
 			case Role.TOWN:
@@ -72,6 +72,7 @@ class Player:
 	def __init__(self, user: discord.Member | AIAbstraction):
 		self.user = user
 		self.role = None
+		self.name = user.display_name or user.name
 		self.alive = True
 
 def create_ai_players() -> list[Player]:
@@ -80,5 +81,5 @@ def create_ai_players() -> list[Player]:
 	for id, data in models.items():
 		model = AIAbstraction(id, data.get("name", "Unknown AI"), data.get("avatar"))
 		players.append(model.player)
-	
+
 	return players

@@ -8,11 +8,11 @@ class ConfirmView(discord.ui.View):
 		self.yes = yes
 		self.no = no
 		super().__init__(timeout=300)
-	
+
 	@discord.ui.button(label="Yes", style=discord.ButtonStyle.green)
 	async def on_yes(self, interaction: discord.Interaction, _):
 		await self.yes(interaction)
-	
+
 	@discord.ui.button(label="No", style=discord.ButtonStyle.red)
 	async def on_no(self, interaction: discord.Interaction, _):
 		await self.no(interaction)
@@ -31,7 +31,7 @@ class StartGameView(discord.ui.View):
 		for ai_player in create_ai_players():
 			# Use hash of AI name as key since AIAbstraction doesn't have an id
 			self.abstractor.players[hash(ai_player.user.name)] = ai_player
-		
+
 		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True
 		self.abstractor.last_lobby_id = None
@@ -65,15 +65,15 @@ class JoinGameView(discord.ui.View):
 		for player in self.abstractor.players.values():
 			result = "- "
 			user = player.user
-			
+
 			if isinstance(user, discord.Member):
 				if user == self.abstractor.owner: result += "<:owner:1457538443327311872> "
 				result += user.display_name or user.name
 			else:
 				result += user.name
-			
+
 			player_list.append(result)
-				
+
 		embed.add_field(name="Players", value="\n".join(player_list) if player_list else "No players yet!")
 
 		return embed
@@ -99,10 +99,10 @@ class JoinGameView(discord.ui.View):
 				else:
 					embed = self.generate_embed()
 					await interaction.message.edit(embed=embed)
-				
+
 			async def no(i: discord.Interaction):
 				await i.response.edit_message(content="You canceled this action.", view=None)
-			
+
 			await interaction.response.send_message(
 				"\n".join([
 					"Are you sure you want to leave the game?",
@@ -116,7 +116,7 @@ class JoinGameView(discord.ui.View):
 			self.abstractor.players[interaction.user.id] = Player(interaction.user)
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
-	
+
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
 		if interaction.user == self.abstractor.owner:
@@ -131,7 +131,7 @@ class JoinGameView(discord.ui.View):
 		if interaction.user != self.abstractor.owner:
 			await interaction.response.send_message("You need to be the owner of this game to change the settings.", ephemeral=True)
 			return
-		
+
 		view = SettingsView(self.game)
 		await view.render()
 		await interaction.response.send_message(
@@ -146,23 +146,23 @@ class SettingsView(discord.ui.View):
 		self.game = game
 		self.message = None
 		super().__init__(timeout=None)
-	
+
 	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
-		
+
 		total_players = len(self.game.abstractor.players)
-		
+
 		# Smart distribution: Mafia = ~1/3 of players, but keep Town >= 3
 		mafia = max(1, min(total_players // 3, total_players - 3))
 		town = total_players - mafia
-		
+
 		self.game.config.setdefault("mafia", mafia)
 		self.game.config.setdefault("town", town)
-		
+
 		mafia = self.game.config["mafia"]
 		town = self.game.config["town"]
-		
+
 		# Mafia bar
 		mafia_bar = "🔪" * mafia
 		get("mafia_display").label = f"{mafia_bar} ({mafia})"
@@ -179,7 +179,7 @@ class SettingsView(discord.ui.View):
 				town_bar = "🏡🧑‍⚕️"
 		get("town_display").label = f"{town_bar} ({town})"
 		get("town_up").disabled = town >= total_players - 1
-		
+
 		if interaction:
 			await interaction.response.edit_message(view=self)
 		elif self.message:
@@ -210,12 +210,20 @@ class SettingsView(discord.ui.View):
 	async def town_display(self, i, b): pass
 
 class VoteSelect(discord.ui.Select):
-	def __init__(self):
-		super().__init__()
+	def __init__(self, players, placeholder, emoji):
+		options = [
+			discord.SelectOption(label=player, emoji=emoji)
+			for player in players
+		]
+
+		super().__init__(
+			placeholder=placeholder,
+			min_values=1,
+			max_values=1,
+			options=options
+		)
 
 class VoteView(discord.ui.View):
-	def __init__(self):
+	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️"):
 		super().__init__(timeout=None)
-		self.add_item(VoteSelect())
-	
-	
+		self.add_item(VoteSelect(players, placeholder, emoji))
