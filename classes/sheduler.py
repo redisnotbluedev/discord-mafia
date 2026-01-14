@@ -140,5 +140,5 @@ class MafiaSheduler:
 
 		log = []
 		for player in self.game.players:
-			log.append(f"{player.role} - {player.user.name}")
+			log.append(f"{player.role} - {player.name}")
 		logger.info("\n".join(log))
