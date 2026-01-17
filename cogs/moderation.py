@@ -37,11 +37,11 @@ class ModerationCog(commands.Cog):
 
 			channel = interaction.channel
 			config = data.load()
-			
+
 			if str(channel.id) in config.get("profiles", {}):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
-			
+
 			await channel.set_permissions(
 				interaction.guild.me,
 				send_messages=True,
@@ -49,9 +49,9 @@ class ModerationCog(commands.Cog):
 			)
 
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
-			config.setdefault("profiles", {})[channel.id] = {"webhook": webhook.url}
+			config.setdefault("profiles", {})[str(channel.id)] = {"webhook": webhook.url}
 
-			if not str(interaction.guild.id) in config.get("guilds", {}):
+			if str(interaction.guild.id) not in config.get("guilds", {}):
 				player = await interaction.guild.create_role(name="Mafia Player")
 				config.setdefault("guilds", {})[interaction.guild.id] = {"player_role": player.id}
 

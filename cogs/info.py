@@ -8,12 +8,12 @@ class InfoCog(commands.Cog):
 
 	@app_commands.command(name="ping", description="ping pong")
 	async def hello(self, interaction: discord.Interaction):
-		await interaction.response.send_message(f"🏓 Pong!\nLatency: %.2fms" % self.bot.latency)
-	
+		await interaction.response.send_message("🏓 Pong!\nLatency: %.2fms" % (self.bot.latency * 1000))
+
 	@app_commands.command(name="echo", description="Say something as the bot")
 	async def echo(self, interaction: discord.Interaction, text: str):
 		await interaction.response.send_message(text)
-	
+
 	@app_commands.command(name="info", description="View bot information and stats")
 	async def info(self, interaction: discord.Interaction):
 		embed = discord.Embed(
@@ -26,7 +26,7 @@ class InfoCog(commands.Cog):
 			CPU usage: `{psutil.cpu_percent(interval=1)}%`
 			RAM usage: `{psutil.virtual_memory().percent}%`
 		""", inline=False)
-		embed.add_field(name="Credits", value=f"""
+		embed.add_field(name="Credits", value="""
 			Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			Bot adaption by <@1337909802931716197>
 			Icons from [lucide.dev](https://lucide.dev)

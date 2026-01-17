@@ -18,7 +18,7 @@ class MafiaGame():
 		self.bot: discord.Client = abstractor.bot
 		self.generator: OpenAI = OpenAI(
 			base_url="https://mapleai.de/v1",
-			api_key=os.envget("MAPLEAI_API_KEY")
+			api_key=os.getenv("MAPLEAI_API_KEY")
 		)
 
 	def get_alive_players(self):
@@ -91,7 +91,7 @@ class MafiaGame():
 			await self.channel.send("No one was eliminated.")
 
 	async def mafia_choose_target(self):
-		mafia = filter(p for p in self.players if p.role == Role.MAFIA)
+		mafia = [p for p in self.players if p.role == Role.MAFIA]
 
 		if not self.mafia_turns:
 			self.mafia_turns = TurnManager(
