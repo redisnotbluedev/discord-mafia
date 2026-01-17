@@ -65,6 +65,8 @@ class MafiaGame():
 		if sum(1 for p in players if p.role == Role.DOCTOR): tasks.append(self.doctor_choose_save())
 		if sum(1 for p in players if p.role == Role.SHERIFF): tasks.append(self.sheriff_investigate())
 
+		await asyncio.gather(*tasks)
+
 		kill = self.night_actions.get("mafia_kill")
 		save = self.night_actions.get("doctor_save")
 

@@ -1,5 +1,5 @@
 import discord, time
-from classes.sheduler import MafiaSheduler
+from classes.scheduler import MafiaSheduler
 from classes.abstractor import GameAbstractor
 from classes.player import Player, create_ai_players
 
@@ -223,7 +223,41 @@ class VoteSelect(discord.ui.Select):
 			options=options
 		)
 
+	async def callback(self, interaction: discord.Interaction):
+		view: VoteView = self.view  # type: ignore
+
+		# Only participants can vote
+		if interaction.user.id not in view.allowed_voters:
+			await interaction.response.send_message("You're not a participant in this game.", ephemeral=True)
+			return
+
+		selection = self.values[0]
+		view.votes[interaction.user.id] = selection
+
+		# Update the poll message with a simple tally
+		lines = []
+		for name in view.player_names:
+			count = sum(1 for v in view.votes.values() if v == name)
+			if count:
+				lines.append(f"- {name}: {count}")
+		if not lines:
+			lines = ["No votes yet."]
+
+		content = view.base_message + "\n" + "\n\n**Votes:**\n" + "\n".join(lines)
+
+		# If everyone has voted, disable the select
+		if sum(1 for uid in view.votes.keys() if uid in view.allowed_voters) >= view.required_votes:
+			self.disabled = True
+
+		await interaction.response.edit_message(content=content, view=view)
+
 class VoteView(discord.ui.View):
 	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️"):
 		super().__init__(timeout=None)
 		self.add_item(VoteSelect(players, placeholder, emoji))
+		# State injected by TurnManager after creation:
+		self.votes: dict[int, str] = {}
+		self.allowed_voters: set[int] = set()
+		self.required_votes: int = 0
+		self.base_message: str = ""
+		self.player_names: list[str] = players

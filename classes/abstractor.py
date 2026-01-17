@@ -48,7 +48,7 @@ class GameAbstractor:
 
 		if self.running:
 			if self.game:
-				self.game.turns.on_message(message)
+				await self.game.turns.on_message(message)
 			logger.info("Skipping message send as the game is already running!")
 			return
 
