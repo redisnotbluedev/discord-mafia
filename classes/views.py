@@ -3,6 +3,10 @@ from classes.scheduler import MafiaSheduler
 from classes.abstractor import GameAbstractor
 from classes.player import Player, create_ai_players
 
+abstain_label = "Abstain"
+
+ABSTAIN_LABEL = "Abstain"
+
 class ConfirmView(discord.ui.View):
 	def __init__(self, yes, no):
 		self.yes = yes
@@ -210,11 +214,14 @@ class SettingsView(discord.ui.View):
 	async def town_display(self, i, b): pass
 
 class VoteSelect(discord.ui.Select):
-	def __init__(self, players, placeholder, emoji):
+	def __init__(self, players, placeholder, emoji, allow_abstain: bool = False):
 		options = [
 			discord.SelectOption(label=player, emoji=emoji)
 			for player in players
 		]
+
+		if allow_abstain:
+			options.append(discord.SelectOption(label=abstain_label, emoji="⏭️"))
 
 		super().__init__(
 			placeholder=placeholder,
@@ -234,12 +241,17 @@ class VoteSelect(discord.ui.Select):
 		selection = self.values[0]
 		view.votes[interaction.user.id] = selection
 
-		# Update the poll message with a simple tally
 		lines = []
 		for name in view.player_names:
 			count = sum(1 for v in view.votes.values() if v == name)
 			if count:
 				lines.append(f"- {name}: {count}")
+
+		if view.allow_abstain:
+			abstain_count = sum(1 for v in view.votes.values() if v == abstain_label)
+			if abstain_count:
+				lines.append(f"- {abstain_label}: {abstain_count}")
+
 		if not lines:
 			lines = ["No votes yet."]
 
@@ -252,10 +264,10 @@ class VoteSelect(discord.ui.Select):
 		await interaction.response.edit_message(content=content, view=view)
 
 class VoteView(discord.ui.View):
-	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️"):
+	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False):
 		super().__init__(timeout=None)
-		self.add_item(VoteSelect(players, placeholder, emoji))
-		# State injected by TurnManager after creation:
+		self.allow_abstain = allow_abstain
+		self.add_item(VoteSelect(players, placeholder, emoji, allow_abstain=allow_abstain))
 		self.votes: dict[int, str] = {}
 		self.allowed_voters: set[int] = set()
 		self.required_votes: int = 0

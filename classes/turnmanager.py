@@ -91,10 +91,9 @@ class TurnManager:
 
 				self.broadcast(f"{player.name} said: {text}", player)
 
-	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️"):
+	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
 
-		timeout_s: float = 60.0
 		ends_at = int(__import__("time").time() + timeout_s)
 		countdown = f"-# Voting ends <t:{ends_at}:R>."
 		base_message = message + "\n" + countdown
@@ -102,7 +101,8 @@ class TurnManager:
 		view = VoteView(
 			players=[p.name for p in candidates],
 			placeholder=placeholder,
-			emoji=emoji
+			emoji=emoji,
+			allow_abstain=allow_abstain
 		)
 		view.votes = votes
 		view.allowed_voters = {
@@ -118,6 +118,8 @@ class TurnManager:
 		)
 
 		candidate_names = [p.name for p in candidates]
+		if allow_abstain:
+			candidate_names.append("Abstain")
 		options_block = "\n".join(candidate_names)
 
 		for p in self.participants:
@@ -166,6 +168,10 @@ class TurnManager:
 		await wait_for_human_votes()
 
 		tally = self._format_vote_tally(votes, candidates)
+		if allow_abstain:
+			abstain_n = sum(1 for v in votes.values() if v == "Abstain")
+			if abstain_n:
+				tally = tally + f"\n- Abstain: **{abstain_n}**"
 		await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=None)
 
 		counts: dict[str, int] = {name: 0 for name in candidate_names}
@@ -173,12 +179,18 @@ class TurnManager:
 			if choice in counts:
 				counts[choice] += 1
 
+		if allow_abstain and "Abstain" in counts:
+			counts.pop("Abstain", None)
+
 		if not any(counts.values()):
 			return None
 
 		best = max(counts.values())
 		winners = [name for name, n in counts.items() if n == best]
 		if len(winners) != 1:
+			if break_ties_random and winners:
+				picked = random.choice(winners)
+				return self._candidate_by_name(candidates, picked)
 			return None
 
 		return self._candidate_by_name(candidates, winners[0])
