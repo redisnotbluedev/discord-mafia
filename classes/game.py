@@ -18,8 +18,8 @@ class MafiaGame():
 		self.turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: OpenAI = OpenAI(
-			base_url="https://mapleai.de/v1",
-			api_key=os.getenv("MAPLEAI_API_KEY")
+			base_url=os.getenv("OPENAI_BASE_URL"),
+			api_key=os.getenv("OPENAI_API_KEY")
 		)
 
 	def get_alive_players(self):
