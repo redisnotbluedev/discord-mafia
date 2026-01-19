@@ -60,6 +60,13 @@ class Role(Enum):
 			case Role.SHERIFF:
 				return "a **Sheriff**.\n> You can investigate one player each night to determine if they are part of the Mafia. Use this information carefully during day discussions to guide the town's votes, but be cautious - revealing yourself may make you a target!"
 
+	def alignment(self):
+		match self:
+			case Role.TOWN | Role.DOCTOR | Role.SHERIFF:
+				return "Town"
+			case Role.MAFIA:
+				return "Mafia"
+
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
 		self.model = model
@@ -71,7 +78,7 @@ class AIAbstraction:
 class Player:
 	def __init__(self, user: discord.Member | AIAbstraction):
 		self.user = user
-		self.role = None
+		self.role: Role = None
 		self.name = user.display_name or user.name
 		self.alive = True
 

@@ -1,7 +1,7 @@
-import discord, time
+import discord, time, asyncio
 from classes.scheduler import MafiaSheduler
 from classes.abstractor import GameAbstractor
-from classes.player import Player, create_ai_players
+from classes.player import Player, create_ai_players, Role
 
 abstain_label = "Abstain"
 
@@ -273,3 +273,68 @@ class VoteView(discord.ui.View):
 		self.required_votes: int = 0
 		self.base_message: str = ""
 		self.player_names: list[str] = players
+
+class SelectView(discord.ui.View):
+	def __init__(self, candidates: list, callback: function):
+		super().__init__(timeout=None)
+		self.dropdown = discord.ui.Select(options=candidates)
+		self.dropdown.callback = callback
+		self.add_item(self.dropdown)
+
+class SpecialActionsView(discord.ui.View):
+	def __init__(self, alive_players: list[Player]):
+		super().__init__(timeout=None)
+		self.players = alive_players
+		self.message_interaction: discord.Interaction = None # Used to edit the original message to disable buttons, without having to pass in the message object
+		self.save_queue = asyncio.Queue()
+
+	def get(self, id):
+		return discord.utils.get(self.children, custom_id=id)
+
+	def get_doctor_save(self):
+		return self.save_queue.get()
+
+	async def on_save_selected(self, interaction: discord.Interaction):
+		user = self.players[int(self.doctor_selector.dropdown.values[0])]
+		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
+		self.get("doctor").disabled = True
+		await self.message_interaction.edit_original_response(view=self)
+		await self.save_queue.put(user)
+
+	async def on_investigation_selected(self, interaction: discord.Interaction):
+		user = self.players[int(self.doctor_selector.dropdown.values[0])]
+		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!", view=None)
+		self.get("sheriff").disabled = True
+		await self.message_interaction.edit_original_response(view=self)
+
+	@discord.ui.button(label="Doctor", style=discord.ButtonStyle.blurple, emoji="🧑‍⚕️", custom_id="doctor")
+	async def doctor_save(self, interaction: discord.Interaction, _):
+		if interaction.user not in [p for p in self.players if p.role == Role.DOCTOR]: await interaction.response.send_message("Not for you.", ephemeral=True)
+
+		self.message_interaction = interaction
+		self.doctor_selector = SelectView([
+			discord.components.SelectOption(
+				label=self.players[i].name,
+				value=str(i),
+				emoji="💊"
+			)
+			for i in range(self.players)
+		], self.on_save_selected)
+
+		await interaction.response.send_message("## Doctor\nWho do you want to save?", view=self.doctor_selector, ephemeral=True)
+
+	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
+	async def sheriff_investigate(self, interaction: discord.Interaction, _):
+		if interaction.user not in [p for p in self.players if p.role == Role.SHERIFF]: await interaction.response.send_message("Not for you.", ephemeral=True)
+
+		self.message_interaction = interaction
+		self.sheriff_selector = SelectView([
+			discord.components.SelectOption(
+				label=self.players[i].name,
+				value=str(i),
+				emoji="🕵️"
+			)
+			for i in range(self.players)
+		], self.on_investigation_selected)
+
+		await interaction.response.send_message("## Sheriff\nWho do you want to investigate?", view=self.sheriff_selector, ephemeral=True)
