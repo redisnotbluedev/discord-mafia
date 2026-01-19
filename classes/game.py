@@ -124,12 +124,6 @@ class MafiaGame():
 
 		self.night_actions["mafia_kill"] = kill
 
-	async def doctor_choose_save(self):
-		pass
-
-	async def sheriff_investigate(self):
-		pass
-
 	async def discussion_phase(self):
 		alive = self.get_alive_players()
 		# reuse the main turn manager for day discussion
