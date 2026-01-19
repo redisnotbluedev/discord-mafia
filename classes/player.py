@@ -45,6 +45,7 @@ class Role(Enum):
 	MAFIA = 1
 	DOCTOR = 2
 	SHERIFF = 3
+	SPECIAL_ROLES = [DOCTOR, SHERIFF]
 
 	def __str__(self):
 		return self.name.title()

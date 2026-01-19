@@ -1,5 +1,7 @@
+from discord.types.components import ActionRowChildComponent
 from classes.player import Role
 from classes.turnmanager import TurnManager
+from classes.views import SpecialActionsView
 from openai import OpenAI
 import logging, discord, os, asyncio
 
@@ -58,16 +60,29 @@ class MafiaGame():
 
 	async def run_night_phase(self):
 		await self.channel.send(f"**Night {self.day_number} falls...**")
+		roles = sorted(set([str(u.role) for u in self.get_alive_players() if u.role in Role.SPECIAL_ROLES]))
+		tasks = [self.mafia_choose_target()]
 
-		await asyncio.gather(
-			self.mafia_choose_target(),
-			self.doctor_choose_save(),
-			self.sheriff_investigate()
-		)
+		if roles:
+			actions_view = SpecialActionsView(self.get_alive_players())
+			await self.channel.send(
+				f"## Night Actions\n{
+					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)
+				}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
+				view=actions_view
+			)
+
+			async def update_night_action(key, getter):
+				self.night_actions[key] = await getter
+
+			tasks.append(update_night_action("doctor_save", actions_view.get_doctor_save()))
+
+		await asyncio.gather(*tasks)
 
 		kill = self.night_actions.get("mafia_kill")
+		save = self.night_actions.get("doctor_save")
 
-		if kill:
+		if kill and kill != save:
 			kill.alive = False
 			await self.channel.send(f"""> {kill.name} was killed by the Mafia.
 			-# {len(self.get_alive_players())} players left.""")
