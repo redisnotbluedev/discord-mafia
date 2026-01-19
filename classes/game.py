@@ -104,9 +104,7 @@ class MafiaGame():
 			message=f"Night {self.day_number}: Mafia, choose a kill target.",
 			placeholder="Choose a target...",
 			emoji="🔪",
-			timeout_s=90.0,
 			break_ties_random=True,
-			allow_abstain=False
 		)
 
 		self.night_actions["mafia_kill"] = kill
@@ -142,8 +140,6 @@ class MafiaGame():
 			message=f"Day {self.day_number}: Vote to eliminate a player.",
 			placeholder="Vote for a player...",
 			emoji="🗳️",
-			timeout_s=120.0,
-			break_ties_random=False,
 			allow_abstain=True
 		)
 		return victim
