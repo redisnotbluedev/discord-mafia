@@ -1,7 +1,7 @@
 from classes.player import Role
 from classes.turnmanager import TurnManager
-import logging, discord, os
 from openai import OpenAI
+import logging, discord, os, asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,6 @@ class MafiaGame():
 		self.mafia_chat: discord.Thread = None # todo
 
 		self.turns: TurnManager = None
-		self.mafia_turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: OpenAI = OpenAI(
 			base_url="https://mapleai.de/v1",
@@ -60,17 +59,15 @@ class MafiaGame():
 	async def run_night_phase(self):
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 
-		tasks = [self.mafia_choose_target()]
-		players = self.get_alive_players()
-		if sum(1 for p in players if p.role == Role.DOCTOR): tasks.append(self.doctor_choose_save())
-		if sum(1 for p in players if p.role == Role.SHERIFF): tasks.append(self.sheriff_investigate())
-
-		await asyncio.gather(*tasks)
+		await asyncio.gather(
+			self.mafia_choose_target(),
+			self.doctor_choose_save(),
+			self.sheriff_investigate()
+		)
 
 		kill = self.night_actions.get("mafia_kill")
-		save = self.night_actions.get("doctor_save")
 
-		if kill and kill != save:
+		if kill:
 			kill.alive = False
 			await self.channel.send(f"""> {kill.name} was killed by the Mafia.
 			-# {len(self.get_alive_players())} players left.""")
@@ -93,17 +90,26 @@ class MafiaGame():
 			await self.channel.send("No one was eliminated.")
 
 	async def mafia_choose_target(self):
-		mafia = [p for p in self.players if p.role == Role.MAFIA]
+		alive = self.get_alive_players()
+		mafia = [p for p in alive if p.role == Role.MAFIA]
 
-		if not self.mafia_turns:
-			self.mafia_turns = TurnManager(
-				mafia,
-				self.mafia_chat,
-				self.bot,
-				self.generator
-			)
+		self.turns.set_channel(self.mafia_chat)
+		self.turns.set_participants(mafia)
 
-		await self.mafia_turns.run_round()
+		await self.turns.run_round()
+
+		targets = [p for p in alive if p.role != Role.MAFIA]
+		kill = await self.turns.run_vote(
+			candidates=targets,
+			message=f"Night {self.day_number}: Mafia, choose a kill target.",
+			placeholder="Choose a target...",
+			emoji="🔪",
+			timeout_s=90.0,
+			break_ties_random=True,
+			allow_abstain=False
+		)
+
+		self.night_actions["mafia_kill"] = kill
 
 	async def doctor_choose_save(self):
 		pass
@@ -112,7 +118,32 @@ class MafiaGame():
 		pass
 
 	async def discussion_phase(self):
-		pass
+		alive = self.get_alive_players()
+		# reuse the main turn manager for day discussion
+		if not self.turns:
+			self.turns = TurnManager(
+				alive,
+				self.channel,
+				self.bot,
+				self.generator
+			)
+		else:
+			self.turns.set_channel(self.channel)
+			self.turns.set_participants(alive)
+
+		await self.channel.send(f"**Day {self.day_number} begins...**")
+		await self.turns.run_round()
 
 	async def voting_phase(self):
-		pass
+		alive = self.get_alive_players()
+		# day lynch vote: allow abstain, no random tie-break; abstain/none highest => no lynch
+		victim = await self.turns.run_vote(
+			candidates=alive,
+			message=f"Day {self.day_number}: Vote to eliminate a player.",
+			placeholder="Vote for a player...",
+			emoji="🗳️",
+			timeout_s=120.0,
+			break_ties_random=False,
+			allow_abstain=True
+		)
+		return victim

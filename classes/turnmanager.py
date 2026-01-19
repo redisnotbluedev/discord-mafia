@@ -5,7 +5,7 @@ import discord, openai, random, asyncio, logging, data
 logger = logging.getLogger(__name__)
 
 class TurnManager:
-	def __init__(self, participants: list[Player], channel: discord.abc.MessageableChannel, bot: discord.Client, client: openai.OpenAI = None):
+	def __init__(self, participants: list[Player], channel: discord.abc.MessageableChannel, bot: discord.Client, client: openai.OpenAI = None, context: dict[AIAbstraction, list] = {}):
 		self.participants = participants
 		self.channel = channel
 		self.client = client or openai.OpenAI()
@@ -24,12 +24,24 @@ class TurnManager:
 		self.running = False
 		self.message_queue = asyncio.Queue()
 		self.required_author = -1
-		self.context: dict[AIAbstraction, list] = {}
+		self.context: dict[AIAbstraction, list] = context
+
+	def set_channel(self, channel: discord.abc.MessageableChannel):
+		self.channel = channel
+
+	def set_participants(self, participants: list[Player]):
+		self.participants = participants
+
+	def set_context(self, context: dict[AIAbstraction, list]):
+		self.context = context
 
 	def broadcast(self, text, exclude: Player = None):
 		for player in self.participants:
 			if player != exclude and isinstance(player.user, AIAbstraction):
 				self.context.setdefault(player.user, []).append({"role": "user", "content": text})
+
+	def get_context(self):
+		return self.context
 
 	def _candidate_by_name(self, candidates: list[Player], name: str) -> Player | None:
 		name = (name or "").strip()
@@ -180,6 +192,10 @@ class TurnManager:
 				counts[choice] += 1
 
 		if allow_abstain and "Abstain" in counts:
+			abstain_votes = counts["Abstain"]
+			non_abstain_max = max([n for name, n in counts.items() if name != "Abstain"], default=0)
+			if abstain_votes >= non_abstain_max:
+				return None
 			counts.pop("Abstain", None)
 
 		if not any(counts.values()):

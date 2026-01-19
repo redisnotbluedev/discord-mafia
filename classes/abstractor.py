@@ -41,7 +41,7 @@ class GameAbstractor:
 		from classes.views import StartGameView
 
 		if isinstance(message, discord.Message):
-			if message.channel.id != self.channel:
+			if message.channel.id != self.channel or (self.game and self.game.mafia_chat and message.channel.id == self.game.mafia_chat.id):
 				return
 		elif not message:
 			return
