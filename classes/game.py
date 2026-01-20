@@ -2,7 +2,7 @@ from classes.player import Role
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import OpenAI
-import logging, discord, os, asyncio
+import logging, discord, asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,7 @@ class MafiaGame():
 
 		self.turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
-		self.generator: OpenAI = OpenAI(
-			base_url=os.getenv("OPENAI_BASE_URL"),
-			api_key=os.getenv("OPENAI_API_KEY")
-		)
+		self.generator: OpenAI = OpenAI()
 
 	def get_alive_players(self):
 		return [p for p in self.players if p.alive]
