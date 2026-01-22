@@ -5,7 +5,7 @@ import discord, openai, random, asyncio, logging, data
 logger = logging.getLogger(__name__)
 
 class TurnManager:
-	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: openai.OpenAI = None, context: dict[AIAbstraction, list] = {}):
+	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: openai.OpenAI = None):
 		self.participants = participants
 		self.channel = channel
 		self.client = client or openai.OpenAI()
@@ -24,7 +24,7 @@ class TurnManager:
 		self.running = False
 		self.message_queue = asyncio.Queue()
 		self.required_author = -1
-		self.context: dict[AIAbstraction, list] = context
+		self.context: dict[AIAbstraction, list] = {p.user: [{"role": "system", "content": "You are playing a game of Mafia."}] for p in participants}
 
 	def set_channel(self, channel: discord.abc.Messageable):
 		self.channel = channel
@@ -110,7 +110,8 @@ class TurnManager:
 					await self.webhook.send(
 						username=player.name,
 						avatar_url=player.user.avatar,
-						content=text
+						content=text,
+						thread=(self.channel if isinstance(self.channel, discord.Thread) else None)
 					)
 				else:
 					await self.channel.send(f"**{player.name}:** {text}")
