@@ -335,7 +335,7 @@ class SpecialActionsView(discord.ui.View):
 			discord.components.SelectOption(
 				label=self.players[i].name,
 				value=str(i),
-				emoji="🕵️"
+				emoji="🔍"
 			)
 			for i in range(len(self.players))
 		], self.on_investigation_selected)
