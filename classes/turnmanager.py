@@ -83,6 +83,7 @@ class TurnManager:
 				self.required_author = player.user.id
 				logger.info("Waiting for message send")
 				message = await self.message_queue.get()
+				logger.debug(f"Got message: {message.content}")
 				self.required_author = -1
 				self.broadcast(f"{player.name} said: {message.content}")
 				if isinstance(self.channel, discord.Thread):

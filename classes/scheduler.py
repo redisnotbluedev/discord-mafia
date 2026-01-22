@@ -79,11 +79,18 @@ class MafiaSheduler:
 
 		except Exception:
 			error = traceback.format_exc()
-			await self.message.channel.send(discord.Embed(description=f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer."))
+			try:
+				await self.message.channel.send(f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer.")
+			except (discord.errors.HTTPException, RuntimeError):
+				logger.error(f"Failed to send error message: {error}")
 
 		finally:
-			if mafia_chat:
-				await mafia_chat.edit(locked=True)
+			try:
+				if mafia_chat:
+					await mafia_chat.edit(locked=True)
+			except (discord.errors.HTTPException, RuntimeError):
+				# Session might be closed during shutdown or thread doesn't exist
+				logger.debug("Could not lock mafia chat thread during cleanup")
 
 			self.abstractor.running = False
 
@@ -93,7 +100,11 @@ class MafiaSheduler:
 				if isinstance(user, discord.Member):
 					tasks.append(user.remove_roles(player_role))
 
-			await asyncio.gather(*tasks)
+			try:
+				await asyncio.gather(*tasks)
+			except (discord.errors.HTTPException, RuntimeError):
+				# Session might be closed during shutdown
+				logger.debug("Could not remove player roles during cleanup")
 
 			return True
 
