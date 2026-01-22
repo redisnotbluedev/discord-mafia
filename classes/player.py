@@ -40,7 +40,7 @@ class Role(Enum):
 				return "Mafia"
 
 	def is_special(self):
-		return self in [Role.DOCTOR, Role.MAFIA]
+		return self in [Role.DOCTOR, Role.SHERIFF]
 
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
