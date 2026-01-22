@@ -46,6 +46,7 @@ class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):
 		self.model = model
 		self.display_name = None # compat with discord.User
+		self.id = -1 # compat with discord.User
 		self.name = name
 		self.avatar = avatar_url
 		self.player = Player(self)

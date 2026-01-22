@@ -312,7 +312,7 @@ class SpecialActionsView(discord.ui.View):
 
 	@discord.ui.button(label="Doctor", style=discord.ButtonStyle.blurple, emoji="🧑‍⚕️", custom_id="doctor")
 	async def doctor_save(self, interaction: discord.Interaction, _):
-		if interaction.user not in [p for p in self.players if p.role == Role.DOCTOR]: await interaction.response.send_message("Not for you.", ephemeral=True)
+		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]: await interaction.response.send_message("Not for you.", ephemeral=True)
 
 		self.message_interaction = interaction
 		self.doctor_selector = SelectView([
@@ -328,7 +328,7 @@ class SpecialActionsView(discord.ui.View):
 
 	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
 	async def sheriff_investigate(self, interaction: discord.Interaction, _):
-		if interaction.user not in [p for p in self.players if p.role == Role.SHERIFF]: await interaction.response.send_message("Not for you.", ephemeral=True)
+		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]: await interaction.response.send_message("Not for you.", ephemeral=True)
 
 		self.message_interaction = interaction
 		self.sheriff_selector = SelectView([
@@ -337,7 +337,7 @@ class SpecialActionsView(discord.ui.View):
 				value=str(i),
 				emoji="🕵️"
 			)
-			for i in range(self.players)
+			for i in range(len(self.players))
 		], self.on_investigation_selected)
 
 		await interaction.response.send_message("## Sheriff\nWho do you want to investigate?", view=self.sheriff_selector, ephemeral=True)
