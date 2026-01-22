@@ -5,7 +5,7 @@ import discord, openai, random, asyncio, logging, data
 logger = logging.getLogger(__name__)
 
 class TurnManager:
-	def __init__(self, participants: list[Player], channel: discord.abc.MessageableChannel, bot: discord.Client, client: openai.OpenAI = None, context: dict[AIAbstraction, list] = {}):
+	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: openai.OpenAI = None, context: dict[AIAbstraction, list] = {}):
 		self.participants = participants
 		self.channel = channel
 		self.client = client or openai.OpenAI()
@@ -26,7 +26,7 @@ class TurnManager:
 		self.required_author = -1
 		self.context: dict[AIAbstraction, list] = context
 
-	def set_channel(self, channel: discord.abc.MessageableChannel):
+	def set_channel(self, channel: discord.abc.Messageable):
 		self.channel = channel
 
 	def set_participants(self, participants: list[Player]):

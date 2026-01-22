@@ -1,15 +1,17 @@
-from classes.abstractor import GameAbstractor
+from typing import TYPE_CHECKING
 from classes.game import MafiaGame
 from classes.player import Player, Role
+from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
+
+if TYPE_CHECKING:
+	from classes.abstractor import GameAbstractor
 
 logger = logging.getLogger(__name__)
 
 class MafiaSheduler:
-	def __init__(self, abstractor: GameAbstractor):
-		from classes.views import JoinGameView
-
-		self.abstractor = abstractor
+	def __init__(self, abstractor):
+		self.abstractor: "GameAbstractor" = abstractor
 		self.lobby: JoinGameView = None
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
