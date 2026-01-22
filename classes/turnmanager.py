@@ -227,5 +227,6 @@ class TurnManager:
 		return self._candidate_by_name(candidates, winners[0])
 
 	def on_message(self, message: discord.Message):
+		logger.debug(f"Got message '{message.content}' from {message.author.id}, required author is {self.required_author}.")
 		if message.author.id == self.required_author and message.content:
 			self.message_queue.put_nowait(message)
