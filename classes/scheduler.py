@@ -74,14 +74,6 @@ class MafiaSheduler:
 				if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
 					await mafia_chat.add_user(player.user)
 
-			await channel.set_permissions(
-				guild.default_role,
-				send_messages=False,
-				add_reactions=False,
-				create_public_threads=False,
-				create_private_threads=False
-			)
-
 			winner = await self.game.run()
 			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
 
@@ -90,18 +82,18 @@ class MafiaSheduler:
 			await self.message.channel.send(f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer.")
 
 		finally:
-			if channel:
-				await channel.set_permissions(
-					guild.default_role,
-					send_messages=None,
-					add_reactions=None,
-					create_public_threads=None,
-					create_private_threads=None
-				)
 			if mafia_chat:
 				await mafia_chat.edit(locked=True)
 
 			self.abstractor.running = False
+
+			tasks = []
+			for player in self.players:
+				user = player.user
+				if isinstance(user, discord.Member):
+					tasks.append(user.remove_roles(player_role))
+
+			await asyncio.gather(*tasks)
 
 			return True
 

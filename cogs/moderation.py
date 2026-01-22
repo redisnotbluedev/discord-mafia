@@ -53,7 +53,27 @@ class ModerationCog(commands.Cog):
 
 			if str(interaction.guild.id) not in config.get("guilds", {}):
 				player = await interaction.guild.create_role(name="Mafia Player")
+				await channel.set_permissions(
+					player,
+					send_messages=False,
+					send_messages_in_threads=False,
+					create_private_threads=False,
+					create_public_threads=False,
+					add_reactions=False,
+					use_application_commands=False
+				)
 				config.setdefault("guilds", {})[interaction.guild.id] = {"player_role": player.id}
+			else:
+				player = await interaction.guild.get_role(config["guilds"][str(interaction.guild.id)]["player_role"])
+				await channel.set_permissions(
+					player,
+					send_messages=False,
+					send_messages_in_threads=False,
+					create_private_threads=False,
+					create_public_threads=False,
+					add_reactions=False,
+					use_application_commands=False
+				)
 
 			self.bot.abstractors.append(GameAbstractor(channel.id, self.bot))
 

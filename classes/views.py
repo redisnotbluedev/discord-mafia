@@ -131,7 +131,7 @@ class JoinGameView(discord.ui.View):
 			self.game.schedule(time.time())
 			await interaction.response.edit_message()
 		else:
-			await interaction.response.send_message("haha no", ephemeral=True)
+			await interaction.response.send_message("You need to be the owner of this game to start it.", ephemeral=True)
 
 	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):

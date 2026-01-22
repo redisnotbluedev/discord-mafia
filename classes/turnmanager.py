@@ -69,22 +69,35 @@ class TurnManager:
 		for player in self.participants:
 			if isinstance(player.user, discord.Member):
 				await self.channel.send(f"🎤 {player.user.mention}, it's your turn to speak!")
-				await self.channel.set_permissions(
-					player.user,
-					send_messages=True
-				)
+				if isinstance(self.channel, discord.Thread):
+					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+						player.user,
+						send_messages_in_threads=True
+					)
+				else:
+					await self.channel.set_permissions(
+						player.user,
+						send_messages=True
+					)
 
 				self.required_author = player.user.id
 				logger.info("Waiting for message send")
 				message = await self.message_queue.get()
 				self.required_author = -1
 				self.broadcast(f"{player.name} said: {message.content}")
-				await self.channel.set_permissions(
-					player.user,
-					send_messages=False
-				)
+				if isinstance(self.channel, discord.Thread):
+					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+						player.user,
+						send_messages_in_threads=True
+					)
+				else:
+					await self.channel.set_permissions(
+						player.user,
+						send_messages=True
+					)
 
 			elif isinstance(player.user, AIAbstraction):
+				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
 				response = self.client.chat.completions.create(
 					model=player.user.model,
