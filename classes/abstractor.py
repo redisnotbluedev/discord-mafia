@@ -39,15 +39,15 @@ class GameAbstractor:
 
 	async def on_message(self, message: discord.Message | bool):
 		if isinstance(message, discord.Message):
-			if message.channel.id != self.channel or (self.game and self.game.mafia_chat and message.channel.id == self.game.mafia_chat.id):
+			if message.channel.id != self.channel or (self.game and self.game.mafia_chat and message.channel.id != self.game.mafia_chat.id):
 				return
 		elif not message:
 			return
 
+		logger.debug(f"Received a message, running: {self.running}")
 		if self.running:
 			if self.game:
 				await self.game.turns.on_message(message)
-			logger.info("Skipping message send as the game is already running!")
 			return
 
 		from classes.views import StartGameView
