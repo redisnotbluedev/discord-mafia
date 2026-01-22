@@ -321,7 +321,7 @@ class SpecialActionsView(discord.ui.View):
 				value=str(i),
 				emoji="💊"
 			)
-			for i in range(self.players)
+			for i in range(len(self.players))
 		], self.on_save_selected)
 
 		await interaction.response.send_message("## Doctor\nWho do you want to save?", view=self.doctor_selector, ephemeral=True)
