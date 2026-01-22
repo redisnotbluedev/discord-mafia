@@ -1,10 +1,12 @@
-import discord, time, asyncio
+import discord, time, asyncio, logging
 from typing import TYPE_CHECKING, Callable
 from classes.player import Player, create_ai_players, Role
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
 	from classes.scheduler import MafiaSheduler
+
+logger = logging.getLogger(__name__)
 
 ABSTAIN_LABEL = "Abstain"
 
@@ -290,12 +292,18 @@ class SpecialActionsView(discord.ui.View):
 		self.players = alive_players
 		self.message_interaction: discord.Interaction = None # Used to edit the original message to disable buttons, without having to pass in the message object
 		self.save_queue = asyncio.Queue()
+		self.investigate_queue = asyncio.Queue()
+		self.client = None  # Will be set by game.py
+		self.turn_manager = None  # Will be set by game.py for broadcasting
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
 
 	def get_doctor_save(self):
 		return self.save_queue.get()
+
+	def get_sheriff_investigate(self):
+		return self.investigate_queue.get()
 
 	async def on_save_selected(self, interaction: discord.Interaction):
 		user = self.players[int(self.doctor_selector.dropdown.values[0])]
@@ -309,10 +317,101 @@ class SpecialActionsView(discord.ui.View):
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!")
 		self.get("sheriff").disabled = True
 		await self.message_interaction.edit_original_response(view=self)
+		await self.investigate_queue.put(user)
+
+	async def handle_ai_doctor_action(self, doctor: Player):
+		"""Handle AI doctor choosing who to save."""
+		if not self.client:
+			return
+
+		messages = self.turn_manager.context[doctor.user] if self.turn_manager else []
+
+		prompt = f"""During the night, as the Doctor, you must choose one player to save from being killed by the Mafia.
+
+Available players to save:
+{chr(10).join([f"- {p.name}" for p in self.players if p.alive])}
+
+Remember: You cannot see who the Mafia will target, but if you save the same person they target, you prevent their death.
+You can save yourself, but it's often better to protect someone you think the Mafia might target.
+
+Who do you want to save? Reply with EXACTLY ONE player name, nothing else."""
+
+		messages.append({"role": "user", "content": prompt})
+
+		try:
+			response = await self.client.chat.completions.create(
+				model=doctor.user.model,
+				messages=messages
+			)
+			choice_text = (response.choices[0].message.content or "").strip()
+
+			# Find matching player
+			chosen = None
+			for p in self.players:
+				if p.alive and p.name.lower() in choice_text.lower():
+					chosen = p
+					break
+
+			if not chosen:
+				chosen = next((p for p in self.players if p.alive), None)
+
+			if chosen:
+				await self.save_queue.put(chosen)
+				messages.append({"role": "assistant", "content": chosen.name})
+				if self.turn_manager:
+					self.turn_manager.broadcast_to_all_ai(f"Doctor made their choice for the night.")
+		except Exception as e:
+			logger.error(f"Error getting AI doctor action: {e}")
+
+	async def handle_ai_sheriff_action(self, sheriff: Player):
+		"""Handle AI sheriff choosing who to investigate."""
+		if not self.client:
+			return
+
+		messages = self.turn_manager.context[sheriff.user] if self.turn_manager else []
+
+		prompt = f"""During the night, as the Sheriff, you can investigate one player to learn if they are part of the Mafia or with the Town.
+
+Available players to investigate:
+{chr(10).join([f"- {p.name}" for p in self.players if p.alive and p != sheriff])}
+
+Choose wisely - this information will help the town during the day. You might want to investigate someone acting suspiciously.
+
+Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else."""
+
+		messages.append({"role": "user", "content": prompt})
+
+		try:
+			response = await self.client.chat.completions.create(
+				model=sheriff.user.model,
+				messages=messages
+			)
+			choice_text = (response.choices[0].message.content or "").strip()
+
+			# Find matching player
+			chosen = None
+			for p in self.players:
+				if p.alive and p != sheriff and p.name.lower() in choice_text.lower():
+					chosen = p
+					break
+
+			if not chosen:
+				chosen = next((p for p in self.players if p.alive and p != sheriff), None)
+
+			if chosen:
+				await self.investigate_queue.put(chosen)
+				messages.append({"role": "assistant", "content": chosen.name})
+				messages.append({"role": "user", "content": f"{chosen.name} is **{chosen.role.alignment().upper()}**."})
+				if self.turn_manager:
+					self.turn_manager.broadcast_to_all_ai(f"Sheriff made their choice for the night.")
+		except Exception as e:
+			logger.error(f"Error getting AI sheriff action: {e}")
 
 	@discord.ui.button(label="Doctor", style=discord.ButtonStyle.blurple, emoji="🧑‍⚕️", custom_id="doctor")
 	async def doctor_save(self, interaction: discord.Interaction, _):
-		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]: await interaction.response.send_message("Not for you.", ephemeral=True)
+		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]:
+			await interaction.response.send_message("Not for you.", ephemeral=True)
+			return
 
 		self.message_interaction = interaction
 		self.doctor_selector = SelectView([
@@ -328,14 +427,16 @@ class SpecialActionsView(discord.ui.View):
 
 	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
 	async def sheriff_investigate(self, interaction: discord.Interaction, _):
-		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]: await interaction.response.send_message("Not for you.", ephemeral=True)
+		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]:
+			await interaction.response.send_message("Not for you.", ephemeral=True)
+			return
 
 		self.message_interaction = interaction
 		self.sheriff_selector = SelectView([
 			discord.components.SelectOption(
 				label=self.players[i].name,
 				value=str(i),
-				emoji="🔍"
+				emoji="🕵️"
 			)
 			for i in range(len(self.players))
 		], self.on_investigation_selected)
