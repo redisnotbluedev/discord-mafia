@@ -299,14 +299,14 @@ class SpecialActionsView(discord.ui.View):
 
 	async def on_save_selected(self, interaction: discord.Interaction):
 		user = self.players[int(self.doctor_selector.dropdown.values[0])]
-		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
+		await interaction.response.edit_message(content=f"You chose to save {user.name}.")
 		self.get("doctor").disabled = True
 		await self.message_interaction.edit_original_response(view=self)
 		await self.save_queue.put(user)
 
 	async def on_investigation_selected(self, interaction: discord.Interaction):
 		user = self.players[int(self.sheriff_selector.dropdown.values[0])]
-		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!", view=None)
+		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!")
 		self.get("sheriff").disabled = True
 		await self.message_interaction.edit_original_response(view=self)
 
