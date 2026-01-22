@@ -79,7 +79,7 @@ class MafiaSheduler:
 
 		except Exception:
 			error = traceback.format_exc()
-			await self.message.channel.send(f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer.")
+			await self.message.channel.send(discord.Embed(description=f"Unable to start game; an error occured:\n```python\n{error}\n```\n-# If this error continues, please contact a developer."))
 
 		finally:
 			if mafia_chat:
@@ -88,7 +88,7 @@ class MafiaSheduler:
 			self.abstractor.running = False
 
 			tasks = []
-			for player in self.players:
+			for player in self.game.players:
 				user = player.user
 				if isinstance(user, discord.Member):
 					tasks.append(user.remove_roles(player_role))
