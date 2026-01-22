@@ -17,7 +17,6 @@ class Role(Enum):
 	MAFIA = 1
 	DOCTOR = 2
 	SHERIFF = 3
-	SPECIAL_ROLES = [DOCTOR, SHERIFF]
 
 	def __str__(self):
 		return self.name.title()
@@ -39,6 +38,9 @@ class Role(Enum):
 				return "Town"
 			case Role.MAFIA:
 				return "Mafia"
+
+	def is_special(self):
+		return self in [Role.DOCTOR, Role.MAFIA]
 
 class AIAbstraction:
 	def __init__(self, model, name, avatar_url=None):

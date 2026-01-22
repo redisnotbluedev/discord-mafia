@@ -52,7 +52,7 @@ class StartGameView(discord.ui.View):
 class JoinGameView(discord.ui.View):
 	def __init__(self, abstractor, message, start_at):
 		from classes.scheduler import MafiaSheduler
-		
+
 		self.abstractor: "GameAbstractor" = abstractor
 		self.start_at = int(start_at)
 		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor)
@@ -224,7 +224,7 @@ class VoteSelect(discord.ui.Select):
 		]
 
 		if allow_abstain:
-			options.append(discord.SelectOption(label=abstain_label, emoji="⏭️"))
+			options.append(discord.SelectOption(label=ABSTAIN_LABEL, emoji="⏭️"))
 
 		super().__init__(
 			placeholder=placeholder,

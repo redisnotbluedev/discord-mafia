@@ -1,4 +1,4 @@
-from classes.player import Role
+from classes.player import Role, Player
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import OpenAI
@@ -18,7 +18,7 @@ class MafiaGame():
 		self.bot: discord.Client = abstractor.bot
 		self.generator: OpenAI = OpenAI()
 
-	def get_alive_players(self):
+	def get_alive_players(self) -> list[Player]:
 		return [p for p in self.players if p.alive]
 
 	def is_game_over(self):
@@ -56,7 +56,7 @@ class MafiaGame():
 
 	async def run_night_phase(self):
 		await self.channel.send(f"**Night {self.day_number} falls...**")
-		roles = sorted(set([str(u.role) for u in self.get_alive_players() if u.role in Role.SPECIAL_ROLES]))
+		roles = sorted(set([str(u.role) for u in self.get_alive_players() if u.role.is_special()]))
 		tasks = [self.mafia_choose_target()]
 
 		if roles:

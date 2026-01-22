@@ -1,10 +1,8 @@
 import discord, logging, data, asyncio
-from typing import TYPE_CHECKING
+
 from discord.ext import commands
 from classes.player import Player
 from classes.game import MafiaGame
-from classes.views import StartGameView
-
 logger = logging.getLogger(__name__)
 
 class GameAbstractor:
@@ -53,7 +51,7 @@ class GameAbstractor:
 			return
 
 		from classes.views import StartGameView
-		
+
 		new_msg = await asyncio.gather(
 			message.channel.send(
 				embed=discord.Embed(
