@@ -2,41 +2,13 @@ from enum import Enum
 import discord
 
 models = {
-	"gpt-5.2": {
-		"name": "ChatGPT 5.2",
-		"avatar": None
-	},
-	"gpt-4o": {
-		"name": "ChatGPT 4o",
-		"avatar": None
-	},
-	"kimi-k2-0905": {
+	"kimi-k2": {
 		"name": "Kimi K2",
-		"avatar": None
+		"avatar": "https://media.discordapp.net/stickers/1457241018561728698.webp?size=160&quality=lossless"
 	},
-	"deepseek-r1-0528": {
-		"name": "DeepSeek R1",
-		"avatar": None
-	},
-	"gemini-3-flash-preview": {
-		"name": "Gemini 3 Flash",
-		"avatar": None
-	},
-	"gemini-3-pro-preview": {
-		"name": "Gemini 3 Pro",
-		"avatar": None
-	},
-	"claude-opus-4.5": {
-		"name": "Claude Opus 4.5",
-		"avatar": None
-	},
-	"claude-sonnet-4.5": {
-		"name": "Claude Sonnet 4.5",
-		"avatar": None
-	},
-	"grok-4": {
-		"name": "Grok 4",
-		"avatar": None
+	"llama-4-maverick": {
+		"name": "Llama 4",
+		"avatar": "https://upload.wikimedia.org/wikipedia/commons/0/02/White_Llama_%28Lama_glama%29.jpg"
 	}
 }
 

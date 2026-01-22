@@ -1,9 +1,10 @@
 import discord, time, asyncio
-from classes.scheduler import MafiaSheduler
-from classes.abstractor import GameAbstractor
+from typing import TYPE_CHECKING, Callable
 from classes.player import Player, create_ai_players, Role
 
-abstain_label = "Abstain"
+if TYPE_CHECKING:
+	from classes.abstractor import GameAbstractor
+	from classes.scheduler import MafiaSheduler
 
 ABSTAIN_LABEL = "Abstain"
 
@@ -23,7 +24,7 @@ class ConfirmView(discord.ui.View):
 
 class StartGameView(discord.ui.View):
 	def __init__(self, abstractor):
-		self.abstractor: GameAbstractor = abstractor
+		self.abstractor: "GameAbstractor" = abstractor
 		super().__init__(timeout=None)
 
 	@discord.ui.button(label="Play", style=discord.ButtonStyle.primary)
@@ -50,9 +51,11 @@ class StartGameView(discord.ui.View):
 
 class JoinGameView(discord.ui.View):
 	def __init__(self, abstractor, message, start_at):
-		self.abstractor: GameAbstractor = abstractor
+		from classes.scheduler import MafiaSheduler
+		
+		self.abstractor: "GameAbstractor" = abstractor
 		self.start_at = int(start_at)
-		self.game = MafiaSheduler(self.abstractor)
+		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor)
 		self.game.message = message
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
@@ -146,7 +149,7 @@ class JoinGameView(discord.ui.View):
 		view.message = await interaction.original_response()
 
 class SettingsView(discord.ui.View):
-	def __init__(self, game: MafiaSheduler):
+	def __init__(self, game):
 		self.game = game
 		self.message = None
 		super().__init__(timeout=None)
@@ -248,9 +251,9 @@ class VoteSelect(discord.ui.Select):
 				lines.append(f"- {name}: {count}")
 
 		if view.allow_abstain:
-			abstain_count = sum(1 for v in view.votes.values() if v == abstain_label)
+			abstain_count = sum(1 for v in view.votes.values() if v == ABSTAIN_LABEL)
 			if abstain_count:
-				lines.append(f"- {abstain_label}: {abstain_count}")
+				lines.append(f"- {ABSTAIN_LABEL}: {abstain_count}")
 
 		if not lines:
 			lines = ["No votes yet."]
@@ -275,7 +278,7 @@ class VoteView(discord.ui.View):
 		self.player_names: list[str] = players
 
 class SelectView(discord.ui.View):
-	def __init__(self, candidates: list, callback: function):
+	def __init__(self, candidates: list, callback: Callable):
 		super().__init__(timeout=None)
 		self.dropdown = discord.ui.Select(options=candidates)
 		self.dropdown.callback = callback

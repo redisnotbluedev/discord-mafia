@@ -1,7 +1,9 @@
 import discord, logging, data, asyncio
+from typing import TYPE_CHECKING
 from discord.ext import commands
 from classes.player import Player
 from classes.game import MafiaGame
+from classes.views import StartGameView
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +40,6 @@ class GameAbstractor:
 			logger.error("Failed to delete message %s: %s", self.last_lobby_id, exc)
 
 	async def on_message(self, message: discord.Message | bool):
-		from classes.views import StartGameView
-
 		if isinstance(message, discord.Message):
 			if message.channel.id != self.channel or (self.game and self.game.mafia_chat and message.channel.id == self.game.mafia_chat.id):
 				return
@@ -52,6 +52,8 @@ class GameAbstractor:
 			logger.info("Skipping message send as the game is already running!")
 			return
 
+		from classes.views import StartGameView
+		
 		new_msg = await asyncio.gather(
 			message.channel.send(
 				embed=discord.Embed(
