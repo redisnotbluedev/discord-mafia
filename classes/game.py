@@ -101,31 +101,27 @@ class MafiaGame():
 				view=actions_view
 			)
 
+			async def update_night_action(key, getter):
+				self.night_actions[key] = await getter
+
+			doctor_already_done = False
+			sheriff_already_done = False
+			
 			# Handle Doctor's action (AI or human)
-			if doctor:
+			if doctor and not doctor_already_done:
 				if isinstance(doctor.user, AIAbstraction):
-					async def get_ai_doctor_save():
-						result = await actions_view.handle_ai_doctor_action(doctor)
-						self.night_actions["doctor_save"] = result
-					tasks.append(get_ai_doctor_save())
+					tasks.append(update_night_action("doctor_save", actions_view.handle_ai_doctor_action(doctor)))
 				else:
-					async def get_human_doctor_save():
-						result = await actions_view.get_doctor_save()
-						self.night_actions["doctor_save"] = result
-					tasks.append(get_human_doctor_save())
+					tasks.append(update_night_action("doctor_save", actions_view.get_doctor_save()))
+				doctor_already_done = True
 
 			# Handle Sheriff's action (AI or human)
-			if sheriff:
+			if sheriff and not sheriff_already_done:
 				if isinstance(sheriff.user, AIAbstraction):
-					async def get_ai_sheriff_investigate():
-						result = await actions_view.handle_ai_sheriff_action(sheriff)
-						self.night_actions["sheriff_investigate"] = result
-					tasks.append(get_ai_sheriff_investigate())
+					tasks.append(update_night_action("sheriff_investigate", actions_view.handle_ai_sheriff_action(sheriff)))
 				else:
-					async def get_human_sheriff_investigate():
-						result = await actions_view.get_sheriff_investigate()
-						self.night_actions["sheriff_investigate"] = result
-					tasks.append(get_human_sheriff_investigate())
+					tasks.append(update_night_action("sheriff_investigate", actions_view.get_sheriff_investigate()))
+				sheriff_already_done = True
 
 		await asyncio.gather(*tasks)
 
