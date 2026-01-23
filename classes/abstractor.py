@@ -39,7 +39,10 @@ class GameAbstractor:
 
 	async def on_message(self, message: discord.Message | bool):
 		if isinstance(message, discord.Message):
-			if message.channel.id != self.channel or (self.game and self.game.mafia_chat and message.channel.id != self.game.mafia_chat.id):
+			# Accept message if it's in the main channel OR in the mafia chat
+			is_in_main_channel = message.channel.id == self.channel
+			is_in_mafia_chat = self.game and self.game.mafia_chat and message.channel.id == self.game.mafia_chat.id
+			if not (is_in_main_channel or is_in_mafia_chat):
 				return
 		elif not message:
 			return
