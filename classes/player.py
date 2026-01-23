@@ -13,6 +13,10 @@ models = {
 	"deepseek-3.2": {
 		"name": "Winnie the Pooh",
 		"avatar": "https://upload.wikimedia.org/wikipedia/en/1/10/Winniethepooh.png"
+	},
+	"noromaid-7b-v0.2": {
+		"name": "noromaid",
+		"avatar": "https://static.vecteezy.com/system/resources/previews/025/208/624/non_2x/3d-letter-a-free-png.png"
 	}
 }
 
@@ -61,6 +65,7 @@ class Player:
 		self.role: Role = None
 		self.name = user.display_name or user.name
 		self.alive = True
+		self.last_night_acted: int | None = None
 
 def create_ai_players() -> list[Player]:
 	players = []
