@@ -41,7 +41,6 @@ class StartGameView(discord.ui.View):
 
 		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True
-		self.abstractor.lobby_active = False
 		self.abstractor.last_lobby_id = None
 		self.abstractor.owner = interaction.user
 		self.abstractor.save_config()
@@ -106,7 +105,6 @@ class JoinGameView(discord.ui.View):
 					)
 					self.game.start_job.cancel()
 					self.abstractor.running = False
-					self.abstractor.lobby_active = True
 				else:
 					embed = self.generate_embed()
 					await interaction.message.edit(embed=embed)
@@ -131,10 +129,11 @@ class JoinGameView(discord.ui.View):
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
 		if interaction.user == self.abstractor.owner:
-			if self.game.starting:
+			if self.abstractor.game is not None:
 				await interaction.response.send_message("Game is already starting.", ephemeral=True)
 				return
-			self.game.start_job.cancel()
+			if self.game.start_job and not self.game.start_job.done():
+				self.game.start_job.cancel()
 			self.game.schedule(time.time())
 			await interaction.response.edit_message()
 		else:
@@ -314,7 +313,7 @@ class SpecialActionsView(discord.ui.View):
 		return self.investigate_queue.get()
 
 	def _action_expired(self):
-		return self.game.current_phase != "night" or self.game.current_night_id != self.night_id
+		return not self.game.night_open or self.game.day_number != self.night_id
 
 	def _already_acted(self, user_id: int):
 		player = next((p for p in self.players if isinstance(p.user, discord.Member) and p.user.id == user_id), None)

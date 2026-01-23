@@ -16,7 +16,6 @@ class MafiaSheduler:
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
-		self.starting = False
 		self.game = MafiaGame(abstractor)
 		self.config = {}
 
@@ -42,12 +41,15 @@ class MafiaSheduler:
 		self.start_job = new_task
 
 	async def start_game(self):
-		if self.starting:
+		if self.abstractor.game is not None:
 			return True
 		if len(self.abstractor.players) < 5: return False
+		mafia_chat = None
+		player_role = None
 		try:
-			self.starting = True
 			self.abstractor.game = self.game
+			self.abstractor.last_lobby_id = None
+			self.abstractor.save_config()
 			await self.message.edit(view=None)
 
 			config = data.load()
@@ -89,7 +91,6 @@ class MafiaSheduler:
 				logger.error(f"Failed to send error message: {error}")
 
 		finally:
-			self.starting = False
 			try:
 				if mafia_chat:
 					await mafia_chat.edit(locked=True)
@@ -98,13 +99,14 @@ class MafiaSheduler:
 				logger.debug("Could not lock mafia chat thread during cleanup")
 
 			self.abstractor.running = False
-			self.abstractor.lobby_active = False
+			self.abstractor.game = None
 
 			tasks = []
 			for player in self.game.players:
 				user = player.user
 				if isinstance(user, discord.Member):
-					tasks.append(user.remove_roles(player_role))
+					if player_role:
+						tasks.append(user.remove_roles(player_role))
 
 			try:
 				await asyncio.gather(*tasks)
@@ -112,7 +114,8 @@ class MafiaSheduler:
 				# Session might be closed during shutdown
 				logger.debug("Could not remove player roles during cleanup")
 
-			return True
+
+		return True
 
 	def setup_roles(self):
 		total_players = len(self.abstractor.players)
