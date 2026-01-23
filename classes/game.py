@@ -6,6 +6,9 @@ import logging, discord, asyncio
 
 logger = logging.getLogger(__name__)
 
+sheriff_already_done = False
+doctor_already_done = False
+
 class MafiaGame():
 	def __init__(self, abstractor):
 		self.players = []
@@ -13,6 +16,7 @@ class MafiaGame():
 		self.night_actions = {}
 		self.channel: discord.Channel = None   # todo
 		self.mafia_chat: discord.Thread = None # todo
+		self.running = False
 
 		self.turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
@@ -34,6 +38,7 @@ class MafiaGame():
 		return False
 
 	async def run(self):
+		self.running = True
 		self.turns = TurnManager(
 			self.players,
 			self.channel,
@@ -96,7 +101,7 @@ class MafiaGame():
 		if roles:
 			await self.channel.send(
 				f"## Night Actions\n{
-					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)
+					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles) # that outputs "Doctor and Sheriff"
 				}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
 				view=actions_view
 			)
@@ -104,26 +109,21 @@ class MafiaGame():
 			async def update_night_action(key, getter):
 				self.night_actions[key] = await getter
 
-			doctor_already_done = False
-			sheriff_already_done = False
-			
 			# Handle Doctor's action (AI or human)
-			if doctor and not doctor_already_done:
+			if doctor:
 				if isinstance(doctor.user, AIAbstraction):
 					tasks.append(update_night_action("doctor_save", actions_view.handle_ai_doctor_action(doctor)))
 				else:
 					tasks.append(update_night_action("doctor_save", actions_view.get_doctor_save()))
-				doctor_already_done = True
 
 			# Handle Sheriff's action (AI or human)
-			if sheriff and not sheriff_already_done:
+			if sheriff:
 				if isinstance(sheriff.user, AIAbstraction):
 					tasks.append(update_night_action("sheriff_investigate", actions_view.handle_ai_sheriff_action(sheriff)))
 				else:
 					tasks.append(update_night_action("sheriff_investigate", actions_view.get_sheriff_investigate()))
-				sheriff_already_done = True
 
-		await asyncio.gather(*tasks)
+		await asyncio.gather(*tasks) # all the night actions should be concurrent
 
 		# Broadcast results to AIs
 		kill = self.night_actions.get("mafia_kill")

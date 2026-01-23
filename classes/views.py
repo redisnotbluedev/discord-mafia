@@ -59,6 +59,7 @@ class JoinGameView(discord.ui.View):
 		self.start_at = int(start_at)
 		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor)
 		self.game.message = message
+		self.running = False
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
 
@@ -128,8 +129,9 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
-		if self.abstractor.running:
+		if self.running or self.abstractor.game.running:
 			await interaction.response.send_message("The game's already running!", ephemeral=True)
+			return
 		if interaction.user == self.abstractor.owner:
 			self.game.start_job.cancel()
 			self.game.schedule(time.time())
@@ -292,11 +294,12 @@ class SpecialActionsView(discord.ui.View):
 	def __init__(self, alive_players: list[Player]):
 		super().__init__(timeout=None)
 		self.players = alive_players
-		self.message_interaction: discord.Interaction = None # Used to edit the original message to disable buttons, without having to pass in the message object
 		self.save_queue = asyncio.Queue()
 		self.investigate_queue = asyncio.Queue()
 		self.client = None  # Will be set by game.py
 		self.turn_manager = None  # Will be set by game.py for broadcasting
+		self.sheriff_already_done = False
+		self.doctor_already_done = False
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
@@ -310,15 +313,11 @@ class SpecialActionsView(discord.ui.View):
 	async def on_save_selected(self, interaction: discord.Interaction):
 		user = self.players[int(self.doctor_selector.dropdown.values[0])]
 		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
-		self.get("doctor").disabled = True
-		await self.message_interaction.edit_original_response(view=self)
 		await self.save_queue.put(user)
 
 	async def on_investigation_selected(self, interaction: discord.Interaction):
 		user = self.players[int(self.sheriff_selector.dropdown.values[0])]
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!", view=None)
-		self.get("sheriff").disabled = True
-		await self.message_interaction.edit_original_response(view=self)
 		await self.investigate_queue.put(user)
 
 	async def handle_ai_doctor_action(self, doctor: Player):
@@ -414,8 +413,9 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
 			return
+		elif self.doctor_already_done:
+			await interaction.response.send_message("You already saved someone!", ephemeral=True)
 
-		self.message_interaction = interaction
 		self.doctor_selector = SelectView([
 			discord.components.SelectOption(
 				label=self.players[i].name,
@@ -426,14 +426,16 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 		], self.on_save_selected)
 
 		await interaction.response.send_message("## Doctor\nWho do you want to save?", view=self.doctor_selector, ephemeral=True)
+		self.doctor_already_done = True
 
 	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
 	async def sheriff_investigate(self, interaction: discord.Interaction, _):
 		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
 			return
+		elif self.sheriff_already_done:
+			await interaction.response.send_message("You already investigated!", ephemeral=True)
 
-		self.message_interaction = interaction
 		self.sheriff_selector = SelectView([
 			discord.components.SelectOption(
 				label=self.players[i].name,
@@ -444,3 +446,4 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 		], self.on_investigation_selected)
 
 		await interaction.response.send_message("## Sheriff\nWho do you want to investigate?", view=self.sheriff_selector, ephemeral=True)
+		self.sheriff_already_done = True
