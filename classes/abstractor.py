@@ -74,3 +74,9 @@ class GameAbstractor:
 		config = data.load()
 		config.setdefault("profiles", {}).setdefault(self.channel_key, {})["last_lobby"] = self.last_lobby_id
 		data.save(config)
+
+	def reset(self):
+		self.players.clear()
+		self.owner = None
+		self.interactions.clear()
+		self.game = None

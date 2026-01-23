@@ -128,6 +128,8 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
+		if self.abstractor.running:
+			await interaction.response.send_message("The game's already running!", ephemeral=True)
 		if interaction.user == self.abstractor.owner:
 			self.game.start_job.cancel()
 			self.game.schedule(time.time())

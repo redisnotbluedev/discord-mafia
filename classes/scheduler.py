@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 from classes.game import MafiaGame
-from classes.player import Player, Role
+from classes.player import Player, Role, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
 
@@ -65,6 +65,9 @@ class MafiaSheduler:
 						await i.followup.send(f"""
 							You are {player.role.describe()}
 						""", ephemeral=True)
+				elif not isinstance(user, AIAbstraction):
+					# hmmmm
+					logger.warn(f"User is of type {user.type}!!")
 
 			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
@@ -92,6 +95,7 @@ class MafiaSheduler:
 				# Session might be closed during shutdown or thread doesn't exist
 				logger.debug("Could not lock mafia chat thread during cleanup")
 
+			self.abstractor.reset()
 			self.abstractor.running = False
 
 			tasks = []
