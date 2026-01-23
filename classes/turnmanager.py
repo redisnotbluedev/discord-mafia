@@ -130,7 +130,7 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				else:
 					await self.channel.set_permissions(
 						player.user,
-						send_messages=False
+						send_messages=None
 					)
 
 			elif isinstance(player.user, AIAbstraction):
