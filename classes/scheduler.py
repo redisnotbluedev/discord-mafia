@@ -16,6 +16,7 @@ class MafiaSheduler:
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
+		self.starting = False
 		self.game = MafiaGame(abstractor)
 		self.config = {}
 
@@ -41,8 +42,11 @@ class MafiaSheduler:
 		self.start_job = new_task
 
 	async def start_game(self):
+		if self.starting:
+			return True
 		if len(self.abstractor.players) < 5: return False
 		try:
+			self.starting = True
 			self.abstractor.game = self.game
 			await self.message.edit(view=None)
 
@@ -85,6 +89,7 @@ class MafiaSheduler:
 				logger.error(f"Failed to send error message: {error}")
 
 		finally:
+			self.starting = False
 			try:
 				if mafia_chat:
 					await mafia_chat.edit(locked=True)
@@ -93,6 +98,7 @@ class MafiaSheduler:
 				logger.debug("Could not lock mafia chat thread during cleanup")
 
 			self.abstractor.running = False
+			self.abstractor.lobby_active = False
 
 			tasks = []
 			for player in self.game.players:

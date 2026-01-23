@@ -42,6 +42,10 @@ class ModerationCog(commands.Cog):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 
+			if any(getattr(abstractor, "channel", None) == channel.id for abstractor in self.bot.abstractors):
+				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
+				return
+
 			await channel.set_permissions(
 				interaction.guild.me,
 				send_messages=True,

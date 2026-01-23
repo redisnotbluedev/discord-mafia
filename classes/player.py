@@ -61,6 +61,7 @@ class Player:
 		self.role: Role = None
 		self.name = user.display_name or user.name
 		self.alive = True
+		self.last_night_acted: int | None = None
 
 def create_ai_players() -> list[Player]:
 	players = []

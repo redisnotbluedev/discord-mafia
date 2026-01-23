@@ -41,6 +41,7 @@ class StartGameView(discord.ui.View):
 
 		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True
+		self.abstractor.lobby_active = False
 		self.abstractor.last_lobby_id = None
 		self.abstractor.owner = interaction.user
 		self.abstractor.save_config()
@@ -105,6 +106,7 @@ class JoinGameView(discord.ui.View):
 					)
 					self.game.start_job.cancel()
 					self.abstractor.running = False
+					self.abstractor.lobby_active = True
 				else:
 					embed = self.generate_embed()
 					await interaction.message.edit(embed=embed)
@@ -129,6 +131,9 @@ class JoinGameView(discord.ui.View):
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
 		if interaction.user == self.abstractor.owner:
+			if self.game.starting:
+				await interaction.response.send_message("Game is already starting.", ephemeral=True)
+				return
 			self.game.start_job.cancel()
 			self.game.schedule(time.time())
 			await interaction.response.edit_message()
@@ -287,7 +292,7 @@ class SelectView(discord.ui.View):
 		self.add_item(self.dropdown)
 
 class SpecialActionsView(discord.ui.View):
-	def __init__(self, alive_players: list[Player]):
+	def __init__(self, alive_players: list[Player], game, night_id: int):
 		super().__init__(timeout=None)
 		self.players = alive_players
 		self.message_interaction: discord.Interaction = None # Used to edit the original message to disable buttons, without having to pass in the message object
@@ -295,6 +300,9 @@ class SpecialActionsView(discord.ui.View):
 		self.investigate_queue = asyncio.Queue()
 		self.client = None  # Will be set by game.py
 		self.turn_manager = None  # Will be set by game.py for broadcasting
+		self.actions_message: discord.Message | None = None
+		self.game = game
+		self.night_id = night_id
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
@@ -305,18 +313,50 @@ class SpecialActionsView(discord.ui.View):
 	def get_sheriff_investigate(self):
 		return self.investigate_queue.get()
 
+	def _action_expired(self):
+		return self.game.current_phase != "night" or self.game.current_night_id != self.night_id
+
+	def _already_acted(self, user_id: int):
+		player = next((p for p in self.players if isinstance(p.user, discord.Member) and p.user.id == user_id), None)
+		if not player:
+			return False
+		return player.last_night_acted == self.night_id
+
+	async def _disable_action(self, action_id: str):
+		button = self.get(action_id)
+		if button:
+			button.disabled = True
+		if self.actions_message:
+			await self.actions_message.edit(view=self)
+
 	async def on_save_selected(self, interaction: discord.Interaction):
+		if self._action_expired():
+			await interaction.response.send_message("This action is no longer available.", ephemeral=True)
+			return
+		if self._already_acted(interaction.user.id):
+			await interaction.response.send_message("You already acted tonight.", ephemeral=True)
+			return
 		user = self.players[int(self.doctor_selector.dropdown.values[0])]
 		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
-		self.get("doctor").disabled = True
-		await self.message_interaction.edit_original_response(view=self)
+		await self._disable_action("doctor")
+		player = next((p for p in self.players if isinstance(p.user, discord.Member) and p.user.id == interaction.user.id), None)
+		if player:
+			player.last_night_acted = self.night_id
 		await self.save_queue.put(user)
 
 	async def on_investigation_selected(self, interaction: discord.Interaction):
+		if self._action_expired():
+			await interaction.response.send_message("This action is no longer available.", ephemeral=True)
+			return
+		if self._already_acted(interaction.user.id):
+			await interaction.response.send_message("You already acted tonight.", ephemeral=True)
+			return
 		user = self.players[int(self.sheriff_selector.dropdown.values[0])]
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!", view=None)
-		self.get("sheriff").disabled = True
-		await self.message_interaction.edit_original_response(view=self)
+		await self._disable_action("sheriff")
+		player = next((p for p in self.players if isinstance(p.user, discord.Member) and p.user.id == interaction.user.id), None)
+		if player:
+			player.last_night_acted = self.night_id
 		await self.investigate_queue.put(user)
 
 	async def handle_ai_doctor_action(self, doctor: Player):
@@ -409,8 +449,14 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 
 	@discord.ui.button(label="Doctor", style=discord.ButtonStyle.blurple, emoji="🧑‍⚕️", custom_id="doctor")
 	async def doctor_save(self, interaction: discord.Interaction, _):
+		if self._action_expired():
+			await interaction.response.send_message("This action is no longer available.", ephemeral=True)
+			return
 		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
+			return
+		if self._already_acted(interaction.user.id):
+			await interaction.response.send_message("You already acted tonight.", ephemeral=True)
 			return
 
 		self.message_interaction = interaction
@@ -427,8 +473,14 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 
 	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
 	async def sheriff_investigate(self, interaction: discord.Interaction, _):
+		if self._action_expired():
+			await interaction.response.send_message("This action is no longer available.", ephemeral=True)
+			return
 		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
+			return
+		if self._already_acted(interaction.user.id):
+			await interaction.response.send_message("You already acted tonight.", ephemeral=True)
 			return
 
 		self.message_interaction = interaction

@@ -16,6 +16,7 @@ class GameAbstractor:
 		self.interactions: dict[int, discord.Interaction] = {}
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
+		self.lobby_active: bool = bool(self.last_lobby_id)
 		self.game: MafiaGame = None
 
 	async def _delete_last_lobby(self) -> None:
@@ -48,13 +49,14 @@ class GameAbstractor:
 			return
 
 		logger.debug(f"Received a message, running: {self.running}")
-		if self.running:
+		if self.running or self.lobby_active:
 			if self.game:
 				await self.game.turns.on_message(message)
 			return
 
 		from classes.views import StartGameView
 
+		self.lobby_active = True
 		new_msg = await asyncio.gather(
 			message.channel.send(
 				embed=discord.Embed(

@@ -11,6 +11,8 @@ class MafiaGame():
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
+		self.current_phase: str | None = None
+		self.current_night_id: int = 0
 		self.channel: discord.Channel = None   # todo
 		self.mafia_chat: discord.Thread = None # todo
 
@@ -70,6 +72,8 @@ class MafiaGame():
 		await asyncio.sleep(0)  # Yield to event loop
 
 	async def run_night_phase(self):
+		self.current_phase = "night"
+		self.current_night_id += 1
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
 
@@ -89,17 +93,18 @@ class MafiaGame():
 
 		tasks = [self.mafia_choose_target()]
 
-		actions_view = SpecialActionsView(alive_players)
+		actions_view = SpecialActionsView(alive_players, self, self.current_night_id)
 		actions_view.turn_manager = self.turns
 		actions_view.client = self.generator
 
 		if roles:
-			await self.channel.send(
+			actions_message = await self.channel.send(
 				f"## Night Actions\n{
 					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)
 				}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
 				view=actions_view
 			)
+			actions_view.actions_message = actions_message
 
 			async def update_night_action(key, getter):
 				self.night_actions[key] = await getter
@@ -141,6 +146,7 @@ class MafiaGame():
 			self.turns.broadcast(finding)
 
 		self.night_actions.clear()
+		self.current_phase = "day"
 
 	async def run_day_phase(self):
 		if not self.get_alive_players():
