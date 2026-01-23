@@ -1,6 +1,6 @@
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
-import discord, random, asyncio, logging, data
+import discord, random, asyncio, logging, data, typing
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
@@ -76,12 +76,6 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 			if player != exclude and isinstance(player.user, AIAbstraction):
 				self.context.setdefault(player.user, []).append({"role": "user", "content": text})
 
-	def broadcast_to_all_ai(self, text: str):
-		"""Broadcast a message to ALL AI players including those not in current round."""
-		for player in self.participants:
-			if isinstance(player.user, AIAbstraction):
-				self.context.setdefault(player.user, []).append({"role": "user", "content": text})
-
 	def get_context(self):
 		return self.context
 
@@ -127,16 +121,16 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				message = await self.message_queue.get()
 				logger.debug(f"Got message: {message.content}")
 				self.required_author = -1
-				self.broadcast_to_all_ai(f"{player.name} said: {message.content}")
+				self.broadcast(f"{player.name} said: {message.content}")
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
-						send_messages_in_threads=True
+						send_messages_in_threads=False
 					)
 				else:
 					await self.channel.set_permissions(
 						player.user,
-						send_messages=True
+						send_messages=False
 					)
 
 			elif isinstance(player.user, AIAbstraction):
@@ -149,12 +143,19 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				text = response.choices[0].message.content
 
 				if self.webhook:
-					await self.webhook.send(
-						username=player.name,
-						avatar_url=player.user.avatar,
-						content=text,
-						thread=(self.channel if isinstance(self.channel, discord.Thread) else None)
-					)
+					if isinstance(self.channel, discord.Thread):
+						await self.webhook.send(
+							username=player.name,
+							avatar_url=player.user.avatar,
+							content=text,
+							thread=self.channel
+						)
+					else:
+						await self.webhook.send(
+							username=player.name,
+							avatar_url=player.user.avatar,
+							content=text
+						)
 				else:
 					await self.channel.send(f"**{player.name}:** {text}")
 

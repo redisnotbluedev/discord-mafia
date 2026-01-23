@@ -2,13 +2,17 @@ from enum import Enum
 import discord
 
 models = {
-	"kimi-k2": {
-		"name": "Kimi K2",
+	"gpt-4o": {
+		"name": "4o",
 		"avatar": "https://media.discordapp.net/stickers/1457241018561728698.webp?size=160&quality=lossless"
 	},
-	"llama-4-maverick": {
-		"name": "Llama 4",
+	"mistral-large-3": {
+		"name": "mistral 3",
 		"avatar": "https://upload.wikimedia.org/wikipedia/commons/0/02/White_Llama_%28Lama_glama%29.jpg"
+	},
+	"kimi-k2": {
+		"name": "hello my name is kimi k2",
+		"avatar": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Cheeseburger.jpg"
 	}
 }
 

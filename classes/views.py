@@ -359,7 +359,7 @@ Who do you want to save? Reply with EXACTLY ONE player name, nothing else."""
 				await self.save_queue.put(chosen)
 				messages.append({"role": "assistant", "content": chosen.name})
 				if self.turn_manager:
-					self.turn_manager.broadcast_to_all_ai(f"Doctor made their choice for the night.")
+					self.turn_manager.broadcast("Doctor made their choice for the night.")
 		except Exception as e:
 			logger.error(f"Error getting AI doctor action: {e}")
 
@@ -403,7 +403,7 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 				messages.append({"role": "assistant", "content": chosen.name})
 				messages.append({"role": "user", "content": f"{chosen.name} is **{chosen.role.alignment().upper()}**."})
 				if self.turn_manager:
-					self.turn_manager.broadcast_to_all_ai(f"Sheriff made their choice for the night.")
+					self.turn_manager.broadcast("Sheriff made their choice for the night.")
 		except Exception as e:
 			logger.error(f"Error getting AI sheriff action: {e}")
 

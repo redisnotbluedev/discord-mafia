@@ -55,7 +55,10 @@ class MafiaGame():
 			if self.is_game_over():
 				break
 
-		return self.is_game_over() or "No one"
+		winner = self.is_game_over() or "No one"
+		# Broadcast game end to all AIs
+		self.turns.broadcast(f"**GAME OVER!** {winner} wins!")
+		return winner
 
 	async def _broadcast_initial_roles(self):
 		"""Tell all AIs what their roles are at game start."""
@@ -69,23 +72,23 @@ class MafiaGame():
 	async def run_night_phase(self):
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
-		
+
 		# Broadcast alive players and night phase info to AIs
 		alive_names = [p.name for p in alive_players]
-		self.turns.broadcast_to_all_ai(f"Night {self.day_number} has begun. Alive players: {', '.join(alive_names)}. Special roles (Doctor, Sheriff), prepare your actions.")
-		
+		self.turns.broadcast(f"Night {self.day_number} has begun. Alive players: {', '.join(alive_names)}. Special roles (Doctor, Sheriff), prepare your actions.")
+
 		# Find special role players
 		doctor = next((p for p in alive_players if p.role == Role.DOCTOR), None)
 		sheriff = next((p for p in alive_players if p.role == Role.SHERIFF), None)
-		
+
 		roles = []
 		if doctor:
 			roles.append("Doctor")
 		if sheriff:
 			roles.append("Sheriff")
-		
+
 		tasks = [self.mafia_choose_target()]
-		
+
 		actions_view = SpecialActionsView(alive_players)
 		actions_view.turn_manager = self.turns
 		actions_view.client = self.generator
@@ -125,17 +128,17 @@ class MafiaGame():
 			kill.alive = False
 			message = f"{kill.name} was killed by the Mafia during the night."
 			await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
-			self.turns.broadcast_to_all_ai(message)
+			self.turns.broadcast(message)
 		else:
 			message = "Nobody was killed last night. Either the Doctor saved the target, or the Mafia didn't send a kill."
 			await self.channel.send(message)
-			self.turns.broadcast_to_all_ai(message)
+			self.turns.broadcast(message)
 
 		# Broadcast sheriff findings to AIs
 		sheriff_target = self.night_actions.get("sheriff_investigate")
 		if sheriff_target:
 			finding = f"The Sheriff investigated {sheriff_target.name} and found they are {sheriff_target.role.alignment()}."
-			self.turns.broadcast_to_all_ai(finding)
+			self.turns.broadcast(finding)
 
 		self.night_actions.clear()
 
@@ -148,9 +151,13 @@ class MafiaGame():
 
 		if victim:
 			victim.alive = False
-			await self.channel.send(f"> **{victim.name}** was eliminated!\nThey were {victim.role}.")
+			message = f"{victim.name} was eliminated! They were {victim.role}."
+			await self.channel.send(f"> **{message}**")
+			self.turns.broadcast(message)
 		else:
-			await self.channel.send("No one was eliminated.")
+			message = "No one was eliminated."
+			await self.channel.send(message)
+			self.turns.broadcast(message)
 
 	async def mafia_choose_target(self):
 		alive = self.get_alive_players()
@@ -161,7 +168,7 @@ class MafiaGame():
 
 		# Broadcast to Mafia members who is in the group
 		mafia_names = [p.name for p in mafia]
-		self.turns.broadcast_to_all_ai(f"You are part of the Mafia! Your team consists of: {', '.join(mafia_names)}. Choose wisely who to eliminate.")
+		self.turns.broadcast(f"You are part of the Mafia! Your team consists of: {', '.join(mafia_names)}. Choose wisely who to eliminate.")
 
 		await self.turns.run_round()
 
@@ -192,7 +199,7 @@ class MafiaGame():
 
 		# Broadcast day phase start to AIs with context
 		alive_names = [p.name for p in alive]
-		self.turns.broadcast_to_all_ai(f"Day {self.day_number} has begun. Alive players: {', '.join(alive_names)}. It's discussion time. Pay close attention to what others say and how they behave - look for suspicious activity or patterns.")
+		self.turns.broadcast(f"Day {self.day_number} has begun. Alive players: {', '.join(alive_names)}. It's discussion time. Pay close attention to what others say and how they behave - look for suspicious activity or patterns.")
 
 		await self.channel.send(f"**Day {self.day_number} begins...**")
 		await self.turns.run_round()
@@ -200,10 +207,10 @@ class MafiaGame():
 	async def voting_phase(self):
 		alive = self.get_alive_players()
 		# day lynch vote: allow abstain, no random tie-break; abstain/none highest => no lynch
-		
+
 		# Broadcast voting phase to AIs
-		self.turns.broadcast_to_all_ai(f"It's time to vote! Based on the discussion, who do you think should be eliminated?")
-		
+		self.turns.broadcast("It's time to vote! Based on the discussion, who do you think should be eliminated?")
+
 		victim = await self.turns.run_vote(
 			candidates=alive,
 			message=f"Day {self.day_number}: Vote to eliminate a player.",
@@ -211,12 +218,12 @@ class MafiaGame():
 			emoji="🗳️",
 			allow_abstain=True
 		)
-		
+
 		if victim:
 			message = f"{victim.name} was voted out and eliminated. They were {victim.role}."
-			self.turns.broadcast_to_all_ai(message)
+			self.turns.broadcast(message)
 		else:
 			message = "Nobody was voted out today. The vote was inconclusive or everyone abstained."
-			self.turns.broadcast_to_all_ai(message)
-		
+			self.turns.broadcast(message)
+
 		return victim
