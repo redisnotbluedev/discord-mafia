@@ -98,10 +98,12 @@ class MafiaGame():
 		actions_view.client = self.generator
 
 		if roles:
+			if len(roles) > 1:
+				roles_text = ", ".join(roles[:-1]) + f" and {roles[-1]}"
+			else:
+				roles_text = roles[0]
 			actions_message = await self.channel.send(
-				f"## Night Actions\n{
-					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)
-				}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
+				f"## Night Actions\n{roles_text}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
 				view=actions_view
 			)
 			actions_view.actions_message = actions_message
