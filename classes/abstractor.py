@@ -16,7 +16,8 @@ class GameAbstractor:
 		self.interactions: dict[int, discord.Interaction] = {}
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
-		self.lobby_active: bool = bool(self.last_lobby_id)
+		# `lobby_active` reflects only in-process state; do not derive it from persisted `last_lobby_id`
+		self.lobby_active: bool = False
 		self.game: MafiaGame = None
 
 	async def _delete_last_lobby(self) -> None:
