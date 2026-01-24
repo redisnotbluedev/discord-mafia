@@ -336,16 +336,7 @@ class SpecialActionsView(discord.ui.View):
 
 		messages = self.turn_manager.context[doctor.user] if self.turn_manager else []
 
-		prompt = f"""During the night, as the Doctor, you must choose one player to save from being killed by the Mafia.
-
-Available players to save:
-{chr(10).join([f"- {p.name}" for p in self.players if p.alive])}
-
-Remember: You cannot see who the Mafia will target, but if you save the same person they target, you prevent their death.
-You can save yourself, but it's often better to protect someone you think the Mafia might target.
-
-Who do you want to save? Reply with EXACTLY ONE player name, nothing else."""
-
+		prompt = f"NIGHT: DOCTOR SAVE\n> Who do you want to save? Reply with EXACTLY ONE player name, nothing else.\nAvailable players to save:\n{"\n".join([f"- {p.name}" for p in self.players if p.alive])}"
 		messages.append({"role": "user", "content": prompt})
 
 		try:
@@ -367,28 +358,18 @@ Who do you want to save? Reply with EXACTLY ONE player name, nothing else."""
 
 			if chosen:
 				await self.save_queue.put(chosen)
-				messages.append({"role": "assistant", "content": chosen.name})
-				if self.turn_manager:
-					self.turn_manager.broadcast("Doctor made their choice for the night.")
+				if self.turn_manager: self.turn_manager.context[doctor.user] = messages
 		except Exception as e:
 			logger.error(f"Error getting AI doctor action: {e}")
 
 	async def handle_ai_sheriff_action(self, sheriff: Player):
-		"""Handle AI sheriff choosing who to investigate."""
+		"""Handle AI doctor choosing who to save."""
 		if not self.client:
 			return
 
 		messages = self.turn_manager.context[sheriff.user] if self.turn_manager else []
 
-		prompt = f"""During the night, as the Sheriff, you can investigate one player to learn if they are part of the Mafia or with the Town.
-
-Available players to investigate:
-{chr(10).join([f"- {p.name}" for p in self.players if p.alive and p != sheriff])}
-
-Choose wisely - this information will help the town during the day. You might want to investigate someone acting suspiciously.
-
-Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else."""
-
+		prompt = f"NIGHT: SHERIFF INVESTIGATION\n> Pick ONE living player to check (you can’t inspect yourself). Available players: {"\n".join([f"- {p.name}" for p in self.players if p.alive and p.user != sheriff.user])}"
 		messages.append({"role": "user", "content": prompt})
 
 		try:
@@ -401,19 +382,16 @@ Who do you want to investigate? Reply with EXACTLY ONE player name, nothing else
 			# Find matching player
 			chosen = None
 			for p in self.players:
-				if p.alive and p != sheriff and p.name.lower() in choice_text.lower():
+				if p.alive and p.name.lower() in choice_text.lower():
 					chosen = p
 					break
 
 			if not chosen:
-				chosen = next((p for p in self.players if p.alive and p != sheriff), None)
+				chosen = next((p for p in self.players if p.alive), None)
 
 			if chosen:
-				await self.investigate_queue.put(chosen)
-				messages.append({"role": "assistant", "content": chosen.name})
 				messages.append({"role": "user", "content": f"{chosen.name} is **{chosen.role.alignment().upper()}**."})
-				if self.turn_manager:
-					self.turn_manager.broadcast("Sheriff made their choice for the night.")
+				if self.turn_manager: self.turn_manager.context[sheriff.user] = messages
 		except Exception as e:
 			logger.error(f"Error getting AI sheriff action: {e}")
 

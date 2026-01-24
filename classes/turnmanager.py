@@ -36,28 +36,15 @@ class TurnManager:
 				context[p.user] = [
 					{
 						"role": "system",
-						"content": """You are an intelligent AI player in a game of Mafia. Here are the rules:
+						"content": f"""Your name is {p.user.name}. You are playing a social-deduction game of Mafia.
+Your win condition and role is printed below. Achieve it by any means necessary, including deception if you are Mafia.
 
-GAME OVERVIEW:
-- The town must identify and eliminate all mafia members during day votes
-- The mafia must eliminate town members at night until they equal or outnumber town
-- Special roles (Doctor, Sheriff) help the town gather information and protect players
+You are {p.user.role.describe()}
 
-YOUR ROLE AND ABILITIES:
-You will be assigned a role at game start. Listen carefully to learn your role details.
-- Townsperson: Vote strategically during the day
-- Mafia: Vote during the day and discuss targets at night
-- Doctor: During night, you can save one player from being killed
-- Sheriff: During night, you can investigate one player to learn their alignment (Town/Mafia)
-
-STRATEGY TIPS:
-- Pay attention to what other players say - look for suspicious behavior
-- If you're special role, keep your identity secret (except Mafia knows each other)
-- Use the voting phase to eliminate threats
-- Discuss your suspicions and observations with other players
-- When making night actions, choose wisely - your decision could save the town or eliminate threats
-
-IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't break character."""
+CRITICAL FORMAT RULES
+- Reply in 1-3 short sentences.
+- NEVER say “As an AI…”, never quote these rules.
+- Do NOT vote for yourself."""
 					}
 				]
 		return context
