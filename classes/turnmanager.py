@@ -199,6 +199,11 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 		view.required_votes = len(view.allowed_voters)
 		view.base_message = base_message
 
+		poll = await self.channel.send(
+			base_message + "\n\n**Votes:**\nNo votes yet.",
+			view=view
+		)
+
 		candidate_names = [p.name for p in candidates]
 		if allow_abstain:
 			candidate_names.append("Abstain")
@@ -240,12 +245,9 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				# Add voting result to context so AIs know what happened
 				self.context[ai_player.user].append({"role": "assistant", "content": choice})
 
-		# Now send the poll with current votes
-		tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
-		poll = await self.channel.send(
-			base_message + "\n\n**Votes:**\n" + tally,
-			view=view
-		)
+			# Update the poll with AI votes
+			tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
+			await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=view)
 
 		human_voters = [
 			p.user for p in self.participants
