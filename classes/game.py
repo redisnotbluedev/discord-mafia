@@ -46,9 +46,6 @@ class MafiaGame():
 			self.generator
 		)
 
-		# Announce roles to all AIs
-		await self._broadcast_initial_roles()
-
 		while not self.is_game_over():
 			self.day_number += 1
 
@@ -65,22 +62,9 @@ class MafiaGame():
 		self.turns.broadcast(f"**GAME OVER!** {winner} wins!")
 		return winner
 
-	async def _broadcast_initial_roles(self):
-		"""Tell all AIs what their roles are at game start."""
-		for player in self.players:
-			if isinstance(player.user, AIAbstraction):
-				role_desc = player.role.describe()
-				message = f"**Game Started!** You are {role_desc}\n\nOther players: {', '.join([p.name for p in self.players if p != player])}"
-				self.turns.context[player.user].append({"role": "user", "content": message})
-		await asyncio.sleep(0)  # Yield to event loop
-
 	async def run_night_phase(self):
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
-
-		# Broadcast alive players and night phase info to AIs
-		alive_names = [p.name for p in alive_players]
-		self.turns.broadcast(f"Night {self.day_number} has begun. Alive players: {', '.join(alive_names)}. Special roles (Doctor, Sheriff), prepare your actions.")
 
 		# Find special role players
 		doctor = next((p for p in alive_players if p.role == Role.DOCTOR), None)
@@ -119,9 +103,9 @@ class MafiaGame():
 			# Handle Sheriff's action (AI or human)
 			if sheriff:
 				if isinstance(sheriff.user, AIAbstraction):
-					tasks.append(update_night_action("sheriff_investigate", actions_view.handle_ai_sheriff_action(sheriff)))
+					tasks.append(actions_view.handle_ai_sheriff_action(sheriff))
 				else:
-					tasks.append(update_night_action("sheriff_investigate", actions_view.get_sheriff_investigate()))
+					tasks.append(actions_view.get_sheriff_investigate())
 
 		await asyncio.gather(*tasks) # all the night actions should be concurrent
 
@@ -131,19 +115,13 @@ class MafiaGame():
 
 		if kill and kill != save:
 			kill.alive = False
-			message = f"{kill.name} was killed by the Mafia during the night."
+			message = f"{kill.name} was killed by the Mafia during the night. They were {kill.role}."
 			await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
 			self.turns.broadcast(message)
 		else:
 			message = "Nobody was killed last night. Either the Doctor saved the target, or the Mafia didn't send a kill."
 			await self.channel.send(message)
 			self.turns.broadcast(message)
-
-		# Broadcast sheriff findings to AIs
-		sheriff_target = self.night_actions.get("sheriff_investigate")
-		if sheriff_target:
-			finding = f"The Sheriff investigated {sheriff_target.name} and found they are {sheriff_target.role.alignment()}."
-			self.turns.broadcast(finding)
 
 		self.night_actions.clear()
 

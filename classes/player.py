@@ -1,36 +1,38 @@
 from enum import Enum
 import discord
 
-models = {
-	"gpt-4o": {
-		"name": "4o",
-		"avatar": "https://media.discordapp.net/stickers/1457241018561728698.webp?size=160&quality=lossless"
+models = [
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "Gemini",
+		"avatar": None
 	},
-	"qwen-3-next-80b-a3b": {
-		"name": "qwen",
-		"avatar": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Cheeseburger.jpg"
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "ChatGPT",
+		"avatar": None
 	},
-	"deepseek-3.2": {
-		"name": "Winnie the Pooh",
-		"avatar": "https://upload.wikimedia.org/wikipedia/en/1/10/Winniethepooh.png"
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "DeepSeek",
+		"avatar": None
 	},
-	"noromaid-7b-v0.2": {
-		"name": "noromaid",
-		"avatar": "https://static.vecteezy.com/system/resources/previews/025/208/624/non_2x/3d-letter-a-free-png.png"
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "Claude",
+		"avatar": None
 	},
-	"mistral-large-3": {
-		"name": "mistral",
-		"avatar": "https://i.natgeofe.com/n/548467d8-c5f1-4551-9f58-6817a8d2c45e/NationalGeographic_2572187_16x9.jpg?w=1200"
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "Grok",
+		"avatar": None
 	},
-	"llama-4-maverick": {
-		"name": "llama",
-		"avatar": "https://nwyarns.com/cdn/shop/articles/Llama_grande.png?v=1512170916"
-	},
-	"gemini-3-flash": {
-		"name": "flash",
-		"avatar": "https://i.ytimg.com/vi/KxXp8oiMzSw/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAGu-LjIDP_7vcuMCgVar1CYR0QJA"
+	{
+		"model": "gemini-2.5-flash-lite",
+		"name": "Kimi",
+		"avatar": None
 	}
-}
+]
 
 class Role(Enum):
 	TOWN = 0
@@ -77,13 +79,12 @@ class Player:
 		self.role: Role = None
 		self.name = user.display_name or user.name
 		self.alive = True
-		self.last_night_acted: int | None = None
 
 def create_ai_players() -> list[Player]:
 	players = []
 
-	for id, data in models.items():
-		model = AIAbstraction(id, data.get("name", "Unknown AI"), data.get("avatar"))
+	for m in models:
+		model = AIAbstraction(m["model"], m.get("name", "Unknown"), m.get("avatar"))
 		players.append(model.player)
 
 	return players
