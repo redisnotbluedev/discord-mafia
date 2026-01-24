@@ -30,7 +30,7 @@ class InfoCog(commands.Cog):
 			Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			Bot adaption by <@1337909802931716197>
 			Icons from [lucide.dev](https://lucide.dev)
-			[GitHub](https://github.com/redisnotbluedev/discord-mafia)
+			Source code on [GitHub](https://github.com/redisnotbluedev/discord-mafia)
 		""", inline=False)
 
 		await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none())

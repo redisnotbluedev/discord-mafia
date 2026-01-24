@@ -1,4 +1,5 @@
 import discord, time, asyncio, logging
+from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
 from classes.player import Player, create_ai_players, Role
 
@@ -90,6 +91,9 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
 	async def join_game(self, interaction: discord.Interaction, _):
+		if self.running or (self.abstractor.game and self.abstractor.game.running):
+			await interaction.response.send_message("The game's already running!", ephemeral=True)
+			return
 		if interaction.user.id in self.abstractor.players:
 			async def yes(i: discord.Interaction):
 				await i.response.edit_message(content="You left the game.", view=None)
@@ -129,7 +133,7 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
-		if self.running or self.abstractor.game.running:
+		if self.running or (self.abstractor.game and self.abstractor.game.running):
 			await interaction.response.send_message("The game's already running!", ephemeral=True)
 			return
 		if interaction.user == self.abstractor.owner:
@@ -250,16 +254,20 @@ class VoteSelect(discord.ui.Select):
 		selection = self.values[0]
 		view.votes[interaction.user.id] = selection
 
+		vote_details = defaultdict(list)
+		for vid, choice in view.votes.items():
+			voter_name = view.voter_names.get(vid, "Unknown")
+			vote_details[choice].append(voter_name)
+
 		lines = []
 		for name in view.player_names:
-			count = sum(1 for v in view.votes.values() if v == name)
-			if count:
-				lines.append(f"- {name}: {count}")
+			voters = vote_details.get(name, [])
+			if voters:
+				lines.append(f"- {name}: {', '.join(sorted(voters))} ({len(voters)})")
 
-		if view.allow_abstain:
-			abstain_count = sum(1 for v in view.votes.values() if v == ABSTAIN_LABEL)
-			if abstain_count:
-				lines.append(f"- {ABSTAIN_LABEL}: {abstain_count}")
+		if view.allow_abstain and ABSTAIN_LABEL in vote_details:
+			voters = vote_details[ABSTAIN_LABEL]
+			lines.append(f"- {ABSTAIN_LABEL}: {', '.join(sorted(voters))} ({len(voters)})")
 
 		if not lines:
 			lines = ["No votes yet."]
@@ -273,7 +281,7 @@ class VoteSelect(discord.ui.Select):
 		await interaction.response.edit_message(content=content, view=view)
 
 class VoteView(discord.ui.View):
-	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False):
+	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False, voter_names: dict[int, str] = None):
 		super().__init__(timeout=None)
 		self.allow_abstain = allow_abstain
 		self.add_item(VoteSelect(players, placeholder, emoji, allow_abstain=allow_abstain))
@@ -282,6 +290,7 @@ class VoteView(discord.ui.View):
 		self.required_votes: int = 0
 		self.base_message: str = ""
 		self.player_names: list[str] = players
+		self.voter_names = voter_names or {}
 
 class SelectView(discord.ui.View):
 	def __init__(self, candidates: list, callback: Callable):

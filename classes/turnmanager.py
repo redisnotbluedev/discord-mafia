@@ -1,3 +1,4 @@
+import openai
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
 import discord, random, asyncio, logging, data, typing
@@ -86,18 +87,26 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				return c
 		return None
 
-	def _format_vote_tally(self, votes: dict[int, str], candidates: list[Player]) -> str:
-		# votes: voter_id -> candidate_name
-		counts: dict[str, int] = {c.name: 0 for c in candidates}
-		for choice in votes.values():
-			if choice in counts:
-				counts[choice] += 1
+	def _format_vote_details(self, votes: dict[int, str], candidates: list[Player], voter_names: dict[int, str], allow_abstain: bool = False) -> str:
+		from collections import defaultdict
+		vote_details = defaultdict(list)
+		for vid, choice in votes.items():
+			voter_name = voter_names.get(vid, "Unknown")
+			vote_details[choice].append(voter_name)
 
 		lines = []
 		for c in candidates:
-			n = counts.get(c.name, 0)
-			lines.append(f"- {c.name}: **{n}**")
-		return "\n".join(lines) if lines else "No candidates."
+			voters = vote_details.get(c.name, [])
+			if voters:
+				lines.append(f"- {c.name}: {', '.join(sorted(voters))} ({len(voters)})")
+
+		if allow_abstain and "Abstain" in vote_details:
+			voters = vote_details["Abstain"]
+			lines.append(f"- Abstain: {', '.join(sorted(voters))} ({len(voters)})")
+
+		if not lines:
+			return "No votes yet."
+		return "\n".join(lines)
 
 	async def run_round(self):
 		self.running = True
@@ -164,6 +173,13 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
 
+		voter_names = {}
+		for p in self.participants:
+			if isinstance(p.user, discord.Member):
+				voter_names[p.user.id] = p.name
+			elif isinstance(p.user, AIAbstraction):
+				voter_names[hash(p.name)] = p.name
+
 		ends_at = int(__import__("time").time() + timeout_s)
 		countdown = f"-# Voting ends <t:{ends_at}:R>."
 		base_message = message + "\n" + countdown
@@ -172,7 +188,8 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 			players=[p.name for p in candidates],
 			placeholder=placeholder,
 			emoji=emoji,
-			allow_abstain=allow_abstain
+			allow_abstain=allow_abstain,
+			voter_names=voter_names
 		)
 		view.votes = votes
 		view.allowed_voters = {
@@ -182,14 +199,10 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 		view.required_votes = len(view.allowed_voters)
 		view.base_message = base_message
 
-		poll = await self.channel.send(
-			base_message + "\n\n**Votes:**\nNo votes yet.",
-			view=view
-		)
-
 		candidate_names = [p.name for p in candidates]
 		if allow_abstain:
 			candidate_names.append("Abstain")
+
 		options_block = "\n".join(candidate_names)
 
 		# Prepare AI voting tasks to run concurrently
@@ -227,6 +240,13 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 				# Add voting result to context so AIs know what happened
 				self.context[ai_player.user].append({"role": "assistant", "content": choice})
 
+		# Now send the poll with current votes
+		tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
+		poll = await self.channel.send(
+			base_message + "\n\n**Votes:**\n" + tally,
+			view=view
+		)
+
 		human_voters = [
 			p.user for p in self.participants
 			if isinstance(p.user, discord.Member)
@@ -245,11 +265,7 @@ IMPORTANT: Keep responses concise and natural, as if you're a real player. Don't
 
 		await wait_for_human_votes()
 
-		tally = self._format_vote_tally(votes, candidates)
-		if allow_abstain:
-			abstain_n = sum(1 for v in votes.values() if v == "Abstain")
-			if abstain_n:
-				tally = tally + f"\n- Abstain: **{abstain_n}**"
+		tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
 		await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=None)
 
 		counts: dict[str, int] = {name: 0 for name in candidate_names}

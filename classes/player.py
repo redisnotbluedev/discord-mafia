@@ -17,6 +17,18 @@ models = {
 	"noromaid-7b-v0.2": {
 		"name": "noromaid",
 		"avatar": "https://static.vecteezy.com/system/resources/previews/025/208/624/non_2x/3d-letter-a-free-png.png"
+	},
+	"mistral-large-3": {
+		"name": "mistral",
+		"avatar": "https://i.natgeofe.com/n/548467d8-c5f1-4551-9f58-6817a8d2c45e/NationalGeographic_2572187_16x9.jpg?w=1200"
+	},
+	"llama-4-maverick": {
+		"name": "llama",
+		"avatar": "https://nwyarns.com/cdn/shop/articles/Llama_grande.png?v=1512170916"
+	},
+	"gemini-3-flash": {
+		"name": "flash",
+		"avatar": "https://i.ytimg.com/vi/KxXp8oiMzSw/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLAGu-LjIDP_7vcuMCgVar1CYR0QJA"
 	}
 }
 
