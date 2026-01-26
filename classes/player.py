@@ -3,34 +3,34 @@ import discord
 
 models = [
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "gpt-4o",
 		"name": "Gemini",
-		"avatar": None
+		"avatar": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Google_Gemini_icon_2025.svg/960px-Google_Gemini_icon_2025.svg.png"
 	},
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "gpt-4o",
 		"name": "ChatGPT",
-		"avatar": None
+		"avatar": "https://cdn.discordapp.com/guilds/1449548216931586260/users/561150467552444436/avatars/175173b9270c081cc1e04fad961231a8.webp?size=128"
 	},
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "gpt-4o",
 		"name": "DeepSeek",
-		"avatar": None
+		"avatar": "https://cdn.discordapp.com/avatars/1292256566518747219/2081952934f3212a5086fb38fa1f91d7.webp?size=128"
 	},
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "mistral-large-3",
 		"name": "Claude",
-		"avatar": None
+		"avatar": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Claude_AI_symbol.svg/960px-Claude_AI_symbol.svg.png"
 	},
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "mistral-large-3",
 		"name": "Grok",
-		"avatar": None
+		"avatar": "https://cdn.discordapp.com/avatars/1457791629120372747/f4839d9d3feb47c0ca071254f3a9c88b.webp?size=128"
 	},
 	{
-		"model": "gemini-2.5-flash-lite",
+		"model": "mistral-large-3",
 		"name": "Kimi",
-		"avatar": None
+		"avatar": "https://cdn.discordapp.com/avatars/1394070345308311662/4fa6961ff5e7aa15c662675da2e4b1e9.webp?size=128"
 	}
 ]
 

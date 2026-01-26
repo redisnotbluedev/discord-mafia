@@ -165,6 +165,8 @@ class MafiaGame():
 		)
 
 		self.night_actions["mafia_kill"] = kill
+		self.turns.set_channel(self.channel)
+		self.turns.set_participants(alive)
 
 	async def discussion_phase(self):
 		alive = self.get_alive_players()
@@ -191,9 +193,6 @@ class MafiaGame():
 	async def voting_phase(self):
 		alive = self.get_alive_players()
 		# day lynch vote: allow abstain, no random tie-break; abstain/none highest => no lynch
-
-		# Broadcast voting phase to AIs
-		self.turns.broadcast("It's time to vote! Based on the discussion, who do you think should be eliminated?")
 
 		victim = await self.turns.run_vote(
 			candidates=alive,
