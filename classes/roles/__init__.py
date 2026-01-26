@@ -5,6 +5,8 @@ class Alignment(Enum):
 	MAFIA = "Mafia"
 	NEUTRAL = "Neutral"
 
+NEUTRAL = Alignment.NEUTRAL
+
 class Role:
 	def __init__(self, name: str, alignment: Alignment, description: str):
 		self.name = name
