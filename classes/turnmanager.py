@@ -1,3 +1,4 @@
+from classes.roles import Role
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
 import discord, random, asyncio, logging, data
@@ -30,6 +31,11 @@ class TurnManager:
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
 		"""Initialize AI context with detailed game instructions and rules."""
 		context = {}
+		role_counts = {}
+		player_list = "\n  - ".join([p.name for p in participants])
+
+		for p in participants:
+			role_counts[p.role] = role_counts.get(p.role, 0) + 1
 		for p in participants:
 			if isinstance(p.user, AIAbstraction):
 				context[p.user] = [
@@ -41,7 +47,14 @@ Your win condition and role is printed below. Achieve it by any means necessary,
 You are {p.role.describe()}
 
 Players:
-{"\n  - ".join([p.name for p in participants])}
+{player_list}
+
+There are {[len(participants)]} players:
+  - {role_counts.get(Role.TOWN, 0)} town
+  - {role_counts.get(Role.MAFIA, 0)} Mafia
+  - {role_counts.get(Role.DOCTOR, 0)} doctor
+  - {role_counts.get(Role.SHERIFF, 0)} sheriff
+  - {role_counts.get(Role.VIGILANTE, 0)} vigilante
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
@@ -285,6 +298,20 @@ CRITICAL FORMAT RULES
 			return None
 
 		return self._candidate_by_name(candidates, winners[0])
+
+	async def create_ai_completion(self, ai_player: Player, prompt: str) -> str:
+		"""Create a completion for an AI player and update their context."""
+		messages = self.context.setdefault(ai_player.user, [])
+		messages.append({"role": "user", "content": prompt})
+
+		response = await self.client.chat.completions.create(
+			model=ai_player.user.model,
+			messages=messages
+		)
+		choice_text = (response.choices[0].message.content or "").strip()
+		messages.append({"role": "assistant", "content": choice_text})
+
+		return choice_text
 
 	async def on_message(self, message: discord.Message):
 		logger.debug(f"Got message '{message.content}' from {message.author.id}, required author is {self.required_author}.")

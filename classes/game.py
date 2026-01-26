@@ -1,4 +1,5 @@
-from classes.player import Role, Player, AIAbstraction
+from classes.roles import Role
+from classes.player import Player, AIAbstraction
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import AsyncOpenAI
@@ -27,7 +28,14 @@ class MafiaGame():
 
 	def is_game_over(self):
 		players_alive = self.get_alive_players()
-		mafia_alive = sum(1 for p in players_alive if p.role == Role.MAFIA)
+
+		# Check role win conditions
+		for player in self.players:
+			if player.role.win_condition(player, self.players):
+				return player.role.name
+
+		# Fallback to traditional checks
+		mafia_alive = sum(1 for p in players_alive if p.role.alignment == Alignment.MAFIA)
 		town_alive = len(players_alive) - mafia_alive
 
 		if mafia_alive == 0:
@@ -67,20 +75,15 @@ class MafiaGame():
 		alive_players = self.get_alive_players()
 
 		# Find special role players
-		doctor = next((p for p in alive_players if p.role == Role.DOCTOR), None)
-		sheriff = next((p for p in alive_players if p.role == Role.SHERIFF), None)
+		special_players = [p for p in alive_players if p.role.is_special()]
 
-		roles = []
-		if doctor:
-			roles.append("Doctor")
-		if sheriff:
-			roles.append("Sheriff")
+		roles = list(set(p.role.name for p in special_players))
 
 		tasks = [self.mafia_choose_target()]
 
 		actions_view = SpecialActionsView(alive_players)
 		actions_view.turn_manager = self.turns
-		actions_view.client = self.generator
+		actions_view.game = self
 
 		if roles:
 			await self.channel.send(
@@ -90,36 +93,41 @@ class MafiaGame():
 				view=actions_view
 			)
 
-			async def update_night_action(key, getter):
-				self.night_actions[key] = await getter
-
-			# Handle Doctor's action (AI or human)
-			if doctor:
-				if isinstance(doctor.user, AIAbstraction):
-					tasks.append(update_night_action("doctor_save", actions_view.handle_ai_doctor_action(doctor)))
-				else:
-					tasks.append(update_night_action("doctor_save", actions_view.get_doctor_save()))
-
-			# Handle Sheriff's action (AI or human)
-			if sheriff:
-				if isinstance(sheriff.user, AIAbstraction):
-					tasks.append(actions_view.handle_ai_sheriff_action(sheriff))
-				else:
-					tasks.append(actions_view.get_sheriff_investigate())
+			# Handle AI special actions
+			for player in special_players:
+				if isinstance(player.user, AIAbstraction):
+					tasks.append(actions_view.handle_ai_special_action(player))
+				# Human actions are handled by the role buttons
 
 		await asyncio.gather(*tasks) # all the night actions should be concurrent
 
-		# Broadcast results to AIs
+		# Process night actions
 		kill = self.night_actions.get("mafia_kill")
-		save = self.night_actions.get("doctor_save")
+		saves = self.night_actions.get("saves", [])
+		vigilante_kills = self.night_actions.get("kills", [])
 
-		if kill and kill != save:
+		# Apply vigilante kills
+		for victim in vigilante_kills:
+			if victim and victim.alive:
+				victim.alive = False
+				victim.death_reason = "vigilante"
+				message = f"{victim.name} was killed by the Vigilante during the night. They were {victim.role}."
+				await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
+				self.turns.broadcast(message)
+
+		# Check mafia kill
+		if kill and kill not in saves and kill.alive:
 			kill.alive = False
+			kill.death_reason = "mafia"
 			message = f"{kill.name} was killed by the Mafia during the night. They were {kill.role}."
 			await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
 			self.turns.broadcast(message)
+		elif kill:
+			message = f"{kill.name} was attacked by the Mafia but was saved!"
+			await self.channel.send(message)
+			self.turns.broadcast(message)
 		else:
-			message = "Nobody was killed last night. Either the Doctor saved the target, or the Mafia didn't send a kill."
+			message = "Nobody was killed last night. Either someone saved the target, or the Mafia didn't send a kill."
 			await self.channel.send(message)
 			self.turns.broadcast(message)
 
@@ -203,6 +211,8 @@ class MafiaGame():
 		)
 
 		if victim:
+			victim.alive = False
+			victim.death_reason = "lynch"
 			message = f"{victim.name} was voted out and eliminated. They were {victim.role}."
 			self.turns.broadcast(message)
 		else:

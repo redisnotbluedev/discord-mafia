@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from classes.game import MafiaGame
-from classes.player import Player, Role, AIAbstraction
+from classes.roles import Role, Alignment
+from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
 
@@ -121,29 +122,37 @@ class MafiaSheduler:
 
 		players_rolled = 0
 
-		for _ in range(town - 2):
+		# Assign special roles if enabled
+		special_roles = []
+		if self.config.get("role_Doctor", False):
+			special_roles.append(Role.DOCTOR)
+		if self.config.get("role_Sheriff", False):
+			special_roles.append(Role.SHERIFF)
+		if self.config.get("role_Vigilante", False):
+			special_roles.append(Role.VIGILANTE)
+
+		for role in special_roles:
 			user = players[players_rolled]
 			player = Player(user.user)
-			player.role = Role.TOWN
-
+			player.role = role
 			self.game.players.append(player)
 			players_rolled += 1
 
-		doctor = Player(players[players_rolled].user)
-		doctor.role = Role.DOCTOR
-		self.game.players.append(doctor)
-		players_rolled += 1
+		# Assign town roles
+		town_count = self.config.get("town", town) - len([r for r in special_roles if r.alignment == Alignment.TOWN])
+		for _ in range(max(0, town_count)):
+			user = players[players_rolled]
+			player = Player(user.user)
+			player.role = Role.TOWN
+			self.game.players.append(player)
+			players_rolled += 1
 
-		sheriff = Player(players[players_rolled].user)
-		sheriff.role = Role.SHERIFF
-		self.game.players.append(sheriff)
-		players_rolled += 1
-
-		for _ in range(mafia):
+		# Assign mafia roles
+		mafia_count = self.config.get("mafia", mafia)
+		for _ in range(mafia_count):
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = Role.MAFIA
-
 			self.game.players.append(player)
 			players_rolled += 1
 
