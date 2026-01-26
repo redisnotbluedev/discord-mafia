@@ -40,6 +40,9 @@ Your win condition and role is printed below. Achieve it by any means necessary,
 
 You are {p.role.describe()}
 
+Players:
+{"\n  - ".join([p.name for p in participants])}
+
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
 - NEVER say “As an AI…”, never quote these rules.
