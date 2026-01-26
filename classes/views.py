@@ -1,7 +1,8 @@
 import discord, time, asyncio, logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
-from classes.player import Player, create_ai_players, Role
+from classes.roles import Role, ALL_ROLES
+from classes.player import Player, create_ai_players
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
@@ -164,15 +165,38 @@ class SettingsView(discord.ui.View):
 		self.message = None
 		super().__init__(timeout=None)
 
+		# Add mafia and town controls
+		self.add_item(MafiaUp())
+		self.add_item(MafiaDisplay())
+		self.add_item(TownUp())
+		self.add_item(TownDisplay())
+		self.add_item(DefaultButton())
+
+		# Initialize role toggles
+		for role in ALL_ROLES:
+			enabled = self.game.config.get(f"role_{role.name}", role.name in ["Townsperson", "Mafia", "Doctor", "Sheriff"])  # Default Town and Mafia enabled
+			self.game.config[f"role_{role.name}"] = enabled
+			self.add_item(RoleToggle(role, enabled))
+
 	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 
 		total_players = len(self.game.abstractor.players)
 
-		# Smart distribution: Mafia = ~1/3 of players, but keep Town >= 3
+		# Auto-adjust if total players changed
+		current_mafia = self.game.config.get("mafia", 0)
+		current_town = self.game.config.get("town", 0)
+		if current_mafia + current_town > total_players:
+			# Keep mafia, adjust town down
+			self.game.config["town"] = max(1, total_players - current_mafia)
+		elif current_mafia + current_town < total_players:
+			# Add to town
+			self.game.config["town"] = current_town + (total_players - (current_mafia + current_town))
+
+		# Smart distribution: Mafia = ~1/3 of players, but keep Town > Mafia
 		mafia = max(1, min(total_players // 3, total_players - 3))
-		town = total_players - mafia
+		town = max(mafia + 1, total_players - mafia)
 
 		self.game.config.setdefault("mafia", mafia)
 		self.game.config.setdefault("town", town)
@@ -180,10 +204,15 @@ class SettingsView(discord.ui.View):
 		mafia = self.game.config["mafia"]
 		town = self.game.config["town"]
 
+		# Ensure mafia < town
+		if mafia >= town:
+			town = mafia + 1
+			self.game.config["town"] = town
+
 		# Mafia bar
 		mafia_bar = "🔪" * mafia
 		get("mafia_display").label = f"{mafia_bar} ({mafia})"
-		get("mafia_up").disabled = mafia >= total_players - 3
+		get("mafia_up").disabled = mafia >= town - 1
 
 		# Town bar - show doctor and sheriff separately
 		town_regular = max(town - 2, 0)  # Subtract doctor and sheriff
@@ -202,29 +231,80 @@ class SettingsView(discord.ui.View):
 		elif self.message:
 			await self.message.edit(view=self)
 
-	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=0, custom_id="mafia_up")
-	async def mafia_add(self, interaction: discord.Interaction, _):
-		total_players = len(self.game.abstractor.players)
-		self.game.config["mafia"] = min(self.game.config["mafia"] + 1, total_players - 3)
-		# If town + mafia exceeds total, auto-decrement town
-		if self.game.config["town"] + self.game.config["mafia"] > total_players:
-			self.game.config["town"] = max(1, total_players - self.game.config["mafia"])
-		await self.render(interaction)
+class RoleToggle(discord.ui.Button):
+	def __init__(self, role: Role, enabled: bool):
+		self.role = role
+		super().__init__(
+			label=f"{role.name}: {'Yes' if enabled else 'No'}",
+			style=discord.ButtonStyle.green if enabled else discord.ButtonStyle.red,
+			custom_id=f"role_{role.name}"
+		)
 
-	@discord.ui.button(label="🔪 (1)", style=discord.ButtonStyle.gray, row=0, custom_id="mafia_display", disabled=True)
-	async def mafia_display(self, i, b): pass
+	async def callback(self, interaction: discord.Interaction):
+		view: SettingsView = self.view  # type: ignore
+		enabled = not view.game.config.get(f"role_{self.role.name}", False)
+		view.game.config[f"role_{self.role.name}"] = enabled
+		self.label = f"{self.role.name}: {'Yes' if enabled else 'No'}"
+		self.style = discord.ButtonStyle.green if enabled else discord.ButtonStyle.red
+		await view.render(interaction)
 
-	@discord.ui.button(label="+", style=discord.ButtonStyle.green, row=1, custom_id="town_up")
-	async def town_add(self, interaction: discord.Interaction, _):
-		total_players = len(self.game.abstractor.players)
-		self.game.config["town"] = min(self.game.config["town"] + 1, total_players - 1)
+class MafiaUp(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="mafia_up")
+
+	async def callback(self, interaction: discord.Interaction):
+		view: SettingsView = self.view  # type: ignore
+		total_players = len(view.game.abstractor.players)
+		new_mafia = view.game.config["mafia"] + 1
+		if new_mafia >= view.game.config["town"]:
+			view.game.config["town"] = new_mafia + 1
+		view.game.config["mafia"] = min(new_mafia, total_players - 3)
+		await view.render(interaction)
+
+class MafiaDisplay(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True)
+
+class TownUp(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="town_up")
+
+	async def callback(self, interaction: discord.Interaction):
+		view: SettingsView = self.view  # type: ignore
+		total_players = len(view.game.abstractor.players)
+		new_town = view.game.config["town"] + 1
+		if new_town <= view.game.config["mafia"]:
+			view.game.config["mafia"] = new_town - 1
+		view.game.config["town"] = min(new_town, total_players - 1)
 		# If town + mafia exceeds total, auto-decrement mafia
-		if self.game.config["town"] + self.game.config["mafia"] > total_players:
-			self.game.config["mafia"] = max(1, total_players - self.game.config["town"])
-		await self.render(interaction)
+		if view.game.config["town"] + view.game.config["mafia"] > total_players:
+			view.game.config["mafia"] = max(1, total_players - view.game.config["town"])
+		await view.render(interaction)
 
-	@discord.ui.button(label="🏡 (1)", style=discord.ButtonStyle.gray, row=1, custom_id="town_display", disabled=True)
-	async def town_display(self, i, b): pass
+class TownDisplay(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True)
+
+class DefaultButton(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="Default", style=discord.ButtonStyle.blurple, custom_id="default")
+
+	async def callback(self, interaction: discord.Interaction):
+		view: SettingsView = self.view  # type: ignore
+		total_players = len(view.game.abstractor.players)
+		
+		# Reset role toggles to defaults
+		for role in ALL_ROLES:
+			enabled = role.name in ["Townsperson", "Mafia", "Doctor", "Sheriff"]
+			view.game.config[f"role_{role.name}"] = enabled
+		
+		# Reset counts to smart defaults
+		mafia = max(1, min(total_players // 3, total_players - 3))
+		town = max(mafia + 1, total_players - mafia)
+		view.game.config["mafia"] = mafia
+		view.game.config["town"] = town
+		
+		await view.render(interaction)
 
 class VoteSelect(discord.ui.Select):
 	def __init__(self, players, placeholder, emoji, allow_abstain: bool = False):
@@ -303,134 +383,50 @@ class SpecialActionsView(discord.ui.View):
 	def __init__(self, alive_players: list[Player]):
 		super().__init__(timeout=None)
 		self.players = alive_players
-		self.save_queue = asyncio.Queue()
-		self.investigate_queue = asyncio.Queue()
-		self.client = None  # Will be set by game.py
 		self.turn_manager = None  # Will be set by game.py for broadcasting
-		self.sheriff_already_done = False
-		self.doctor_already_done = False
+		self.game = None  # Will be set by game.py
+		self.acted_players = set()
+
+		# Add buttons for special roles
+		added_roles = set()
+		for player in alive_players:
+			if player.role.is_special() and player.role.name not in added_roles:
+				self.add_item(SpecialActionButton(player.role))
+				added_roles.add(player.role.name)
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
 
-	def get_doctor_save(self):
-		return self.save_queue.get()
-
-	def get_sheriff_investigate(self):
-		return self.investigate_queue.get()
-
-	async def on_save_selected(self, interaction: discord.Interaction):
-		user = self.players[int(self.doctor_selector.dropdown.values[0])]
-		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
-		await self.save_queue.put(user)
-
-	async def on_investigation_selected(self, interaction: discord.Interaction):
-		user = self.players[int(self.sheriff_selector.dropdown.values[0])]
-		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment().upper()}**!", view=None)
-		await self.investigate_queue.put(user)
-
-	async def handle_ai_doctor_action(self, doctor: Player):
-		"""Handle AI doctor choosing who to save."""
-		if not self.client:
+	async def handle_ai_special_action(self, player: Player):
+		"""Handle AI special action based on role."""
+		if not self.game:
 			return
-
-		messages = self.turn_manager.context[doctor.user] if self.turn_manager else []
-
-		prompt = f"NIGHT: DOCTOR SAVE\n> Who do you want to save? Reply with EXACTLY ONE player name, nothing else.\nAvailable players to save:\n{"\n".join([f"- {p.name}" for p in self.players if p.alive])}"
-		messages.append({"role": "user", "content": prompt})
 
 		try:
-			response = await self.client.chat.completions.create(
-				model=doctor.user.model,
-				messages=messages
-			)
-			choice_text = (response.choices[0].message.content or "").strip()
-
-			# Find matching player
-			chosen = None
-			for p in self.players:
-				if p.alive and p.name.lower() in choice_text.lower():
-					chosen = p
-					break
-
-			if not chosen:
-				chosen = next((p for p in self.players if p.alive), None)
-
-			if chosen:
-				await self.save_queue.put(chosen)
-				if self.turn_manager: self.turn_manager.context[doctor.user] = messages
+			await player.role.night_action_ai(self.game, player)
 		except Exception as e:
-			logger.error(f"Error getting AI doctor action: {e}")
+			logger.error(f"Error getting AI {player.role.name} action: {e}")
 
-	async def handle_ai_sheriff_action(self, sheriff: Player):
-		"""Handle AI doctor choosing who to save."""
-		if not self.client:
-			return
+class SpecialActionButton(discord.ui.Button):
+	def __init__(self, role: Role):
+		button_info = role.get_button_info()
+		super().__init__(
+			label=button_info["label"],
+			style=discord.ButtonStyle.blurple,
+			emoji=button_info["emoji"],
+			custom_id=f"action_{role.name}"
+		)
+		self.role = role
 
-		messages = self.turn_manager.context[sheriff.user] if self.turn_manager else []
-
-		prompt = f"NIGHT: SHERIFF INVESTIGATION\n> Pick ONE living player to check (you can’t inspect yourself). Available players: {"\n".join([f"- {p.name}" for p in self.players if p.alive and p.user != sheriff.user])}"
-		messages.append({"role": "user", "content": prompt})
-
-		try:
-			response = await self.client.chat.completions.create(
-				model=sheriff.user.model,
-				messages=messages
-			)
-			choice_text = (response.choices[0].message.content or "").strip()
-
-			# Find matching player
-			chosen = None
-			for p in self.players:
-				if p.alive and p.name.lower() in choice_text.lower():
-					chosen = p
-					break
-
-			if not chosen:
-				chosen = next((p for p in self.players if p.alive), None)
-
-			if chosen:
-				messages.append({"role": "user", "content": f"{chosen.name} is **{chosen.role.alignment().upper()}**."})
-				if self.turn_manager: self.turn_manager.context[sheriff.user] = messages
-		except Exception as e:
-			logger.error(f"Error getting AI sheriff action: {e}")
-
-	@discord.ui.button(label="Doctor", style=discord.ButtonStyle.blurple, emoji="🧑‍⚕️", custom_id="doctor")
-	async def doctor_save(self, interaction: discord.Interaction, _):
-		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.DOCTOR]:
+	async def callback(self, interaction: discord.Interaction):
+		view: SpecialActionsView = self.view  # type: ignore
+		if interaction.user.id not in [p.user.id for p in view.players if p.role == self.role]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
 			return
-		elif self.doctor_already_done:
-			await interaction.response.send_message("You already saved someone!", ephemeral=True)
-
-		self.doctor_selector = SelectView([
-			discord.components.SelectOption(
-				label=self.players[i].name,
-				value=str(i),
-				emoji="💊"
-			)
-			for i in range(len(self.players))
-		], self.on_save_selected)
-
-		await interaction.response.send_message("## Doctor\nWho do you want to save?", view=self.doctor_selector, ephemeral=True)
-		self.doctor_already_done = True
-
-	@discord.ui.button(label="Sheriff", style=discord.ButtonStyle.grey, emoji="🤠", custom_id="sheriff")
-	async def sheriff_investigate(self, interaction: discord.Interaction, _):
-		if interaction.user.id not in [p.user.id for p in self.players if p.role == Role.SHERIFF]:
-			await interaction.response.send_message("Not for you.", ephemeral=True)
+		elif interaction.user.id in view.acted_players:
+			await interaction.response.send_message("You already performed your action!", ephemeral=True)
 			return
-		elif self.sheriff_already_done:
-			await interaction.response.send_message("You already investigated!", ephemeral=True)
 
-		self.sheriff_selector = SelectView([
-			discord.components.SelectOption(
-				label=self.players[i].name,
-				value=str(i),
-				emoji="🕵️"
-			)
-			for i in range(len(self.players))
-		], self.on_investigation_selected)
-
-		await interaction.response.send_message("## Sheriff\nWho do you want to investigate?", view=self.sheriff_selector, ephemeral=True)
-		self.sheriff_already_done = True
+		player = next(p for p in view.players if p.user.id == interaction.user.id and p.role == self.role)
+		await self.role.handle_button_click(view.game, player, interaction)
+		view.acted_players.add(interaction.user.id)
