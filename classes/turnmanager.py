@@ -1,7 +1,6 @@
-import openai
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
-import discord, random, asyncio, logging, data, typing
+import discord, random, asyncio, logging, data
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
@@ -39,7 +38,7 @@ class TurnManager:
 						"content": f"""Your name is {p.user.name}. You are playing a social-deduction game of Mafia.
 Your win condition and role is printed below. Achieve it by any means necessary, including deception if you are Mafia.
 
-You are {p.user.role.describe()}
+You are {p.role.describe()}
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
@@ -117,7 +116,7 @@ CRITICAL FORMAT RULES
 				message = await self.message_queue.get()
 				logger.debug(f"Got message: {message.content}")
 				self.required_author = -1
-				self.broadcast(f"{player.name} said: {message.content}")
+				self.broadcast(f"{player.name}: '{message.content}'")
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
@@ -155,7 +154,8 @@ CRITICAL FORMAT RULES
 				else:
 					await self.channel.send(f"**{player.name}:** {text}")
 
-				self.broadcast(f"{player.name} said: {text}", player)
+				self.broadcast(f"{player.name}: {text}", player)
+				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
@@ -200,8 +200,7 @@ CRITICAL FORMAT RULES
 		# Prepare AI voting tasks to run concurrently
 		async def get_ai_vote(ai_player: Player):
 			"""Get a single AI player's vote."""
-			messages = self.context.setdefault(ai_player.user, [])
-			messages.append({
+			self.context.setdefault(ai_player.user, []).append({
 				"role": "user",
 				"content": "\n".join([
 					message,
@@ -214,12 +213,14 @@ CRITICAL FORMAT RULES
 
 			response = await self.client.chat.completions.create(
 				model=ai_player.user.model,
-				messages=messages
+				messages=self.context[ai_player.user]
 			)
 			choice = (response.choices[0].message.content or "").strip()
 
 			if choice not in candidate_names:
 				choice = random.choice(candidate_names)
+
+			self.context[ai_player.user].append({"role": "assistant", "content": choice})
 
 			return ai_player, choice
 
