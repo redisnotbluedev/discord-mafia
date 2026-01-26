@@ -1,13 +1,12 @@
 from classes.roles import SaveRole, Alignment
 
-import discord
-from classes.views import SelectView
-
 class Doctor(SaveRole):
 	def __init__(self):
 		super().__init__("Doctor", Alignment.TOWN, "a **Doctor**.\n> You can save one player from elimination each night. Choose wisely! If you select the same player the Mafia targeted, you'll prevent their death. You **are** allowed to save yourself, and you must help the town identify the Mafia during day votes.")
 
 	async def handle_button_click(self, game, player, interaction):
+		import discord
+		from classes.views import SelectView
 		last_saved = player.role_state.get("last_saved")
 		select_view = SelectView([
 			discord.SelectOption(label=p.name, value=str(i), emoji="💊", description="Can't save twice in a row" if last_saved and p == last_saved else None)
