@@ -111,13 +111,12 @@ CRITICAL FORMAT RULES
 			return "No votes yet."
 		return "\n".join(lines)
 
-	async def run_round(self):
+	async def run_round(self, rounds=8, max_depth=4):
 		self.running = True
-		random.shuffle(self.participants)
-		# Ensure the round doesn't start with the same player as last round's last speaker
-		if self.last_speaker and self.participants[0] == self.last_speaker:
-			self.participants.append(self.participants.pop(0))
-		for player in self.participants:
+		player = random.choice(self.participants)
+		for _ in range(rounds):
+			text = ""
+
 			if isinstance(player.user, discord.Member):
 				await self.channel.send(f"🎤 {player.user.mention}, it's your turn to speak!")
 				if isinstance(self.channel, discord.Thread):
@@ -133,10 +132,11 @@ CRITICAL FORMAT RULES
 
 				self.required_author = player.user.id
 				logger.info("Waiting for message send")
-				message = await self.message_queue.get()
-				logger.debug(f"Got message: {message.content}")
+				message: discord.Message = await self.message_queue.get()
+				text = message.content or ""
+				logger.debug(f"Got message: {text}")
 				self.required_author = -1
-				self.broadcast(f"{player.name}: '{message.content}'")
+				self.broadcast(f"{player.name}: '{text}'")
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
@@ -155,7 +155,7 @@ CRITICAL FORMAT RULES
 					model=player.user.model,
 					messages=messages
 				)
-				text = response.choices[0].message.content
+				text = response.choices[0].message.content or ""
 
 				if self.webhook:
 					if isinstance(self.channel, discord.Thread):
@@ -176,7 +176,73 @@ CRITICAL FORMAT RULES
 
 				self.broadcast(f"{player.name}: {text}", player)
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
-			self.last_speaker = player
+
+			player = await self.get_next_speaker(text, player)
+
+	async def get_next_speaker(self, text: str, speaker: Player):
+		response = await self.client.chat.completions.create(
+			messages=[
+				{"role": "system", "content": """
+You are analysing Mafia game chat to identify which players are mentioned and should respond.
+
+INPUT FORMAT:
+- List of alive players
+- A message from one player
+
+OUTPUT FORMAT:
+Return ONLY a comma-separated list in this exact format:
+PlayerName:PRIORITY
+
+PRIORITY LEVELS:
+- ACCUSED: Directly accused of being Mafia, lying, or suspicious behaviour
+- ROLE: Role claim or speculation about their role (e.g. "I am the doctor", "if X is sheriff")
+- ASKED: Directly questioned or called out (e.g. "X, what do you think?")
+- CASUAL: Mentioned in passing or agreement (e.g. "I agree with X")
+
+RULES:
+1. Only include players from the provided list
+2. If a role is mentioned (e.g. "the sheriff"), include the player who claimed that role if known
+3. Include ALL players who should reasonably respond to this message
+4. If nobody is mentioned, return: NONE
+5. DO NOT include explanations, preambles, or extra text
+6. BE BRIEF
+
+EXAMPLES:
+Message: "Kimi is definitely Mafia, she's been too quiet"
+Output: Kimi:ACCUSED
+
+Message: "I think the doctor saved themselves last night"
+Output: Llama:ROLE
+
+Message: "Qwen, why did you vote for DeepSeek?"
+Output: Qwen:ASKED,DeepSeek:CASUAL
+
+Message: "I agree with what ChatGPT said earlier"
+Output: ChatGPT:CASUAL
+
+Message: "We need to be more careful"
+Output: NONE"""},
+				{"role": "user", "content": f"""Alive players:
+{"\n  - ".join([p.name for p in self.participants])}
+Speaker: {speaker.name}
+Message: '{text}'"""}
+			],
+			model="ministral-3-3b"
+		)
+		raw = response.choices[0].message.content.strip()
+		if raw == "NONE" or not raw:
+			return random.choice(self.participants)
+
+		mentions = []
+		for mention in raw.split(","):
+			tags = mention.split(":")
+			try:
+				mentions.append({"name": tags[0], "level": ["ACCUSED", "ROLE", "ASKED", "CASUAL"].index(tags[1])})
+			except (IndexError, ValueError):
+				continue
+
+		mentions.sort(key=lambda x: x["level"])
+		return mentions[0] or random.choice(self.participants)
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
