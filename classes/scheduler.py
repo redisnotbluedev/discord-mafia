@@ -125,6 +125,7 @@ class MafiaSheduler:
 			return True
 
 	def setup_roles(self):
+		from classes.roles import ALL_ROLES
 		total_players = len(self.abstractor.players)
 		mafia = self.config.get("mafia", max(1, min(total_players // 3, total_players - 3)))
 		town = self.config.get("town", total_players - mafia)
@@ -140,16 +141,23 @@ class MafiaSheduler:
 
 		players_rolled = 0
 
-		# Assign special roles if enabled
-		special_roles = []
-		if self.config.get("role_Doctor", False):
-			special_roles.append(DOCTOR)
-		if self.config.get("role_Sheriff", False):
-			special_roles.append(SHERIFF)
-		if self.config.get("role_Vigilante", False):
-			special_roles.append(VIGILANTE)
+		# Get enabled roles
+		enabled_roles = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False)]
 
-		for role in special_roles:
+		# Separate by alignment
+		neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
+		special_town_roles = [r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN]
+
+		# Assign neutral roles
+		for role in neutral_roles:
+			user = players[players_rolled]
+			player = Player(user.user)
+			player.role = role
+			self.game.players.append(player)
+			players_rolled += 1
+
+		# Assign special town roles
+		for role in special_town_roles:
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = role
@@ -157,8 +165,7 @@ class MafiaSheduler:
 			players_rolled += 1
 
 		# Assign town roles
-		special_town = [r for r in special_roles if r.alignment == Alignment.TOWN]
-		town_count = town - len(special_town)
+		town_count = town - len(special_town_roles)
 		for _ in range(max(0, town_count)):
 			user = players[players_rolled]
 			player = Player(user.user)
