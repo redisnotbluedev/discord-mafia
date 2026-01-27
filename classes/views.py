@@ -238,20 +238,6 @@ class SettingsView(discord.ui.View):
 		get("town_display").label = f"{town_bar} ({town})"
 		get("town_up").disabled = town >= total_players - 1
 
-		# Check if config matches defaults
-		is_default = True
-		default_mafia = max(1, min(total_players // 3, total_players - 3))
-		default_town = max(default_mafia + 1, total_players - default_mafia)
-		if self.config.get("mafia", 0) != default_mafia or self.config.get("town", 0) != default_town:
-			is_default = False
-		for role in ALL_ROLES:
-			if role.name not in ["Town", "Mafia"]:
-				expected = role.name in ["Doctor", "Sheriff"]
-				if self.config.get(f"role_{role.name}", False) != expected:
-					is_default = False
-					break
-		get("default").disabled = is_default
-
 		if interaction:
 			await interaction.response.edit_message(view=self)
 		elif self.message:
