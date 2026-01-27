@@ -89,7 +89,7 @@ class MafiaGame():
 		# Always send the night message with Mafia chat link
 		message = f"## Night Actions\nMafia, talk in {self.mafia_chat.jump_url}."
 		if roles:
-			message += f"\n{(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)}, click the buttons below to do your night actions."
+			message += f"\n{(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)}, click the button(s) below to do your night actions."
 
 		await self.channel.send(message, view=actions_view)
 

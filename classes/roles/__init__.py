@@ -1,4 +1,8 @@
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from classes.player import Player
 
 class Alignment(Enum):
 	TOWN = "Town"
@@ -47,6 +51,10 @@ class Role:
 	async def night_action_ai(self, game, player):
 		# Default, do nothing
 		pass
+
+	def can_act(self, player) -> bool:
+		# Default: can always act
+		return True
 
 	def win_condition(self, player, players):
 		# Default: no win condition

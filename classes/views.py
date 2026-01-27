@@ -419,7 +419,7 @@ class SpecialActionsView(discord.ui.View):
 		# Add buttons for special roles
 		added_roles = set()
 		for player in alive_players:
-			if player.role.is_special() and player.role.name not in added_roles:
+			if player.role.is_special() and player.role.name not in added_roles and player.role.can_act(player):
 				self.add_item(SpecialActionButton(player.role))
 				added_roles.add(player.role.name)
 
