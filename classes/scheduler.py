@@ -148,8 +148,15 @@ class MafiaSheduler:
 		neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
 		special_town_roles = [r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN]
 
+		# Calculate available slots for town (regular town)
+		assigned_special = len(neutral_roles) + len(special_town_roles)
+		available_for_town = max(0, total_players - mafia - assigned_special)
+		town_count = min(town - len(special_town_roles), available_for_town)
+
 		# Assign neutral roles
 		for role in neutral_roles:
+			if players_rolled >= total_players:
+				break
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = role
@@ -158,6 +165,8 @@ class MafiaSheduler:
 
 		# Assign special town roles
 		for role in special_town_roles:
+			if players_rolled >= total_players:
+				break
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = role
@@ -165,8 +174,9 @@ class MafiaSheduler:
 			players_rolled += 1
 
 		# Assign town roles
-		town_count = town - len(special_town_roles)
-		for _ in range(max(0, town_count)):
+		for _ in range(town_count):
+			if players_rolled >= total_players:
+				break
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = TOWN
@@ -174,7 +184,7 @@ class MafiaSheduler:
 			players_rolled += 1
 
 		# Assign mafia roles
-		for _ in range(mafia):
+		for _ in range(min(mafia, total_players - players_rolled)):
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = MAFIA
