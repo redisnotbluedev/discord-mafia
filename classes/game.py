@@ -101,6 +101,9 @@ class MafiaGame():
 
 		await asyncio.gather(*tasks) # all the night actions should be concurrent
 
+		# Wait for human actions
+		await actions_view.wait_for_humans()
+
 		# Process night actions
 		kill = self.night_actions.get("mafia_kill")
 		saves = self.night_actions.get("saves", [])
