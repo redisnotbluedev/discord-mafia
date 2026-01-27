@@ -2,7 +2,7 @@ from classes.roles import KillRole, Alignment
 
 class Vigilante(KillRole):
 	def __init__(self):
-		super().__init__("Vigilante", Alignment.TOWN, "a **Vigilante**.\n> You have one bullet and can shoot any player during the night. Pick your shot carefully, since you only have one! Help the town identify Mafia, and shoot anyone if the need arises.")
+		super().__init__("Vigilante", Alignment.TOWN, 'a **Vigilante**.\n> You have one bullet and can shoot any player during the night. Pick your shot carefully, since you only have one! Help the town identify Mafia, and shoot anyone if the need arises.', 'Has one shot to kill a player at night.')
 
 	async def handle_button_click(self, game, player, interaction):
 		if player.role_state.get("has_shot", False):

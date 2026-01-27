@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 from classes.game import MafiaGame
-from classes.roles import Role, Alignment
+from classes.roles import Alignment, TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
@@ -43,6 +43,7 @@ class MafiaSheduler:
 
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
+		mafia_chat = None
 		try:
 			self.abstractor.game = self.game
 			await self.message.edit(view=None)
@@ -75,7 +76,7 @@ class MafiaSheduler:
 			self.game.channel = channel
 
 			for player in self.game.players:
-				if player.role == Role.MAFIA and isinstance(player.user, discord.abc.User):
+				if player.role == MAFIA and isinstance(player.user, discord.abc.User):
 					await mafia_chat.add_user(player.user)
 
 			winner = await self.game.run()
@@ -125,11 +126,11 @@ class MafiaSheduler:
 		# Assign special roles if enabled
 		special_roles = []
 		if self.config.get("role_Doctor", False):
-			special_roles.append(Role.DOCTOR)
+			special_roles.append(DOCTOR)
 		if self.config.get("role_Sheriff", False):
-			special_roles.append(Role.SHERIFF)
+			special_roles.append(SHERIFF)
 		if self.config.get("role_Vigilante", False):
-			special_roles.append(Role.VIGILANTE)
+			special_roles.append(VIGILANTE)
 
 		for role in special_roles:
 			user = players[players_rolled]
@@ -143,7 +144,7 @@ class MafiaSheduler:
 		for _ in range(max(0, town_count)):
 			user = players[players_rolled]
 			player = Player(user.user)
-			player.role = Role.TOWN
+			player.role = TOWN
 			self.game.players.append(player)
 			players_rolled += 1
 
@@ -152,7 +153,7 @@ class MafiaSheduler:
 		for _ in range(mafia_count):
 			user = players[players_rolled]
 			player = Player(user.user)
-			player.role = Role.MAFIA
+			player.role = MAFIA
 			self.game.players.append(player)
 			players_rolled += 1
 

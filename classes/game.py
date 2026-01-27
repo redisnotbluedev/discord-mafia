@@ -1,4 +1,4 @@
-from classes.roles import Role
+from classes.roles import MAFIA
 from classes.player import Player, AIAbstraction
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
@@ -152,7 +152,7 @@ class MafiaGame():
 
 	async def mafia_choose_target(self):
 		alive = self.get_alive_players()
-		mafia = [p for p in alive if p.role == Role.MAFIA]
+		mafia = [p for p in alive if p.role == MAFIA]
 
 		self.turns.set_channel(self.mafia_chat)
 		self.turns.set_participants(mafia)
@@ -163,7 +163,7 @@ class MafiaGame():
 
 		await self.turns.run_round()
 
-		targets = [p for p in alive if p.role != Role.MAFIA]
+		targets = [p for p in alive if p.role != MAFIA]
 		kill = await self.turns.run_vote(
 			candidates=targets,
 			message=f"Night {self.day_number}: Mafia, choose a kill target.",

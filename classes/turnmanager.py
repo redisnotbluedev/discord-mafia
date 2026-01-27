@@ -1,4 +1,4 @@
-from classes.roles import Role
+from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
 import discord, random, asyncio, logging, data
@@ -50,11 +50,11 @@ Players:
 {player_list}
 
 There are {[len(participants)]} players:
-  - {role_counts.get(Role.TOWN, 0)} town
-  - {role_counts.get(Role.MAFIA, 0)} Mafia
-  - {role_counts.get(Role.DOCTOR, 0)} doctor
-  - {role_counts.get(Role.SHERIFF, 0)} sheriff
-  - {role_counts.get(Role.VIGILANTE, 0)} vigilante
+  - {role_counts.get(TOWN, 0)} town
+  - {role_counts.get(MAFIA, 0)} Mafia
+  - {role_counts.get(DOCTOR, 0)} doctor
+  - {role_counts.get(SHERIFF, 0)} sheriff
+  - {role_counts.get(VIGILANTE, 0)} vigilante
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.

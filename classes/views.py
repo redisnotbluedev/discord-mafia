@@ -1,7 +1,7 @@
-import discord, time, asyncio, logging
+import discord, time, logging
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
-from classes.roles import Role, ALL_ROLES
+from classes.roles import Role, Alignment, ALL_ROLES
 from classes.player import Player, create_ai_players
 
 if TYPE_CHECKING:
@@ -166,21 +166,37 @@ class SettingsView(discord.ui.View):
 		super().__init__(timeout=None)
 
 		# Add mafia and town controls
+		self.add_item(DefaultButton())
 		self.add_item(MafiaUp())
 		self.add_item(MafiaDisplay())
 		self.add_item(TownUp())
 		self.add_item(TownDisplay())
-		self.add_item(DefaultButton())
+		self.add_item(EnabledRolesSelect())
 
-		# Initialize role toggles
+		# Initialize role configs (exclude Town and Mafia)
 		for role in ALL_ROLES:
-			enabled = self.game.config.get(f"role_{role.name}", role.name in ["Townsperson", "Mafia", "Doctor", "Sheriff"])  # Default Town and Mafia enabled
-			self.game.config[f"role_{role.name}"] = enabled
-			self.add_item(RoleToggle(role, enabled))
+			if role.name not in ["Townsperson", "Mafia"]:
+				enabled = self.game.config.get(f"role_{role.name}", role.name in ["Doctor", "Sheriff"])  # Default Doctor and Sheriff enabled
+				self.game.config[f"role_{role.name}"] = enabled
 
 	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
+
+		# Update enabled roles select with current selections
+		enabled_select = get("enabled_roles")
+		if enabled_select:
+			enabled_roles = [role.name for role in ALL_ROLES if self.game.config.get(f"role_{role.name}", False) and role.name not in ["Townsperson", "Mafia"]]
+			new_options = []
+			for opt in enabled_select.options:
+				new_options.append(discord.SelectOption(
+					label=opt.label,
+					description=opt.description,
+					emoji=opt.emoji,
+					value=opt.value,
+					default=opt.value in enabled_roles
+				))
+			enabled_select.options = new_options
 
 		total_players = len(self.game.abstractor.players)
 
@@ -214,15 +230,10 @@ class SettingsView(discord.ui.View):
 		get("mafia_display").label = f"{mafia_bar} ({mafia})"
 		get("mafia_up").disabled = mafia >= town - 1
 
-		# Town bar - show doctor and sheriff separately
-		town_regular = max(town - 2, 0)  # Subtract doctor and sheriff
-		town_bar = "🏡" * town_regular + "🧑‍⚕️" + "🤠"
-		if town_regular < town - 2:
-			# If town is < 2, adjust what roles exist
-			if town == 1:
-				town_bar = "🏡"
-			elif town == 2:
-				town_bar = "🏡🧑‍⚕️"
+		# Town bar - show enabled special town roles
+		enabled_special_town = [role for role in ALL_ROLES if self.game.config.get(f"role_{role.name}", False) and role.alignment == Alignment.TOWN and role.is_special()]
+		town_regular = max(town - len(enabled_special_town), 0)
+		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
 		get("town_display").label = f"{town_bar} ({town})"
 		get("town_up").disabled = town >= total_players - 1
 
@@ -231,26 +242,39 @@ class SettingsView(discord.ui.View):
 		elif self.message:
 			await self.message.edit(view=self)
 
-class RoleToggle(discord.ui.Button):
-	def __init__(self, role: Role, enabled: bool):
-		self.role = role
+
+
+class EnabledRolesSelect(discord.ui.Select):
+	def __init__(self):
+		options = []
+		for role in ALL_ROLES:
+			if role.name not in ["Townsperson", "Mafia"]:
+				options.append(discord.SelectOption(
+					label=role.name,
+					description=role.short_description,
+					emoji=role.get_button_info()["emoji"],
+					value=role.name
+				))
 		super().__init__(
-			label=f"{role.name}: {'Yes' if enabled else 'No'}",
-			style=discord.ButtonStyle.green if enabled else discord.ButtonStyle.red,
-			custom_id=f"role_{role.name}"
+			placeholder="Enabled Roles",
+			min_values=0,
+			max_values=len(options),
+			options=options,
+			custom_id="enabled_roles",
+			row=3
 		)
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
-		enabled = not view.game.config.get(f"role_{self.role.name}", False)
-		view.game.config[f"role_{self.role.name}"] = enabled
-		self.label = f"{self.role.name}: {'Yes' if enabled else 'No'}"
-		self.style = discord.ButtonStyle.green if enabled else discord.ButtonStyle.red
+		selected = set(self.values)
+		for role in ALL_ROLES:
+			if role.name not in ["Townsperson", "Mafia"]:
+				view.game.config[f"role_{role.name}"] = role.name in selected
 		await view.render(interaction)
 
 class MafiaUp(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="mafia_up")
+		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="mafia_up", row=1)
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
@@ -263,11 +287,11 @@ class MafiaUp(discord.ui.Button):
 
 class MafiaDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True)
+		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1)
 
 class TownUp(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="town_up")
+		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="town_up", row=2)
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
@@ -283,27 +307,31 @@ class TownUp(discord.ui.Button):
 
 class TownDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True)
+		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True, row=2)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Default", style=discord.ButtonStyle.blurple, custom_id="default")
+		super().__init__(label="Default", style=discord.ButtonStyle.blurple, custom_id="default", row=0)
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
-		
+
 		# Reset role toggles to defaults
 		for role in ALL_ROLES:
-			enabled = role.name in ["Townsperson", "Mafia", "Doctor", "Sheriff"]
-			view.game.config[f"role_{role.name}"] = enabled
-		
+			if role.name not in ["Townsperson", "Mafia"]:
+				enabled = role.name in ["Doctor", "Sheriff"]
+				view.game.config[f"role_{role.name}"] = enabled
+		# Town and Mafia are always enabled
+		view.game.config["role_Townsperson"] = True
+		view.game.config["role_Mafia"] = True
+
 		# Reset counts to smart defaults
 		mafia = max(1, min(total_players // 3, total_players - 3))
 		town = max(mafia + 1, total_players - mafia)
 		view.game.config["mafia"] = mafia
 		view.game.config["town"] = town
-		
+
 		await view.render(interaction)
 
 class VoteSelect(discord.ui.Select):

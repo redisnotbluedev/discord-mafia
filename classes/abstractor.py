@@ -49,7 +49,7 @@ class GameAbstractor:
 
 		logger.debug(f"Received a message, running: {self.running}")
 		if self.running:
-			if self.game:
+			if self.game and self.game.turns:
 				await self.game.turns.on_message(message)
 			return
 

@@ -8,10 +8,11 @@ class Alignment(Enum):
 NEUTRAL = Alignment.NEUTRAL
 
 class Role:
-	def __init__(self, name: str, alignment: Alignment, description: str):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		self.name = name
 		self.alignment = alignment
 		self.description = description
+		self.short_description = short_description
 
 	def __str__(self):
 		return self.name
@@ -52,6 +53,9 @@ class Role:
 		return False
 
 class SaveRole(Role):
+	def is_special(self):
+		return True
+
 	def night_action_type(self):
 		return "save"
 
@@ -81,6 +85,9 @@ class SaveRole(Role):
 		player.role_state["last_saved"] = user
 
 class KillRole(Role):
+	def is_special(self):
+		return True
+
 	def night_action_type(self):
 		return "kill"
 
@@ -109,6 +116,9 @@ class KillRole(Role):
 		game.night_actions.setdefault("kills", []).append(user)
 
 class InvestigateRole(Role):
+	def is_special(self):
+		return True
+
 	def night_action_type(self):
 		return "investigate"
 
@@ -160,7 +170,7 @@ __all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town
 #
 # class NewRole(SaveRole):  # Inherit from appropriate base class
 #     def __init__(self):
-#         super().__init__("NewRole", Alignment.TOWN, "Description of the new role.")
+#         super().__init__("NewRole", Alignment.TOWN, "Description of the new role.", "Short description.")
 #
 #     # Override methods as needed for custom behavior
 #     async def handle_button_click(self, game, player, interaction):
