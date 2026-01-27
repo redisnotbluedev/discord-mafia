@@ -18,7 +18,8 @@ class MafiaSheduler:
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
 		self.game = MafiaGame(abstractor)
-		self.config = {}
+		self.config = data.load().get("config", {})
+		self.game.config = self.config
 
 	def schedule(self, start_at: int):
 		async def task():

@@ -156,8 +156,8 @@ from .vigilante import Vigilante, VIGILANTE
 from .jester import Jester, JESTER
 
 # Update base win conditions
-TOWN.win_condition = lambda self, player, players: not any(p.alive and p.role.alignment == Alignment.MAFIA for p in players)
-MAFIA.win_condition = lambda self, player, players: sum(1 for p in players if p.alive and p.role.alignment == Alignment.MAFIA) >= sum(1 for p in players if p.alive and p.role.alignment != Alignment.MAFIA)
+TOWN.win_condition = lambda player, players: not any(p.alive and p.role.alignment == Alignment.MAFIA for p in players)
+MAFIA.win_condition = lambda player, players: sum(1 for p in players if p.alive and p.role.alignment == Alignment.MAFIA) >= sum(1 for p in players if p.alive and p.role.alignment != Alignment.MAFIA)
 
 # List of all roles
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]

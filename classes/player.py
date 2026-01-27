@@ -23,7 +23,7 @@ models = [
 		"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511116939284/llama.png?ex=69796062&is=69780ee2&hm=be5ae39c391c68842ec88312b06bf3ff68a83738172fa0109cc95bd584639731&animated=true"
 	},
 	{
-		"model": "qwen3-next-80b-a3b",
+		"model": "qwen-3-next-80b-a3b",
 		"name": "Qwen 3",
 		"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512510785585303/qwen.png?ex=69796062&is=69780ee2&hm=bccbd1ea7ea76bc0b6ff7f7eb7f8a1b81bb510fd67fbf47ff4b2b7cf98fb7a51&animated=true"
 	},

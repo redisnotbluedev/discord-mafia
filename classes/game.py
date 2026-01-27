@@ -1,4 +1,4 @@
-from classes.roles import MAFIA
+from classes.roles import MAFIA, Alignment
 from classes.player import Player, AIAbstraction
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
@@ -15,6 +15,7 @@ class MafiaGame():
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
+		self.config = {}
 		self.channel: discord.Channel = None   # todo
 		self.mafia_chat: discord.Thread = None # todo
 		self.running = False
@@ -85,19 +86,18 @@ class MafiaGame():
 		actions_view.turn_manager = self.turns
 		actions_view.game = self
 
+		# Always send the night message with Mafia chat link
+		message = f"## Night Actions\nMafia, talk in {self.mafia_chat.jump_url}."
 		if roles:
-			await self.channel.send(
-				f"## Night Actions\n{
-					(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles) # that outputs "Doctor and Sheriff"
-				}, click the buttons below to do your night actions. Mafia, talk in {self.mafia_chat.jump_url}.",
-				view=actions_view
-			)
+			message += f"\n{(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)}, click the buttons below to do your night actions."
 
-			# Handle AI special actions
-			for player in special_players:
-				if isinstance(player.user, AIAbstraction):
-					tasks.append(actions_view.handle_ai_special_action(player))
-				# Human actions are handled by the role buttons
+		await self.channel.send(message, view=actions_view)
+
+		# Handle AI special actions
+		for player in special_players:
+			if isinstance(player.user, AIAbstraction):
+				tasks.append(actions_view.handle_ai_special_action(player))
+			# Human actions are handled by the role buttons
 
 		await asyncio.gather(*tasks) # all the night actions should be concurrent
 
