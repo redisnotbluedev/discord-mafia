@@ -1,7 +1,7 @@
 from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
-import discord, random, asyncio, logging, data
+import discord, random, asyncio, logging, data, json
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,9 @@ class TurnManager:
 		self.required_author = -1
 		self.last_speaker = None
 		self.context: dict[AIAbstraction, list] = self._initialize_ai_context(participants)
+
+		with open("models.json") as f:
+			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
 		"""Initialize AI context with detailed game instructions and rules."""
@@ -227,7 +230,7 @@ Output: NONE"""},
 Speaker: {speaker.name}
 Message: '{text}'"""}
 			],
-			model="ministral-3-3b"
+			model=self.DISCUSSION_ANALYSER
 		)
 		raw = response.choices[0].message.content.strip()
 		if raw == "NONE" or not raw:
