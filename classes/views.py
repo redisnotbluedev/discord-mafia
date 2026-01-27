@@ -412,16 +412,25 @@ class SpecialActionsView(discord.ui.View):
 		self.turn_manager = None  # Will be set by game.py for broadcasting
 		self.game = None  # Will be set by game.py
 		self.acted_players = set()
+		self.pending_humans = set()
 
 		# Add buttons for special roles
 		added_roles = set()
 		for player in alive_players:
-			if player.role.is_special() and player.role.name not in added_roles and player.role.can_act(player):
+			if player.role.is_special() and player.role.name not in added_roles:
 				self.add_item(SpecialActionButton(player.role))
 				added_roles.add(player.role.name)
 
+		self.pending_humans = {p.user.id for p in alive_players if p.role.is_special() and isinstance(p.user, discord.Member)}
+
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
+
+	async def wait_for_humans(self):
+		import time
+		start = time.time()
+		while self.pending_humans and time.time() - start < 120:  # 2 minute timeout
+			await asyncio.sleep(1)
 
 	async def handle_ai_special_action(self, player: Player):
 		"""Handle AI special action based on role."""
@@ -456,3 +465,4 @@ class SpecialActionButton(discord.ui.Button):
 		player = next(p for p in view.players if p.user.id == interaction.user.id and p.role == self.role)
 		await self.role.handle_button_click(view.game, player, interaction)
 		view.acted_players.add(interaction.user.id)
+		view.pending_humans.discard(interaction.user.id)
