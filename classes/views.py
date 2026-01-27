@@ -427,9 +427,7 @@ class SpecialActionsView(discord.ui.View):
 		return discord.utils.get(self.children, custom_id=id)
 
 	async def wait_for_humans(self):
-		import time
-		start = time.time()
-		while self.pending_humans and time.time() - start < 120:  # 2 minute timeout
+		while self.pending_humans:
 			await asyncio.sleep(1)
 
 	async def handle_ai_special_action(self, player: Player):
