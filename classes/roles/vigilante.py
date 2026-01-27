@@ -23,9 +23,11 @@ class Vigilante(KillRole):
 	async def night_action_ai(self, game, player):
 		if player.role_state.get("has_shot", False):
 			return
-		prompt = f"NIGHT: {self.name.upper()} KILL\n> Who do you want to kill? Reply with EXACTLY ONE player name, nothing else.\nAvailable players to kill:\n{"\n".join([f"- {p.name}" for p in game.get_alive_players() if p.alive])}"
+		prompt = f"NIGHT: {self.name.upper()} KILL\n> Who do you want to kill? Reply with EXACTLY ONE player name or 'abstain', nothing else.\nAvailable players to kill:\n{"\n".join([f"- {p.name}" for p in game.get_alive_players() if p.alive])}\n- abstain"
 		choice_text = await game.turns.create_ai_completion(player, prompt)
 		chosen = None
+		if choice_text.lower().strip() == 'abstain':
+			return  # Abstain from shooting
 		for p in game.get_alive_players():
 			if p.alive and p.name.lower() in choice_text.lower():
 				chosen = p
