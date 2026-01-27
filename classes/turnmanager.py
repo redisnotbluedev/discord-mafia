@@ -147,7 +147,6 @@ CRITICAL FORMAT RULES
 						player.user,
 						send_messages=None
 					)
-			self.last_speaker = player
 
 			elif isinstance(player.user, AIAbstraction):
 				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")
@@ -177,6 +176,7 @@ CRITICAL FORMAT RULES
 
 				self.broadcast(f"{player.name}: {text}", player)
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
+			self.last_speaker = player
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
