@@ -56,7 +56,7 @@ class GameAbstractor:
 		from classes.views import StartGameView
 
 		new_msg = await asyncio.gather(
-			message.channel.send(
+			self.bot.get_channel(self.channel).send(
 				embed=discord.Embed(
 					title="AI Plays Mafia",
 					description="The series by Turing Games, now as a Discord bot!",

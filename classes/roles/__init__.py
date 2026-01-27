@@ -148,21 +148,17 @@ class InvestigateRole(Role):
 		await game.turns.create_ai_completion(player, result_prompt)
 
 # Import all roles
-from .townsperson import Townsperson, TOWN
+from .townsperson import Town, TOWN
 from .mafia import Mafia, MAFIA
 from .doctor import Doctor, DOCTOR
 from .sheriff import Sheriff, SHERIFF
 from .vigilante import Vigilante, VIGILANTE
 from .jester import Jester, JESTER
 
-# Update base win conditions
-TOWN.win_condition = lambda player, players: not any(p.alive and p.role.alignment == Alignment.MAFIA for p in players)
-MAFIA.win_condition = lambda player, players: sum(1 for p in players if p.alive and p.role.alignment == Alignment.MAFIA) >= sum(1 for p in players if p.alive and p.role.alignment != Alignment.MAFIA)
-
 # List of all roles
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
 
-__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Townsperson', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES']
+__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES']
 
 # Example of adding a new role:
 # Create a new file in this directory, e.g., newrole.py

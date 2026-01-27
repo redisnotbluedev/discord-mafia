@@ -1,6 +1,6 @@
 # https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=361582569472&integration_type=0&scope=bot+applications.commands
 
-import discord, os, logging, data
+import discord, os, logging, data, asyncio, traceback
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -21,15 +21,19 @@ bot.abstractors = []
 async def on_ready():
 	logger.info(f"Logged in as {bot.user}!")
 
+	profiles = data.load().get("profiles", {})
+	tasks = []
+	for channel in profiles:
+		abstractor = GameAbstractor(int(channel), bot)
+		tasks.append(abstractor.on_message(True)) # Force a lobby refresh since the button's stale (from last session)
+		bot.abstractors.append(abstractor)
+	await asyncio.gather(*tasks)
+	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
+
 @bot.event
 async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
-
-	profiles = data.load().get("profiles", {})
-	for channel in profiles:
-		bot.abstractors.append(GameAbstractor(int(channel), bot))
-	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
 
 	synced_global = await bot.tree.sync()
 	logger.info("synced globally: %s", [c.name for c in synced_global])
@@ -37,6 +41,23 @@ async def setup_hook():
 @bot.event
 async def on_message(message: discord.Message):
 	if message.author == bot.user:
+		return
+
+	if message.content.startswith("!eval") and message.author.id == 1337909802931716197:
+		code = message.content[6:].strip()
+		try:
+			abstractor = None
+			for abs in bot.abstractors:
+				if abs.channel == message.channel.id:
+					abstractor = abs
+					break
+			wrapped_code = "async def _eval(bot, message, discord, asyncio, __import__, abstractor):\n" + "\n".join(f"    {line}" for line in code.split("\n")) + "\n    return None"
+			globals_dict = {}
+			exec(wrapped_code, globals_dict)
+			result = await globals_dict["_eval"](bot, message, discord, asyncio, __import__, abstractor)
+			await message.channel.send(f"Result: {result}")
+		except Exception as e:
+			await message.channel.send(f"Error:\n```python\n{traceback.format_exc()}\n```")
 		return
 
 	for abstractor in bot.abstractors:

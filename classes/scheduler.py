@@ -18,7 +18,14 @@ class MafiaSheduler:
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
 		self.game = MafiaGame(abstractor)
-		self.config = data.load().get("config", {})
+		self.config = {
+			"mafia": 1,
+			"town": 4,
+			"role_Doctor": True,
+			"role_Sheriff": True,
+			"role_Vigilante": False,
+			"role_Jester": False,
+		}
 		self.game.config = self.config
 
 	def schedule(self, start_at: int):
@@ -46,6 +53,8 @@ class MafiaSheduler:
 		if len(self.abstractor.players) < 5: return False
 		mafia_chat = None
 		try:
+			self.game.config = self.config
+
 			self.abstractor.game = self.game
 			await self.message.edit(view=None)
 
@@ -117,8 +126,15 @@ class MafiaSheduler:
 
 	def setup_roles(self):
 		total_players = len(self.abstractor.players)
-		mafia = self.config.setdefault("mafia", max(1, min(total_players // 3, total_players - 3)))
-		town = self.config.setdefault("town", total_players - mafia)
+		mafia = self.config.get("mafia", max(1, min(total_players // 3, total_players - 3)))
+		town = self.config.get("town", total_players - mafia)
+		# Adjust town if counts don't match total players
+		if mafia + town > total_players:
+			town = max(1, total_players - mafia)
+		elif mafia + town < total_players:
+			town += total_players - (mafia + town)
+		self.config["mafia"] = mafia
+		self.config["town"] = town
 		players = list(self.abstractor.players.values())
 		random.shuffle(players)
 
@@ -141,7 +157,8 @@ class MafiaSheduler:
 			players_rolled += 1
 
 		# Assign town roles
-		town_count = self.config.get("town", town) - len([r for r in special_roles if r.alignment == Alignment.TOWN])
+		special_town = [r for r in special_roles if r.alignment == Alignment.TOWN]
+		town_count = town - len(special_town)
 		for _ in range(max(0, town_count)):
 			user = players[players_rolled]
 			player = Player(user.user)
@@ -150,8 +167,7 @@ class MafiaSheduler:
 			players_rolled += 1
 
 		# Assign mafia roles
-		mafia_count = self.config.get("mafia", mafia)
-		for _ in range(mafia_count):
+		for _ in range(mafia):
 			user = players[players_rolled]
 			player = Player(user.user)
 			player.role = MAFIA
