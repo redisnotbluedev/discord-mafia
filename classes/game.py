@@ -143,7 +143,7 @@ class MafiaGame():
 		if victim:
 			victim.alive = False
 			message = f"{victim.name} was eliminated! They were {victim.role}."
-			await self.channel.send(f"> **{message}**")
+			await self.channel.send(f"> {message}")
 			self.turns.broadcast(message)
 		else:
 			message = "No one was eliminated."

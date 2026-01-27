@@ -215,9 +215,6 @@ class SettingsView(discord.ui.View):
 		mafia = max(1, min(total_players // 3, total_players - 3))
 		town = max(mafia + 1, total_players - mafia)
 
-		self.config.setdefault("mafia", mafia)
-		self.config.setdefault("town", town)
-
 		mafia = self.config["mafia"]
 		town = self.config["town"]
 

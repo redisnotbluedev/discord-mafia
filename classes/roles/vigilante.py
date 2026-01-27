@@ -14,7 +14,7 @@ class Vigilante(KillRole):
 		await super().handle_button_click(game, player, interaction)
 
 	async def on_kill_selected(self, game, player, interaction):
-		index = int(interaction.values[0])
+		index = int(interaction.data['values'][0])
 		user = game.get_alive_players()[index]
 		await self.handle_kill_selection(game, player, user)
 		player.role_state["has_shot"] = True

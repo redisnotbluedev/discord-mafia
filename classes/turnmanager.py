@@ -26,6 +26,7 @@ class TurnManager:
 		self.running = False
 		self.message_queue = asyncio.Queue()
 		self.required_author = -1
+		self.last_speaker = None
 		self.context: dict[AIAbstraction, list] = self._initialize_ai_context(participants)
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
@@ -113,6 +114,9 @@ CRITICAL FORMAT RULES
 	async def run_round(self):
 		self.running = True
 		random.shuffle(self.participants)
+		# Ensure the round doesn't start with the same player as last round's last speaker
+		if self.last_speaker and self.participants[0] == self.last_speaker:
+			self.participants.append(self.participants.pop(0))
 		for player in self.participants:
 			if isinstance(player.user, discord.Member):
 				await self.channel.send(f"🎤 {player.user.mention}, it's your turn to speak!")
@@ -143,6 +147,7 @@ CRITICAL FORMAT RULES
 						player.user,
 						send_messages=None
 					)
+			self.last_speaker = player
 
 			elif isinstance(player.user, AIAbstraction):
 				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")

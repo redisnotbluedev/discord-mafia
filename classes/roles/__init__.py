@@ -115,7 +115,7 @@ class KillRole(Role):
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
 	async def on_kill_selected(self, game, player, interaction):
-		index = int(interaction.values[0])
+		index = int(interaction.data['values'][0])
 		user = game.get_alive_players()[index]
 		await self.handle_kill_selection(game, player, user)
 		await interaction.response.edit_message(content=f"You chose to kill {user.name}.", view=None)
@@ -146,7 +146,7 @@ class InvestigateRole(Role):
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
 	async def on_investigate_selected(self, game, player, interaction):
-		index = int(interaction.values[0])
+		index = int(interaction.data['values'][0])
 		user = game.get_alive_players()[index]
 		await self.handle_investigate_selection(game, player, user)
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment.value.upper()}**!", view=None)

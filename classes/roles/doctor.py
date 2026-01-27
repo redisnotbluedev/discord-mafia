@@ -15,7 +15,7 @@ class Doctor(SaveRole):
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
 	async def on_save_selected(self, game, player, interaction):
-		index = int(interaction.values[0])
+		index = int(interaction.data['values'][0])
 		user = game.get_alive_players()[index]
 		last_saved = player.role_state.get("last_saved")
 		if last_saved and user == last_saved:

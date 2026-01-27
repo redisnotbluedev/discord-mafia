@@ -12,15 +12,18 @@ logger = logging.getLogger(__name__)
 
 class MafiaSheduler:
 	def __init__(self, abstractor):
-		self.abstractor: "GameAbstractor" = abstractor
+		self.abstractor = abstractor
 		self.lobby: JoinGameView = None
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
 		self.game = MafiaGame(abstractor)
+		total_players = len(self.abstractor.players)
+		mafia = max(1, min(total_players // 3, total_players - 3))
+		town = max(mafia + 1, total_players - mafia)
 		self.config = {
-			"mafia": 1,
-			"town": 4,
+			"mafia": mafia,
+			"town": town,
 			"role_Doctor": True,
 			"role_Sheriff": True,
 			"role_Vigilante": False,
