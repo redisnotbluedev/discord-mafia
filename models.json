@@ -5,6 +5,11 @@
 			"name": "ChatGPT 4o",
 			"avatar_url": "https://media.discordapp.net/attachments/1460808917289533601/1465512821285453964/chatgpt4o.png?ex=697960ac&is=69780f2c&hm=0f8f102918d95575239072772e01b0ee33b5a50cdccf077db0bd1ec45ba5985a&animated=true"
 		},
+	    {
+			"model": "gpt-5.2",
+			"name": "ChatGPT 5.2",
+			"avatar_url": "https://media.discordapp.net/attachments/1460808917289533601/1465512821784580147/chatgpt.jpg?ex=697960ac&is=69780f2c&hm=8f7ceabc60c94096ae9c472f141e7764e69854b60d56884dc72d2959f89fece8&animated=true"
+		},
 		{
 			"model": "deepseek-3.2",
 			"name": "DeepSeek 3.2",
@@ -29,7 +34,13 @@
 			"model": "mistral-large-3",
 			"name": "Mistral 3",
 			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511838355656/mistral.png?ex=69796062&is=69780ee2&hm=bc637a4480fd2bc2e3eded35f3133eb840cf19c99dc3a3bc2e8b2d59e2c080aa&animated=true"
-		}
+		},
+		{
+			"model": "glm-4.7",
+			"name": "GLM 4.7",
+			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512510219092060/glm.png?ex=69796062&is=69780ee2&hm=c896eb74043c141d4566ffb34cd0673e5a0161b407bd3e8b731f2461b5089d97&animated=true"
+        }
+
 	],
 	"discussion_analyser": "ministral-3-3b"
 }
