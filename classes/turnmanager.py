@@ -164,7 +164,8 @@ CRITICAL FORMAT RULES
 				messages = self.context.setdefault(player.user, [])
 				response = await self.client.chat.completions.create(
 					model=player.user.model,
-					messages=messages
+					messages=messages,
+					max_tokens=100
 				)
 				text = response.choices[0].message.content or ""
 
