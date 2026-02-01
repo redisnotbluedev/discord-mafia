@@ -154,10 +154,8 @@ class InvestigateRole(Role):
 	async def handle_investigate_selection(self, game, player, user):
 		result_prompt = f"{user.name} is **{user.role.alignment.value.upper()}**."
 		from classes.player import AIAbstraction
-		if not isinstance(player.user, AIAbstraction):
-			return
-		await game.turns.create_ai_completion(player, result_prompt)
-
+		if isinstance(player.user, AIAbstraction):
+			await game.turns.create_ai_completion(player, result_prompt)
 # Import all roles
 from .townsperson import Town, TOWN
 from .mafia import Mafia, MAFIA
