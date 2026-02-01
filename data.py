@@ -3,7 +3,7 @@ import json, logging
 logger = logging.getLogger(__name__)
 
 def save(data: dict):
-	logger.info("Saving data %s to disk..." % json.dumps(data))
+	logger.info("Saving data to disk..." % json.dumps(data))
 	with open("data.json", "w") as f:
 		json.dump(data, f)
 
