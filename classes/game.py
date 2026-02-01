@@ -164,7 +164,7 @@ class MafiaGame():
 		mafia_names = [p.name for p in mafia]
 		self.turns.broadcast(f"You are part of the Mafia! Your team consists of: {', '.join(mafia_names)}. Choose wisely who to eliminate.")
 
-		await self.turns.run_round()
+		await self.turns.run_round(rounds=len(mafia))
 
 		targets = [p for p in alive if p.role != MAFIA]
 		kill = await self.turns.run_vote(
