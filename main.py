@@ -37,6 +37,15 @@ logger = logging.getLogger(__name__)
 
 bot.abstractors = []
 
+log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
+if log_webhook_url:
+	log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
+	webhook_handler = WebhookLoggingHandler(log_webhook, level=logging.INFO)
+	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	webhook_handler.setFormatter(formatter)
+	logging.getLogger().addHandler(webhook_handler)
+	logger.info("Global webhook logging enabled")
+
 @bot.event
 async def on_ready():
 	logger.info(f"Logged in as {bot.user}!")
@@ -49,16 +58,6 @@ async def on_ready():
 		bot.abstractors.append(abstractor)
 	await asyncio.gather(*tasks)
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
-
-	# Set up global webhook logging if configured
-	log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
-	if log_webhook_url:
-		log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
-		webhook_handler = WebhookLoggingHandler(log_webhook, level=logging.INFO)
-		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-		webhook_handler.setFormatter(formatter)
-		logging.getLogger().addHandler(webhook_handler)
-		logger.info("Global webhook logging enabled")
 
 @bot.event
 async def setup_hook():
