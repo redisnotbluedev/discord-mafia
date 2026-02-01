@@ -162,11 +162,15 @@ CRITICAL FORMAT RULES
 			elif isinstance(player.user, AIAbstraction):
 				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
-				response = await self.client.chat.completions.create(
-					model=player.user.model,
-					messages=messages,
-					max_tokens=100
-				)
+				try:
+					response = await self.client.chat.completions.create(
+						model=player.user.model,
+						messages=messages,
+						max_tokens=100
+					)
+				except Exception as exc:
+					logger.error("OpenAI completion failed for model %s during AI speech: %s", player.user.model, exc)
+					raise
 				text = response.choices[0].message.content or ""
 
 				if self.webhook:
@@ -198,9 +202,10 @@ CRITICAL FORMAT RULES
 						player = random.choice(unsung)
 
 	async def get_next_speaker(self, text: str, speaker: Player):
-		response = await self.client.chat.completions.create(
-			messages=[
-				{"role": "system", "content": """
+		try:
+			response = await self.client.chat.completions.create(
+				messages=[
+					{"role": "system", "content": """
 You are analysing Mafia game chat to identify which players are mentioned and should respond.
 
 INPUT FORMAT:
@@ -244,9 +249,12 @@ Output: NONE"""},
 {"\n  - ".join([p.name for p in self.participants])}
 Speaker: {speaker.name}
 Message: '{text}'"""}
-			],
-			model=self.DISCUSSION_ANALYSER
-		)
+				],
+				model=self.DISCUSSION_ANALYSER
+			)
+		except Exception as exc:
+			logger.error("OpenAI completion failed for model %s during speaker analysis: %s", self.DISCUSSION_ANALYSER, exc)
+			raise
 		raw = response.choices[0].message.content.strip()
 
 		if raw == "NONE" or not raw:
@@ -321,10 +329,14 @@ Message: '{text}'"""}
 				])
 			})
 
-			response = await self.client.chat.completions.create(
-				model=ai_player.user.model,
-				messages=self.context[ai_player.user]
-			)
+			try:
+				response = await self.client.chat.completions.create(
+					model=ai_player.user.model,
+					messages=self.context[ai_player.user]
+				)
+			except Exception as exc:
+				logger.error("OpenAI completion failed for model %s during AI vote by %s: %s", ai_player.user.model, ai_player.name, exc)
+				raise
 			choice = (response.choices[0].message.content or "").strip()
 
 			if choice not in candidate_names:
@@ -398,10 +410,14 @@ Message: '{text}'"""}
 		messages = self.context.setdefault(ai_player.user, [])
 		messages.append({"role": "user", "content": prompt})
 
-		response = await self.client.chat.completions.create(
-			model=ai_player.user.model,
-			messages=messages
-		)
+		try:
+			response = await self.client.chat.completions.create(
+				model=ai_player.user.model,
+				messages=messages
+			)
+		except Exception as exc:
+			logger.error("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
+			raise
 		choice_text = (response.choices[0].message.content or "").strip()
 		messages.append({"role": "assistant", "content": choice_text})
 
