@@ -256,7 +256,7 @@ Message: '{text}'"""}
 		mentions.sort(key=lambda x: x["level"])
 		if mentions:
 			next_player = self._candidate_by_name(self.participants, mentions[0]["name"])
-			if next_player:
+			if next_player and next_player != speaker:
 				return next_player
 		return random.choice(self.participants)
 
