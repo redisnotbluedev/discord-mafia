@@ -1,12 +1,8 @@
-from typing import TYPE_CHECKING
 from classes.game import MafiaGame
-from classes.roles import Alignment, TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
+from classes.roles import Alignment, TOWN, MAFIA
 from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
-
-if TYPE_CHECKING:
-	from classes.abstractor import GameAbstractor
 
 logger = logging.getLogger(__name__)
 
