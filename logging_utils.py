@@ -17,7 +17,7 @@ class WebhookLoggingHandler(logging.Handler):
 			await self.webhook.send(embed=Embed(
 				colour={logging.DEBUG: Colour.dark_grey(), logging.INFO: Colour.blurple(), logging.WARNING: Colour.orange(), logging.ERROR: Colour.red(), logging.CRITICAL: Colour.dark_red()}.get(record.levelno, Colour.default()),
 				title=record.levelname.title(),
-				description=record.message + f"\n-# <t:{record.created}:f>"
+				description=record.getMessage() + f"\n-# <t:{record.created}:f>"
 			))
 		except Exception as e:
 			print(f"Webhook send failed: {e}")
