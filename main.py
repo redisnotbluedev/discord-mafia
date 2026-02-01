@@ -7,24 +7,7 @@ from dotenv import load_dotenv
 from classes.abstractor import GameAbstractor
 from cogs.moderation import ModerationCog
 from cogs.info import InfoCog
-
-class WebhookLoggingHandler(logging.Handler):
-	def __init__(self, webhook: discord.Webhook, level=logging.NOTSET):
-		super().__init__(level)
-		self.webhook = webhook
-
-	def emit(self, record):
-		try:
-			msg = self.format(record)
-			asyncio.create_task(self._send_to_webhook(msg))
-		except Exception as e:
-			print(f"Failed to send log to webhook: {e}")
-
-	async def _send_to_webhook(self, msg: str):
-		try:
-			await self.webhook.send(content=f"```log\n{msg}\n```")
-		except Exception as e:
-			print(f"Webhook send failed: {e}")
+from logging_utils import WebhookLoggingHandler
 
 load_dotenv()
 
@@ -36,15 +19,6 @@ bot = commands.Bot(command_prefix="", intents=intents)
 logger = logging.getLogger(__name__)
 
 bot.abstractors = []
-
-log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
-if log_webhook_url:
-	log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
-	webhook_handler = WebhookLoggingHandler(log_webhook, level=logging.INFO)
-	formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	webhook_handler.setFormatter(formatter)
-	logging.getLogger().addHandler(webhook_handler)
-	logger.info("Global webhook logging enabled")
 
 @bot.event
 async def on_ready():
@@ -58,6 +32,16 @@ async def on_ready():
 		bot.abstractors.append(abstractor)
 	await asyncio.gather(*tasks)
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
+
+	# Set up global webhook logging if configured
+	log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
+	if log_webhook_url:
+		log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
+		webhook_handler = WebhookLoggingHandler(log_webhook, level=logging.INFO)
+		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+		webhook_handler.setFormatter(formatter)
+		logging.getLogger().addHandler(webhook_handler)
+		logger.info("Global webhook logging enabled")
 
 @bot.event
 async def setup_hook():
