@@ -115,10 +115,16 @@ CRITICAL FORMAT RULES
 		return "\n".join(lines)
 
 	async def run_round(self, analyse=False, rounds=8):
+		if not analyse:
+			random.shuffle(self.participants)
+		else:
+			player = random.choice(self.participants)
+
 		self.running = True
-		player = random.choice(self.participants)
 		for _ in range(rounds):
 			text = ""
+			if not analyse:
+				player = self.participants[_ % len(self.participants)]
 
 			if isinstance(player.user, discord.Member):
 				await self.channel.send(f"🎤 {player.user.mention}, it's your turn to speak!")
@@ -180,13 +186,13 @@ CRITICAL FORMAT RULES
 				self.broadcast(f"{player.name}: {text}", player)
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
-			player = await self.get_next_speaker(text, player, analyse)
+			if analyse:
+				player = await self.get_next_speaker(text, player)
 
-	async def get_next_speaker(self, text: str, speaker: Player, analyse: bool):
-		if analyse:
-			response = await self.client.chat.completions.create(
-				messages=[
-					{"role": "system", "content": """
+	async def get_next_speaker(self, text: str, speaker: Player):
+		response = await self.client.chat.completions.create(
+			messages=[
+				{"role": "system", "content": """
 You are analysing Mafia game chat to identify which players are mentioned and should respond.
 
 INPUT FORMAT:
@@ -226,16 +232,14 @@ Output: ChatGPT:CASUAL
 
 Message: "We need to be more careful"
 Output: NONE"""},
-					{"role": "user", "content": f"""Alive players:
-	{"\n  - ".join([p.name for p in self.participants])}
-	Speaker: {speaker.name}
-	Message: '{text}'"""}
-				],
-				model=self.DISCUSSION_ANALYSER
-			)
-			raw = response.choices[0].message.content.strip()
-		else:
-			raw = "NONE"
+				{"role": "user", "content": f"""Alive players:
+{"\n  - ".join([p.name for p in self.participants])}
+Speaker: {speaker.name}
+Message: '{text}'"""}
+			],
+			model=self.DISCUSSION_ANALYSER
+		)
+		raw = response.choices[0].message.content.strip()
 
 		if raw == "NONE" or not raw:
 			return random.choice(self.participants)
