@@ -115,10 +115,11 @@ CRITICAL FORMAT RULES
 		return "\n".join(lines)
 
 	async def run_round(self, analyse=False, rounds=8):
-		if not analyse:
-			random.shuffle(self.participants)
-		else:
+		player: Player
+		if analyse:
 			player = random.choice(self.participants)
+		else:
+			random.shuffle(self.participants)
 
 		self.running = True
 		for _ in range(rounds):
