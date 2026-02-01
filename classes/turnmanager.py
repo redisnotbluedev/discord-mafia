@@ -116,6 +116,7 @@ CRITICAL FORMAT RULES
 
 	async def run_round(self, analyse=False, rounds=8):
 		player: Player
+		spoken = set()
 		if analyse:
 			player = random.choice(self.participants)
 		else:
@@ -187,8 +188,13 @@ CRITICAL FORMAT RULES
 				self.broadcast(f"{player.name}: {text}", player)
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
+			spoken.add(player)
 			if analyse:
 				player = await self.get_next_speaker(text, player)
+				if player in spoken:
+					unsung = [p for p in self.participants if p not in spoken]
+					if unsung:
+						player = random.choice(unsung)
 
 	async def get_next_speaker(self, text: str, speaker: Player):
 		response = await self.client.chat.completions.create(
