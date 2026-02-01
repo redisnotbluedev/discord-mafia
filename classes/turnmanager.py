@@ -254,7 +254,11 @@ Message: '{text}'"""}
 				continue
 
 		mentions.sort(key=lambda x: x["level"])
-		return mentions[0] or random.choice(self.participants)
+		if mentions:
+			next_player = self._candidate_by_name(self.participants, mentions[0]["name"])
+			if next_player:
+				return next_player
+		return random.choice(self.participants)
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
