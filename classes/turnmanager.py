@@ -114,7 +114,7 @@ CRITICAL FORMAT RULES
 			return "No votes yet."
 		return "\n".join(lines)
 
-	async def run_round(self, rounds=8, max_depth=4):
+	async def run_round(self, analyse=False, rounds=8):
 		self.running = True
 		player = random.choice(self.participants)
 		for _ in range(rounds):
@@ -180,12 +180,13 @@ CRITICAL FORMAT RULES
 				self.broadcast(f"{player.name}: {text}", player)
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
-			player = await self.get_next_speaker(text, player)
+			player = await self.get_next_speaker(text, player, analyse)
 
-	async def get_next_speaker(self, text: str, speaker: Player):
-		response = await self.client.chat.completions.create(
-			messages=[
-				{"role": "system", "content": """
+	async def get_next_speaker(self, text: str, speaker: Player, analyse: bool):
+		if analyse:
+			response = await self.client.chat.completions.create(
+				messages=[
+					{"role": "system", "content": """
 You are analysing Mafia game chat to identify which players are mentioned and should respond.
 
 INPUT FORMAT:
@@ -225,14 +226,17 @@ Output: ChatGPT:CASUAL
 
 Message: "We need to be more careful"
 Output: NONE"""},
-				{"role": "user", "content": f"""Alive players:
-{"\n  - ".join([p.name for p in self.participants])}
-Speaker: {speaker.name}
-Message: '{text}'"""}
-			],
-			model=self.DISCUSSION_ANALYSER
-		)
-		raw = response.choices[0].message.content.strip()
+					{"role": "user", "content": f"""Alive players:
+	{"\n  - ".join([p.name for p in self.participants])}
+	Speaker: {speaker.name}
+	Message: '{text}'"""}
+				],
+				model=self.DISCUSSION_ANALYSER
+			)
+			raw = response.choices[0].message.content.strip()
+		else:
+			raw = "NONE"
+
 		if raw == "NONE" or not raw:
 			return random.choice(self.participants)
 

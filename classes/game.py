@@ -198,8 +198,7 @@ class MafiaGame():
 		self.turns.broadcast(f"Day {self.day_number} has begun. Alive players: {', '.join(alive_names)}. It's discussion time. Pay close attention to what others say and how they behave - look for suspicious activity or patterns.")
 
 		await self.channel.send(f"**Day {self.day_number} begins...**")
-		for _ in range(2):
-			await self.turns.run_round()
+		await self.turns.run_round(analyse=True)
 
 	async def voting_phase(self):
 		alive = self.get_alive_players()
