@@ -78,7 +78,7 @@ class MafiaSheduler:
 						""", ephemeral=True)
 				elif not isinstance(user, AIAbstraction):
 					# hmmmm
-					logger.warning(f"User is of type {user.type}!!")
+					logger.warning(f"User is of type {user.type}.")
 
 			mafia_chat: discord.Thread = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
@@ -196,7 +196,4 @@ class MafiaSheduler:
 			self.game.players.append(player)
 			players_rolled += 1
 
-		log = []
-		for player in self.game.players:
-			log.append(f"{player.role} - {player.name}")
-		logger.info("\n".join(log))
+		logger.info(f"Initialised roles with {len(self.game.players)}.")
