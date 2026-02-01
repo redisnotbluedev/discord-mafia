@@ -82,15 +82,21 @@ class MafiaSheduler:
 						""", ephemeral=True)
 				elif not isinstance(user, AIAbstraction):
 					# hmmmm
-					logger.warn(f"User is of type {user.type}!!")
+					logger.warning(f"User is of type {user.type}!!")
 
-			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
+			mafia_chat: discord.Thread = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
 			self.game.channel = channel
 
 			for player in self.game.players:
 				if player.role == MAFIA and isinstance(player.user, discord.abc.User):
 					await mafia_chat.add_user(player.user)
+
+			mafia_chat.send(embed=discord.Embed(
+				colour=discord.Colour.red(),
+				title="Mafia Private Chat",
+				description="Mafia Players:\n" + "\n".join([f"- {p.name}" for p in self.game.players if p.role == MAFIA])
+			))
 
 			winner = await self.game.run()
 			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
