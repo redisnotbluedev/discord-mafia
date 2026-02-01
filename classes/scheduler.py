@@ -88,7 +88,7 @@ class MafiaSheduler:
 				if player.role == MAFIA and isinstance(player.user, discord.abc.User):
 					await mafia_chat.add_user(player.user)
 
-			mafia_chat.send(embed=discord.Embed(
+			await mafia_chat.send(embed=discord.Embed(
 				colour=discord.Colour.red(),
 				title="Mafia Private Chat",
 				description="Mafia Players:\n" + "\n".join([f"- {p.name}" for p in self.game.players if p.role == MAFIA])
