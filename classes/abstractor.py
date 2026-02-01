@@ -31,7 +31,7 @@ class GameAbstractor:
 			msg = await channel.fetch_message(self.last_lobby_id)
 			await msg.delete()
 		except discord.NotFound:
-			logger.info("Last lobby message %s already gone", self.last_lobby_id)
+			logger.warning("Last lobby message %s already gone", self.last_lobby_id)
 		except discord.Forbidden:
 			logger.warning("Missing permissions to delete message %s", self.last_lobby_id)
 		except discord.HTTPException as exc:
