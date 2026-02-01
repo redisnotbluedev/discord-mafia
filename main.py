@@ -27,8 +27,6 @@ async def on_ready():
 	if log_webhook_url:
 		log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
 		webhook_handler = WebhookLoggingHandler(log_webhook, level=logging.INFO)
-		formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-		webhook_handler.setFormatter(formatter)
 		logging.getLogger().addHandler(webhook_handler)
 		logger.info("Global webhook logging enabled")
 
