@@ -196,4 +196,4 @@ class MafiaSheduler:
 			self.game.players.append(player)
 			players_rolled += 1
 
-		logger.info(f"Initialised roles with {len(self.game.players)}.")
+		logger.info(f"Initialised roles with {len(self.game.players)} players.")
