@@ -1,6 +1,6 @@
 from discord.ext import commands
 from discord import app_commands
-import discord, platform, psutil
+import discord, platform, psutil, asyncio
 
 class InfoCog(commands.Cog):
 	def __init__(self, bot: commands.Bot):
@@ -11,8 +11,8 @@ class InfoCog(commands.Cog):
 		await interaction.response.send_message("🏓 Pong!\nLatency: %.2fms" % (self.bot.latency * 1000))
 
 	@app_commands.command(name="echo", description="Say something as the bot")
-	async def echo(self, _interaction: discord.Interaction, text: str, channel: discord.TextChannel):
-		await channel.send_message(text)
+	async def echo(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel):
+		await asyncio.gather(*[interaction.response.send_message("Sent message!", ephemeral=True), channel.send(text)])
 
 	@app_commands.command(name="info", description="View bot information and stats")
 	async def info(self, interaction: discord.Interaction):
