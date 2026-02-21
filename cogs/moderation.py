@@ -1,6 +1,6 @@
 from discord.ext import commands
 from discord import app_commands
-import discord, data, traceback
+import discord, data, traceback, os
 
 from classes.abstractor import GameAbstractor
 
@@ -10,6 +10,9 @@ class ModerationCog(commands.Cog):
 
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
+		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
+			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!", ephemeral=True)
+			return
 		try:
 			permissions = interaction.channel.permissions_for(interaction.guild.me)
 

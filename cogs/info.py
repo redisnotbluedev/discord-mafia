@@ -1,10 +1,10 @@
 from discord.ext import commands
 from discord import app_commands
-import discord, platform, psutil, asyncio
+import discord, platform, psutil, asyncio, os
 
 class InfoCog(commands.Cog):
 	def __init__(self, bot: commands.Bot):
-		self.bot = bot
+		self.bot: commands.Bot = bot
 
 	@app_commands.command(name="ping", description="ping pong")
 	async def hello(self, interaction: discord.Interaction):
@@ -12,6 +12,9 @@ class InfoCog(commands.Cog):
 
 	@app_commands.command(name="echo", description="Say something as the bot")
 	async def echo(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel):
+		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
+			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!", ephemeral=True)
+			return
 		await asyncio.gather(*[interaction.response.send_message("Sent message!", ephemeral=True), channel.send(text)])
 
 	@app_commands.command(name="info", description="View bot information and stats")
