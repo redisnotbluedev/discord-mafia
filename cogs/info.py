@@ -27,7 +27,7 @@ class InfoCog(commands.Cog):
 			RAM usage: `{psutil.virtual_memory().percent}%`
 		""", inline=False)
 		embed.add_field(name="Credits", value="""
-			<:owner:1457538443327311872> Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
+			<:owner:1474651989798289488> Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			<:bot:1474641567032676402> Bot created by <@1337909802931716197>
 			<:developer:1474641229743657085> Developers: <@750631921079287839> & <@1282734265955520545>
 			<:tester:1474641899817271406> Playtesters: <@503232391993622540>, SpaceKiwi, lolcaku, Nanji & SilverArrow
