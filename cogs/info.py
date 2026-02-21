@@ -11,8 +11,8 @@ class InfoCog(commands.Cog):
 		await interaction.response.send_message("🏓 Pong!\nLatency: %.2fms" % (self.bot.latency * 1000))
 
 	@app_commands.command(name="echo", description="Say something as the bot")
-	async def echo(self, interaction: discord.Interaction, text: str):
-		await interaction.response.send_message(text)
+	async def echo(self, _interaction: discord.Interaction, text: str, channel: discord.abc.MessageableChannel):
+		await channel.send_message(text)
 
 	@app_commands.command(name="info", description="View bot information and stats")
 	async def info(self, interaction: discord.Interaction):
