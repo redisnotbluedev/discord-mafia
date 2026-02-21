@@ -30,7 +30,7 @@ class InfoCog(commands.Cog):
 			<:owner:1474651989798289488> Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			<:bot:1474641567032676402> Bot created by <@1337909802931716197>
 			<:developer:1474641229743657085> Developers: <@750631921079287839> & <@1282734265955520545>
-			<:tester:1474641899817271406> Playtesters: <@503232391993622540>, SpaceKiwi, lolcaku, Nanji & SilverArrow
+			<:tester:1474652259001569474> Playtesters: <@503232391993622540>, SpaceKiwi, lolcaku, Nanji & SilverArrow
 		""", inline=False)
 		embed.add_field(name="Info", value="""
 			<:github:1474644220353445898> Source code on [GitHub](https://github.com/redisnotbluedev/discord-mafia)
