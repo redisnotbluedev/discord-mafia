@@ -32,6 +32,9 @@ class InfoCog(commands.Cog):
 			<:developer:1474641229743657085> Developers: <@750631921079287839> & <@1282734265955520545>
 			<:tester:1474641899817271406> Playtesters: <@503232391993622540>, SpaceKiwi, lolcaku, Nanji & SilverArrow
 		""", inline=False)
-		embed.add_field(value="<:github:1474644220353445898> Source code on [GitHub](https://github.com/redisnotbluedev/discord-mafia)")
+		embed.add_field(name="Info", value="""
+			<:github:1474644220353445898> Source code on [GitHub](https://github.com/redisnotbluedev/discord-mafia)
+			<:wifi:1474651483109855334> this bot literally runs on my trash home wifi in australia the ping is terrible sorry
+		""")
 
 		await interaction.response.send_message(embed=embed, allowed_mentions=discord.AllowedMentions.none())
