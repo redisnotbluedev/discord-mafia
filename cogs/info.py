@@ -20,11 +20,11 @@ class InfoCog(commands.Cog):
 			title="Info"
 		)
 		embed.add_field(name="System", value=f"""
-			OS version: `{platform.platform()}`
-			Python version: `{platform.python_version()}`
-			discord.py version: `{discord.__version__}`
-			CPU usage: `{psutil.cpu_percent(interval=1)}%`
-			RAM usage: `{psutil.virtual_memory().percent}%`
+			<:os:1474653478054793236> OS version: `{platform.platform()}`
+			<:python:1474654225958174772> Python version: `{platform.python_version()}`
+			<:discord:1474654699163488357> discord.py version: `{discord.__version__}`
+			<:cpu:1474654894538362981> CPU usage: `{psutil.cpu_percent(interval=1)}%`
+			<:ram:1474654986926293076> RAM usage: `{psutil.virtual_memory().percent}%`
 		""", inline=False)
 		embed.add_field(name="Credits", value="""
 			<:owner:1474651989798289488> Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
