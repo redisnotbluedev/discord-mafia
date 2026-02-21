@@ -54,29 +54,25 @@ class ModerationCog(commands.Cog):
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
 			config.setdefault("profiles", {})[str(channel.id)] = {"webhook": webhook.url}
 
-			if str(interaction.guild.id) not in config.get("guilds", {}):
+			guild_id_str = str(interaction.guild.id)
+			guilds_config = config.setdefault("guilds", {})
+			guild_config = guilds_config.get(guild_id_str, {})
+			player_role_id = guild_config.get("player_role")
+			player = interaction.guild.get_role(player_role_id) if player_role_id else None
+
+			if player is None:
 				player = await interaction.guild.create_role(name="Mafia Player")
-				await channel.set_permissions(
-					player,
-					send_messages=False,
-					send_messages_in_threads=False,
-					create_private_threads=False,
-					create_public_threads=False,
-					add_reactions=False,
-					use_application_commands=False
-				)
-				config.setdefault("guilds", {})[interaction.guild.id] = {"player_role": player.id}
-			else:
-				player = await interaction.guild.get_role(config["guilds"][str(interaction.guild.id)]["player_role"])
-				await channel.set_permissions(
-					player,
-					send_messages=False,
-					send_messages_in_threads=False,
-					create_private_threads=False,
-					create_public_threads=False,
-					add_reactions=False,
-					use_application_commands=False
-				)
+				guilds_config[guild_id_str] = {"player_role": player.id}
+
+			await channel.set_permissions(
+				player,
+				send_messages=False,
+				send_messages_in_threads=False,
+				create_private_threads=False,
+				create_public_threads=False,
+				add_reactions=False,
+				use_application_commands=False
+			)
 
 			self.bot.abstractors.append(GameAbstractor(channel.id, self.bot))
 
