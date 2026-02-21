@@ -438,7 +438,11 @@ class SpecialActionsView(discord.ui.View):
 		try:
 			await player.role.night_action_ai(self.game, player)
 		except Exception as e:
-			logger.error(f"Error getting AI {player.role.name} action: {e}")
+			model = getattr(player.user, "model", None)
+			if model:
+				logger.error("Error getting AI %s action (model=%s): %s", player.role.name, model, e)
+			else:
+				logger.error("Error getting AI %s action: %s", player.role.name, e)
 
 class SpecialActionButton(discord.ui.Button):
 	def __init__(self, role: Role):
