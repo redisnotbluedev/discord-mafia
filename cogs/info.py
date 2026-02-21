@@ -29,7 +29,6 @@ class InfoCog(commands.Cog):
 		embed.add_field(name="Credits", value="""
 			Original series by Turing Games ([YouTube](https://www.youtube.com/@turing_games))
 			Bot adaption by <@1337909802931716197>
-			Icons from [lucide.dev](https://lucide.dev)
 			Source code on [GitHub](https://github.com/redisnotbluedev/discord-mafia)
 		""", inline=False)
 
