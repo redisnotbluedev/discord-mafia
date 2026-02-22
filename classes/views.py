@@ -1,4 +1,4 @@
-import discord, time, logging, data
+import discord, time, logging, data, asyncio
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
 from classes.roles import Role, Alignment, ALL_ROLES
