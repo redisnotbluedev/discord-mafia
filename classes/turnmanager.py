@@ -1,7 +1,7 @@
 from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
 from classes.views import VoteView
-import discord, random, asyncio, logging, data, json
+import discord, random, asyncio, logging, data, json, re
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,14 @@ class TurnManager:
 		self.client = client or AsyncOpenAI()
 		config = data.load()
 		self.bot = bot
+
+	def _clean_ai_content(self, content: str) -> str:
+		"""Remove <think> blocks and extra whitespace from AI responses."""
+		if not content:
+			return ""
+		# Remove <think>...</think> blocks and any unclosed <think> tags
+		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
+		return content.strip()
 		webhook_url = None
 		try:
 			webhook_url = config["profiles"][str(self.channel.id)]["webhook"]
@@ -171,7 +179,7 @@ CRITICAL FORMAT RULES
 				except Exception as exc:
 					logger.error("OpenAI completion failed for model %s during AI speech: %s", player.user.model, exc)
 					raise
-				text = response.choices[0].message.content or ""
+				text = self._clean_ai_content(response.choices[0].message.content or "")
 
 				if self.webhook:
 					if isinstance(self.channel, discord.Thread):
@@ -340,7 +348,7 @@ Message: '{text}'"""}
 					),
 					timeout=min(timeout_s, 20.0)
 				)
-				content = (response.choices[0].message.content or "").strip()
+				content = self._clean_ai_content(response.choices[0].message.content or "")
 				# Try to find a valid candidate name in the response if they didn't follow the exact format
 				choice = None
 				for name in candidate_names:
@@ -430,10 +438,10 @@ Message: '{text}'"""}
 		except Exception as exc:
 			logger.error("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
 			raise
-		choice_text = (response.choices[0].message.content or "").strip()
-		messages.append({"role": "assistant", "content": choice_text})
 
-		return choice_text
+		content = self._clean_ai_content(response.choices[0].message.content or "")
+		messages.append({"role": "assistant", "content": content})
+		return content
 
 	async def on_message(self, message: discord.Message):
 		logger.debug(f"Got message '{message.content}' from {message.author.id}, required author is {self.required_author}.")
