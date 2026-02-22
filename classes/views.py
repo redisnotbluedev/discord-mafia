@@ -101,16 +101,10 @@ class JoinGameView(discord.ui.View):
 				del self.abstractor.players[interaction.user.id]
 
 				if interaction.user == self.abstractor.owner:
-					await interaction.message.edit(
-						embed=discord.Embed(
-							title="AI Plays Mafia",
-							description="The series by Turing Games, now as a Discord bot!",
-							color=discord.Color.blurple(),
-						),
-						view=StartGameView(self.abstractor)
-					)
+					await interaction.message.delete()
 					self.game.start_job.cancel()
 					self.abstractor.running = False
+					await self.abstractor.on_message(True)
 				else:
 					embed = self.generate_embed()
 					await interaction.message.edit(embed=embed)
