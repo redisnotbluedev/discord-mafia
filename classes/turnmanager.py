@@ -315,67 +315,79 @@ Message: '{text}'"""}
 
 		options_block = "\n".join(candidate_names)
 
-		# Prepare AI voting tasks to run concurrently
+		# Prepare AI voting tasks
 		async def get_ai_vote(ai_player: Player):
 			"""Get a single AI player's vote."""
+			prompt = "\n".join([
+				message,
+				"Vote by replying with EXACTLY ONE line containing EXACTLY ONE of the option names below.",
+				"Do not add punctuation, quotes, explanations, or multiple lines.",
+				"OPTIONS:",
+				options_block
+			])
+
 			self.context.setdefault(ai_player.user, []).append({
 				"role": "user",
-				"content": "\n".join([
-					message,
-					"Vote by replying with EXACTLY ONE line containing EXACTLY ONE of the option names below.",
-					"Do not add punctuation, quotes, explanations, or multiple lines.",
-					"OPTIONS:",
-					options_block
-				])
+				"content": prompt
 			})
 
 			try:
-				response = await self.client.chat.completions.create(
-					model=ai_player.user.model,
-					messages=self.context[ai_player.user]
+				# Use a shorter timeout for AI responses during voting to keep game moving
+				response = await asyncio.wait_for(
+					self.client.chat.completions.create(
+						model=ai_player.user.model,
+						messages=self.context[ai_player.user]
+					),
+					timeout=min(timeout_s, 20.0)
 				)
+				content = (response.choices[0].message.content or "").strip()
+				# Try to find a valid candidate name in the response if they didn't follow the exact format
+				choice = None
+				for name in candidate_names:
+					if name.lower() in content.lower():
+						choice = name
+						break
+				
+				if not choice:
+					choice = random.choice(candidate_names)
 			except Exception as exc:
-				logger.error("OpenAI completion failed for model %s during AI vote by %s: %s", ai_player.user.model, ai_player.name, exc)
-				raise
-			choice = (response.choices[0].message.content or "").strip()
-
-			if choice not in candidate_names:
+				logger.error("AI vote failed for %s: %s", ai_player.name, exc)
 				choice = random.choice(candidate_names)
 
 			self.context[ai_player.user].append({"role": "assistant", "content": choice})
-
 			return ai_player, choice
 
-		# Gather all AI voting tasks and run concurrently
 		ai_players = [p for p in self.participants if isinstance(p.user, AIAbstraction)]
-		if ai_players:
-			ai_votes = await asyncio.gather(*[get_ai_vote(p) for p in ai_players])
-			for ai_player, choice in ai_votes:
-				votes[hash(ai_player.name)] = choice
-				# Add voting result to context so AIs know what happened
-				self.context[ai_player.user].append({"role": "assistant", "content": choice})
-
-			# Update the poll with AI votes
-			tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
-			await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=view)
-
-		human_voters = [
-			p.user for p in self.participants
-			if isinstance(p.user, discord.Member)
-		]
+		human_voters = [p.user for p in self.participants if isinstance(p.user, discord.Member)]
 		expected_human_votes = len(human_voters)
+
+		async def ai_voting_manager():
+			if not ai_players:
+				return
+
+			# Run AI votes concurrently and update poll as they finish
+			tasks = [get_ai_vote(p) for p in ai_players]
+			for completed in asyncio.as_completed(tasks):
+				ai_player, choice = await completed
+				votes[hash(ai_player.name)] = choice
+				tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
+				try:
+					await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=view)
+				except Exception:
+					pass
 
 		async def wait_for_human_votes():
 			start = asyncio.get_event_loop().time()
 			while True:
-				got = sum(1 for uid in votes.keys() if uid in view.allowed_voters)
-				if got >= expected_human_votes:
+				got_human = sum(1 for uid in votes.keys() if uid in view.allowed_voters)
+				if got_human >= expected_human_votes:
 					return
 				if (asyncio.get_event_loop().time() - start) >= timeout_s:
 					return
-				await asyncio.sleep(0.5)
+				await asyncio.sleep(1.0)
 
-		await wait_for_human_votes()
+		# Run AI voting and human waiting concurrently
+		await asyncio.gather(ai_voting_manager(), wait_for_human_votes())
 
 		tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
 		await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=None)
