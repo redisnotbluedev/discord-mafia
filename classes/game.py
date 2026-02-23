@@ -175,6 +175,10 @@ class MafiaGame():
 			break_ties_random=True,
 		)
 
+		if not kill and targets:
+			import random
+			kill = random.choice(targets)
+
 		self.night_actions["mafia_kill"] = kill
 		self.turns.set_channel(self.channel)
 		self.turns.set_participants(alive)

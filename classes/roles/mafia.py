@@ -1,7 +1,10 @@
-from classes.roles import Role, Alignment
+from classes.roles import KillRole, Alignment
 
-class Mafia(Role):
-	def __init__(self):
-		super().__init__("Mafia", Alignment.MAFIA, "part of the **Mafia**.\n> You are part of the Mafia! During the night phase, you and your fellow Mafia members secretly choose one player to eliminate. Your goal is to eliminate all other players without being caught. During the day, blend in and avoid suspicion.", "Member of the Mafia who kills players at night.")
+class Mafia(KillRole):
+	def __init__(self, skippable: bool = False):
+		super().__init__("Mafia", Alignment.MAFIA, 'a **Mafia**.\n> Your goal is to eliminate all members of the Town. Work with your fellow Mafia members to choose a target each night and avoid suspicion during the day.', 'Can kill one player each night with their team.', skippable=skippable)
+
+	def is_special(self):
+		return False
 
 MAFIA = Mafia()

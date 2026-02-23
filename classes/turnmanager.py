@@ -37,9 +37,35 @@ class TurnManager:
 		self.required_author = -1
 		self.last_speaker = None
 		self.context: dict[AIAbstraction, list] = self._initialize_ai_context(participants)
+		self.ai_failures: dict[AIAbstraction, int] = {}
 
 		with open("models.json") as f:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
+
+	async def handle_ai_failure(self, ai_player: Player):
+		"""Log failure and remove player from game if they fail twice."""
+		user = ai_player.user
+		self.ai_failures[user] = self.ai_failures.get(user, 0) + 1
+		
+		if self.ai_failures[user] >= 2:
+			msg = f"💀 **{ai_player.name}** has been removed from the game for failing to respond twice in a row."
+			ai_player.alive = False
+			ai_player.death_reason = "modkill"
+			await self.channel.send(msg)
+			self.broadcast(msg)
+		else:
+			msg = f"⚠️ **{ai_player.name}** failed to respond. If this happens again, they will be removed from the game."
+			await self.channel.send(msg)
+			self.broadcast(msg)
+
+	def extract_choice(self, content: str, options: list[str]) -> str | None:
+		"""Generically extract a valid choice from AI content."""
+		if not content:
+			return None
+		for opt in options:
+			if opt.lower() in content.lower():
+				return opt
+		return None
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
 		"""Initialize AI context with detailed game instructions and rules."""
@@ -171,15 +197,24 @@ CRITICAL FORMAT RULES
 			elif isinstance(player.user, AIAbstraction):
 				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
+				text = ""
 				try:
 					response = await self.client.chat.completions.create(
 						model=player.user.model,
 						messages=messages,
 						max_tokens=100
 					)
+					text = self._clean_ai_content(response.choices[0].message.content or "")
 				except Exception as exc:
 					logger.error("OpenAI completion failed for model %s during AI speech: %s", player.user.model, exc)
-					raise
+					text = ""
+
+				if not text:
+					await self.handle_ai_failure(player)
+					continue
+				
+				# Reset failures on success
+				self.ai_failures[player.user] = 0
 				text = self._clean_ai_content(response.choices[0].message.content or "")
 
 				if self.webhook:
@@ -350,18 +385,17 @@ Message: '{text}'"""}
 					timeout=min(timeout_s, 20.0)
 				)
 				content = self._clean_ai_content(response.choices[0].message.content or "")
-				# Try to find a valid candidate name in the response if they didn't follow the exact format
-				choice = None
-				for name in candidate_names:
-					if name.lower() in content.lower():
-						choice = name
-						break
+				choice = self.extract_choice(content, candidate_names)
 				
 				if not choice:
-					choice = random.choice(candidate_names)
+					raise ValueError("No valid choice in response")
+				
+				# Reset failures on success
+				self.ai_failures[ai_player.user] = 0
 			except Exception as exc:
 				logger.error("AI vote failed for %s: %s", ai_player.name, exc)
-				choice = random.choice(candidate_names)
+				await self.handle_ai_failure(ai_player)
+				return ai_player, None
 
 			self.context[ai_player.user].append({"role": "assistant", "content": choice})
 			return ai_player, choice
@@ -378,12 +412,13 @@ Message: '{text}'"""}
 			tasks = [get_ai_vote(p) for p in ai_players]
 			for completed in asyncio.as_completed(tasks):
 				ai_player, choice = await completed
-				votes[hash(ai_player.name)] = choice
-				tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
-				try:
-					await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=view)
-				except Exception:
-					pass
+				if choice:
+					votes[hash(ai_player.name)] = choice
+					tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
+					try:
+						await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=view)
+					except Exception:
+						pass
 
 		async def wait_for_human_votes():
 			start = asyncio.get_event_loop().time()
@@ -431,16 +466,22 @@ Message: '{text}'"""}
 		messages = self.context.setdefault(ai_player.user, [])
 		messages.append({"role": "user", "content": prompt})
 
+		content = ""
 		try:
 			response = await self.client.chat.completions.create(
 				model=ai_player.user.model,
 				messages=messages
 			)
+			content = self._clean_ai_content(response.choices[0].message.content or "")
 		except Exception as exc:
 			logger.error("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
-			raise
 
-		content = self._clean_ai_content(response.choices[0].message.content or "")
+		if not content:
+			await self.handle_ai_failure(ai_player)
+			return ""
+
+		# Reset failures on success
+		self.ai_failures[ai_player.user] = 0
 		messages.append({"role": "assistant", "content": content})
 		return content
 

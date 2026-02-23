@@ -60,98 +60,117 @@ class Role:
 		# Default: no win condition
 		return False
 
-class SaveRole(Role):
+class SelectRole(Role):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, emoji: str, action_label: str, skippable: bool = False):
+		super().__init__(name, alignment, description, short_description)
+		self.emoji = emoji
+		self.action_label = action_label
+		self.skippable = skippable
+
 	def is_special(self):
 		return True
+
+	def get_button_info(self):
+		return {"label": self.name, "emoji": self.emoji}
+
+	def get_prompt(self):
+		return f"## {self.name}\nWho do you want to {self.action_label}?"
+
+	def get_options(self, game, player):
+		return [p for p in game.get_alive_players() if p.alive]
+
+	async def handle_button_click(self, game, player, interaction):
+		import discord
+		from classes.views import SelectView
+		options = self.get_options(game, player)
+		select_options = [
+			discord.SelectOption(label=p.name, value=str(i), emoji=self.emoji)
+			for i, p in enumerate(options)
+		]
+		
+		if self.skippable:
+			select_options.append(discord.SelectOption(label="Abstain", value="abstain", emoji="⏭️"))
+
+		select_view = SelectView(select_options, lambda inter: self.on_selected(game, player, inter, options))
+		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
+
+	async def on_selected(self, game, player, interaction, options):
+		selection = interaction.data['values'][0]
+		if selection == "abstain":
+			await interaction.response.edit_message(content=f"You chose to abstain.", view=None)
+			return
+
+		user = options[int(selection)]
+		await self.handle_selection(game, player, user)
+		await interaction.response.edit_message(content=f"You chose to {self.action_label} {user.name}.", view=None)
+
+	async def handle_selection(self, game, player, user):
+		pass
+
+	async def night_action_ai(self, game, player):
+		options = self.get_options(game, player)
+		opt_names = [p.name for p in options]
+		prompt_options = opt_names.copy()
+		if self.skippable:
+			prompt_options.append("abstain")
+
+		prompt = f"NIGHT: {self.name.upper()} {self.action_label.upper()}\n> {self.get_prompt()}\nAvailable options:\n" + "\n".join([f"- {name}" for name in prompt_options])
+		
+		choice_text = await game.turns.create_ai_completion(player, prompt)
+		
+		if self.skippable and choice_text and 'abstain' in choice_text.lower():
+			return
+
+		chosen_name = game.turns.extract_choice(choice_text, opt_names)
+		chosen = None
+		if chosen_name:
+			chosen = next((p for p in options if p.name == chosen_name), None)
+		
+		if not chosen and not self.skippable:
+			import random
+			chosen = random.choice(options)
+		
+		if chosen:
+			await self.handle_selection(game, player, chosen)
+
+class SaveRole(SelectRole):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
+		super().__init__(name, alignment, description, short_description, "🧑‍⚕️", "save", skippable=False)
 
 	def night_action_type(self):
 		return "save"
 
-	def get_button_info(self):
-		return {"label": self.name, "emoji": "🧑‍⚕️"}
-
-	def get_prompt(self):
-		return f"## {self.name}\nWho do you want to save?"
-
-	async def handle_button_click(self, game, player, interaction):
-		import discord
-		from classes.views import SelectView
-		select_view = SelectView([
-			discord.SelectOption(label=p.name, value=str(i), emoji="💊")
-			for i, p in enumerate(game.get_alive_players()) if p.alive
-		], lambda inter: self.on_save_selected(game, player, inter))
-		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
-
-	async def on_save_selected(self, game, player, interaction):
-		index = int(interaction.values[0])
-		user = game.get_alive_players()[index]
-		await self.handle_save_selection(game, player, user)
-		await interaction.response.edit_message(content=f"You chose to save {user.name}.", view=None)
-
-	async def handle_save_selection(self, game, player, user):
+	async def handle_selection(self, game, player, user):
 		game.night_actions.setdefault("saves", []).append(user)
 		player.role_state["last_saved"] = user
 
-class KillRole(Role):
-	def is_special(self):
-		return True
+class KillRole(SelectRole):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, skippable: bool = False):
+		super().__init__(name, alignment, description, short_description, "🔫", "kill", skippable=skippable)
 
 	def night_action_type(self):
 		return "kill"
 
-	def get_button_info(self):
-		return {"label": self.name, "emoji": "🔫"}
-
-	def get_prompt(self):
-		return f"## {self.name}\nWho do you want to kill?"
-
-	async def handle_button_click(self, game, player, interaction):
-		import discord
-		from classes.views import SelectView
-		select_view = SelectView([
-			discord.SelectOption(label=p.name, value=str(i), emoji="🔫")
-			for i, p in enumerate(game.get_alive_players()) if p.alive
-		], lambda inter: self.on_kill_selected(game, player, inter))
-		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
-
-	async def on_kill_selected(self, game, player, interaction):
-		index = int(interaction.data['values'][0])
-		user = game.get_alive_players()[index]
-		await self.handle_kill_selection(game, player, user)
-		await interaction.response.edit_message(content=f"You chose to kill {user.name}.", view=None)
-
-	async def handle_kill_selection(self, game, player, user):
+	async def handle_selection(self, game, player, user):
 		game.night_actions.setdefault("kills", []).append(user)
 
-class InvestigateRole(Role):
-	def is_special(self):
-		return True
+class InvestigateRole(SelectRole):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
+		super().__init__(name, alignment, description, short_description, "🕵️", "investigate", skippable=False)
 
 	def night_action_type(self):
 		return "investigate"
 
-	def get_button_info(self):
-		return {"label": self.name, "emoji": "🕵️"}
+	def get_options(self, game, player):
+		return [p for p in game.get_alive_players() if p.alive and p != player]
 
-	def get_prompt(self):
-		return f"## {self.name}\nWho do you want to investigate?"
-
-	async def handle_button_click(self, game, player, interaction):
-		import discord
-		from classes.views import SelectView
-		select_view = SelectView([
-			discord.SelectOption(label=p.name, value=str(i), emoji="🕵️")
-			for i, p in enumerate(game.get_alive_players()) if p.alive and p != player
-		], lambda inter: self.on_investigate_selected(game, player, inter))
-		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
-
-	async def on_investigate_selected(self, game, player, interaction):
-		index = int(interaction.data['values'][0])
-		user = game.get_alive_players()[index]
-		await self.handle_investigate_selection(game, player, user)
+	async def on_selected(self, game, player, interaction, options):
+		selection = interaction.data['values'][0]
+		user = options[int(selection)]
+		await self.handle_selection(game, player, user)
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment.value.upper()}**!", view=None)
 
-	async def handle_investigate_selection(self, game, player, user):
+	async def handle_selection(self, game, player, user):
 		result_prompt = f"{user.name} is **{user.role.alignment.value.upper()}**."
 		from classes.player import AIAbstraction
 		if isinstance(player.user, AIAbstraction):
