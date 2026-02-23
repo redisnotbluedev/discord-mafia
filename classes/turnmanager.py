@@ -7,13 +7,6 @@ from openai import AsyncOpenAI
 logger = logging.getLogger(__name__)
 
 class TurnManager:
-	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: AsyncOpenAI = None):
-		self.participants = participants
-		self.channel = channel
-		self.client = client or AsyncOpenAI()
-		config = data.load()
-		self.bot = bot
-
 	def _clean_ai_content(self, content: str) -> str:
 		"""Remove <think> blocks and extra whitespace from AI responses."""
 		if not content:
@@ -21,6 +14,14 @@ class TurnManager:
 		# Remove <think>...</think> blocks and any unclosed <think> tags
 		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
 		return content.strip()
+
+	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: AsyncOpenAI = None):
+		self.participants = participants
+		self.channel = channel
+		self.client = client or AsyncOpenAI()
+		config = data.load()
+		self.bot = bot
+
 		webhook_url = None
 		try:
 			webhook_url = config["profiles"][str(self.channel.id)]["webhook"]
