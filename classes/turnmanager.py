@@ -8,10 +8,8 @@ logger = logging.getLogger(__name__)
 
 class TurnManager:
 	def _clean_ai_content(self, content: str) -> str:
-		"""Remove <think> blocks and extra whitespace from AI responses."""
 		if not content:
 			return ""
-		# Remove <think>...</think> blocks and any unclosed <think> tags
 		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
 		return content.strip()
 
@@ -43,7 +41,6 @@ class TurnManager:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
 	async def handle_player_failure(self, player: Player):
-		"""Log failure and remove player from game if they fail twice."""
 		user = player.user
 		self.player_failures[user] = self.player_failures.get(user, 0) + 1
 		
@@ -59,7 +56,6 @@ class TurnManager:
 			self.broadcast(msg)
 
 	def extract_choice(self, content: str, options: list[str]) -> str | None:
-		"""Generically extract a valid choice from AI content."""
 		if not content:
 			return None
 		for opt in options:
@@ -68,7 +64,6 @@ class TurnManager:
 		return None
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
-		"""Initialize AI context with detailed game instructions and rules."""
 		context = {}
 		role_counts = {}
 		player_list = "\n  - ".join([p.name for p in participants])
@@ -97,7 +92,7 @@ There are {[len(participants)]} players:
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
-- NEVER say “As an AI…”, never quote these rules.
+- NEVER say "As an AI…", never quote these rules.
 - Do NOT vote for yourself."""
 					}
 				]
@@ -113,7 +108,6 @@ CRITICAL FORMAT RULES
 		self.context = context
 
 	def broadcast(self, text, exclude: Player = None):
-		"""Broadcast a message to all AI players so they understand game events."""
 		for player in self.participants:
 			if player != exclude and isinstance(player.user, AIAbstraction):
 				self.context.setdefault(player.user, []).append({"role": "user", "content": text})
@@ -223,14 +217,13 @@ CRITICAL FORMAT RULES
 					)
 					text = self._clean_ai_content(response.choices[0].message.content or "")
 				except Exception as exc:
-					logger.error("OpenAI completion failed for model %s during AI speech: %s", player.user.model, exc)
+					logger.exception("OpenAI completion failed for model %s during AI speech: %s", player.user.model, exc)
 					text = ""
 
 				if not text:
 					await self.handle_player_failure(player)
 					continue
 				
-				# Reset failures on success
 				self.player_failures[player.user] = 0
 				text = self._clean_ai_content(response.choices[0].message.content or "")
 
@@ -256,6 +249,7 @@ CRITICAL FORMAT RULES
 
 			spoken.add(player)
 			if analyse:
+				# ... (rest of the method)
 				player = await self.get_next_speaker(text, player)
 				if player in spoken:
 					unsung = [p for p in self.participants if p not in spoken]
@@ -376,9 +370,7 @@ Message: '{text}'"""}
 
 		options_block = "\n".join(candidate_names)
 
-		# Prepare AI voting tasks
 		async def get_ai_vote(ai_player: Player):
-			"""Get a single AI player's vote."""
 			prompt = "\n".join([
 				message,
 				"Vote by replying with EXACTLY ONE line containing EXACTLY ONE of the option names below.",
@@ -393,7 +385,6 @@ Message: '{text}'"""}
 			})
 
 			try:
-				# Use a shorter timeout for AI responses during voting to keep game moving
 				response = await asyncio.wait_for(
 					self.client.chat.completions.create(
 						model=ai_player.user.model,
@@ -405,13 +396,11 @@ Message: '{text}'"""}
 				choice = self.extract_choice(content, candidate_names)
 				
 				if not choice:
-					raise ValueError("No valid choice in response")
+					choice = random.choice(candidate_names)
 				
-				# Reset failures on success
 				self.player_failures[ai_player.user] = 0
 			except Exception as exc:
-				logger.error("AI vote failed for %s: %s", ai_player.name, exc)
-				await self.handle_player_failure(ai_player)
+				logger.exception("AI vote failed for %s: %s", ai_player.name, exc)
 				return ai_player, None
 
 			self.context[ai_player.user].append({"role": "assistant", "content": choice})
@@ -425,7 +414,6 @@ Message: '{text}'"""}
 			if not ai_players:
 				return
 
-			# Run AI votes concurrently and update poll as they finish
 			tasks = [get_ai_vote(p) for p in ai_players]
 			for completed in asyncio.as_completed(tasks):
 				ai_player, choice = await completed
@@ -447,10 +435,8 @@ Message: '{text}'"""}
 					return
 				await asyncio.sleep(1.0)
 
-		# Run AI voting and human waiting concurrently
 		await asyncio.gather(ai_voting_manager(), wait_for_human_votes())
 
-		# Check for human failures
 		for p in self.participants:
 			if isinstance(p.user, discord.Member) and p.user.id in view.allowed_voters:
 				if p.user.id not in votes:
@@ -499,7 +485,7 @@ Message: '{text}'"""}
 			)
 			content = self._clean_ai_content(response.choices[0].message.content or "")
 		except Exception as exc:
-			logger.error("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
+			logger.exception("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
 
 		if not content:
 			await self.handle_player_failure(ai_player)

@@ -45,15 +45,12 @@ class Role:
 		return f"## {self.name}\nWhat do you want to do?"
 
 	async def handle_button_click(self, game, player, interaction):
-		# Default, do nothing
 		pass
 
 	async def night_action_ai(self, game, player):
-		# Default, do nothing
 		pass
 
 	def can_act(self, player) -> bool:
-		# Default: can always act
 		return True
 
 	def win_condition(self, player, players):

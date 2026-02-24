@@ -75,7 +75,6 @@ class MafiaGame():
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
 
-		# Find special role players
 		special_players = [p for p in alive_players if p.role.is_special()]
 
 		roles = list(set(p.role.name for p in special_players))
@@ -86,7 +85,6 @@ class MafiaGame():
 		actions_view.turn_manager = self.turns
 		actions_view.game = self
 
-		# Always send the night message with Mafia chat link
 		timeout_at = int(time.time() + 180)
 		message = f"## Night Actions\nMafia, talk in {self.mafia_chat.jump_url}."
 		if roles:
@@ -95,23 +93,18 @@ class MafiaGame():
 
 		await self.channel.send(message, view=actions_view)
 
-		# Handle AI special actions
 		for player in special_players:
 			if isinstance(player.user, AIAbstraction):
 				tasks.append(actions_view.handle_ai_special_action(player))
-			# Human actions are handled by the role buttons
 
-		await asyncio.gather(*tasks) # all the night actions should be concurrent
+		await asyncio.gather(*tasks)
 
-		# Wait for human actions
 		await actions_view.wait_for_humans()
 
-		# Process night actions
 		kill = self.night_actions.get("mafia_kill")
 		saves = self.night_actions.get("saves", [])
 		vigilante_kills = self.night_actions.get("kills", [])
 
-		# Apply vigilante kills
 		for victim in vigilante_kills:
 			if victim and victim.alive:
 				victim.alive = False
@@ -120,7 +113,6 @@ class MafiaGame():
 				await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
 				self.turns.broadcast(message)
 
-		# Check mafia kill
 		if kill and kill not in saves and kill.alive:
 			kill.alive = False
 			kill.death_reason = "mafia"
@@ -162,7 +154,6 @@ class MafiaGame():
 		self.turns.set_channel(self.mafia_chat)
 		self.turns.set_participants(mafia)
 
-		# Broadcast to Mafia members who is in the group
 		mafia_names = [p.name for p in mafia]
 		self.turns.broadcast(f"You are part of the Mafia! Your team consists of: {', '.join(mafia_names)}. Choose wisely who to eliminate.")
 
@@ -187,7 +178,6 @@ class MafiaGame():
 
 	async def discussion_phase(self):
 		alive = self.get_alive_players()
-		# reuse the main turn manager for day discussion
 		if not self.turns:
 			self.turns = TurnManager(
 				alive,
@@ -199,7 +189,6 @@ class MafiaGame():
 			self.turns.set_channel(self.channel)
 			self.turns.set_participants(alive)
 
-		# Broadcast day phase start to AIs with context
 		alive_names = [p.name for p in alive]
 		self.turns.broadcast(f"Day {self.day_number} has begun. Alive players: {', '.join(alive_names)}. It's discussion time. Pay close attention to what others say and how they behave - look for suspicious activity or patterns.")
 
@@ -208,7 +197,6 @@ class MafiaGame():
 
 	async def voting_phase(self):
 		alive = self.get_alive_players()
-		# day lynch vote: allow abstain, no random tie-break; abstain/none highest => no lynch
 
 		victim = await self.turns.run_vote(
 			candidates=alive,
