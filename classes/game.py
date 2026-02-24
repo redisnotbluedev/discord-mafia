@@ -3,7 +3,7 @@ from classes.player import Player, AIAbstraction
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import AsyncOpenAI
-import logging, discord, asyncio
+import logging, discord, asyncio, time
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,11 @@ class MafiaGame():
 		actions_view.game = self
 
 		# Always send the night message with Mafia chat link
+		timeout_at = int(time.time() + 180)
 		message = f"## Night Actions\nMafia, talk in {self.mafia_chat.jump_url}."
 		if roles:
 			message += f"\n{(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)}, click the button(s) below to do your night actions."
+		message += f"\n> Ends <t:{timeout_at}:R>."
 
 		await self.channel.send(message, view=actions_view)
 

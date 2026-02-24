@@ -37,24 +37,24 @@ class TurnManager:
 		self.required_author = -1
 		self.last_speaker = None
 		self.context: dict[AIAbstraction, list] = self._initialize_ai_context(participants)
-		self.ai_failures: dict[AIAbstraction, int] = {}
+		self.player_failures: dict[discord.Member | AIAbstraction, int] = {}
 
 		with open("models.json") as f:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
-	async def handle_ai_failure(self, ai_player: Player):
+	async def handle_player_failure(self, player: Player):
 		"""Log failure and remove player from game if they fail twice."""
-		user = ai_player.user
-		self.ai_failures[user] = self.ai_failures.get(user, 0) + 1
+		user = player.user
+		self.player_failures[user] = self.player_failures.get(user, 0) + 1
 		
-		if self.ai_failures[user] >= 2:
-			msg = f"💀 **{ai_player.name}** has been removed from the game for failing to respond twice in a row."
-			ai_player.alive = False
-			ai_player.death_reason = "modkill"
+		if self.player_failures[user] >= 2:
+			msg = f"**{player.name}** has been removed from the game for failing to respond twice in a row."
+			player.alive = False
+			player.death_reason = "modkill"
 			await self.channel.send(msg)
 			self.broadcast(msg)
 		else:
-			msg = f"⚠️ **{ai_player.name}** failed to respond. If this happens again, they will be removed from the game."
+			msg = f"**{player.name}** failed to respond. If this happens again, they will be removed from the game."
 			await self.channel.send(msg)
 			self.broadcast(msg)
 
@@ -164,7 +164,8 @@ CRITICAL FORMAT RULES
 				player = self.participants[_ % len(self.participants)]
 
 			if isinstance(player.user, discord.Member):
-				await self.channel.send(f"🎤 {player.user.mention}, it's your turn to speak!")
+				timeout_at = int(__import__("time").time() + 180)
+				await self.channel.send(f"> {player.user.mention}, it's your turn to speak! Ends <t:{timeout_at}:R>.")
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
@@ -177,12 +178,27 @@ CRITICAL FORMAT RULES
 					)
 
 				self.required_author = player.user.id
-				logger.info("Waiting for message send")
-				message: discord.Message = await self.message_queue.get()
-				text = message.content or ""
-				logger.debug(f"Got message: {text}")
+				try:
+					msg = await asyncio.wait_for(self.message_queue.get(), timeout=180.0)
+					text = msg.content or ""
+					self.player_failures[player.user] = 0
+				except asyncio.TimeoutError:
+					await self.handle_player_failure(player)
+					if isinstance(self.channel, discord.Thread):
+						await self.bot.get_channel(self.channel.parent_id).set_permissions(
+							player.user,
+							send_messages_in_threads=False
+						)
+					else:
+						await self.channel.set_permissions(
+							player.user,
+							send_messages=False
+						)
+					self.required_author = -1
+					continue
+
 				self.required_author = -1
-				self.broadcast(f"{player.name}: '{text}'")
+
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
@@ -191,11 +207,12 @@ CRITICAL FORMAT RULES
 				else:
 					await self.channel.set_permissions(
 						player.user,
-						send_messages=None
+						send_messages=False
 					)
 
+				self.broadcast(f"{player.name}: {text}", player)
 			elif isinstance(player.user, AIAbstraction):
-				await self.channel.send(f"🎤 It's {player.user.name}'s turn to speak!")
+				await self.channel.send(f"It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
 				text = ""
 				try:
@@ -210,11 +227,11 @@ CRITICAL FORMAT RULES
 					text = ""
 
 				if not text:
-					await self.handle_ai_failure(player)
+					await self.handle_player_failure(player)
 					continue
 				
 				# Reset failures on success
-				self.ai_failures[player.user] = 0
+				self.player_failures[player.user] = 0
 				text = self._clean_ai_content(response.choices[0].message.content or "")
 
 				if self.webhook:
@@ -391,10 +408,10 @@ Message: '{text}'"""}
 					raise ValueError("No valid choice in response")
 				
 				# Reset failures on success
-				self.ai_failures[ai_player.user] = 0
+				self.player_failures[ai_player.user] = 0
 			except Exception as exc:
 				logger.error("AI vote failed for %s: %s", ai_player.name, exc)
-				await self.handle_ai_failure(ai_player)
+				await self.handle_player_failure(ai_player)
 				return ai_player, None
 
 			self.context[ai_player.user].append({"role": "assistant", "content": choice})
@@ -432,6 +449,14 @@ Message: '{text}'"""}
 
 		# Run AI voting and human waiting concurrently
 		await asyncio.gather(ai_voting_manager(), wait_for_human_votes())
+
+		# Check for human failures
+		for p in self.participants:
+			if isinstance(p.user, discord.Member) and p.user.id in view.allowed_voters:
+				if p.user.id not in votes:
+					await self.handle_player_failure(p)
+				else:
+					self.player_failures[p.user] = 0
 
 		tally = self._format_vote_details(votes, candidates, voter_names, allow_abstain)
 		await poll.edit(content=base_message + "\n\n**Votes:**\n" + tally, view=None)
@@ -477,11 +502,11 @@ Message: '{text}'"""}
 			logger.error("OpenAI completion failed for model %s during AI completion for %s: %s", ai_player.user.model, ai_player.name, exc)
 
 		if not content:
-			await self.handle_ai_failure(ai_player)
+			await self.handle_player_failure(ai_player)
 			return ""
 
 		# Reset failures on success
-		self.ai_failures[ai_player.user] = 0
+		self.player_failures[ai_player.user] = 0
 		messages.append({"role": "assistant", "content": content})
 		return content
 

@@ -418,8 +418,26 @@ class SpecialActionsView(discord.ui.View):
 		return discord.utils.get(self.children, custom_id=id)
 
 	async def wait_for_humans(self):
+		start_time = asyncio.get_event_loop().time()
+		timeout = 180.0  # 3 minutes
 		while self.pending_humans:
+			if (asyncio.get_event_loop().time() - start_time) >= timeout:
+				# Handle timeout for players who didn't act
+				if self.game and self.game.turns:
+					for pid in list(self.pending_humans):
+						player = next((p for p in self.players if p.user.id == pid), None)
+						if player:
+							await self.game.turns.handle_player_failure(player)
+				self.pending_humans.clear()
+				return
 			await asyncio.sleep(1)
+		
+		# Reset failures for those who did act
+		if self.game and self.game.turns:
+			for pid in self.acted_players:
+				player = next((p for p in self.players if p.user.id == pid), None)
+				if player:
+					self.game.turns.player_failures[player.user] = 0
 
 	async def handle_ai_special_action(self, player: Player):
 		"""Handle AI special action based on role."""
@@ -458,4 +476,5 @@ class SpecialActionButton(discord.ui.Button):
 		player = next(p for p in view.players if p.user.id == interaction.user.id and p.role == self.role)
 		await self.role.handle_button_click(view.game, player, interaction)
 		view.acted_players.add(interaction.user.id)
+		view.pending_humans.discard(interaction.user.id)
 		view.pending_humans.discard(interaction.user.id)
