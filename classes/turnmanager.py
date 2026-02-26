@@ -43,7 +43,7 @@ class TurnManager:
 	async def handle_player_failure(self, player: Player):
 		user = player.user
 		self.player_failures[user] = self.player_failures.get(user, 0) + 1
-		
+
 		if self.player_failures[user] >= 2:
 			msg = f"**{player.name}** has been removed from the game for failing to respond twice in a row."
 			player.alive = False
@@ -146,9 +146,10 @@ CRITICAL FORMAT RULES
 	async def run_round(self, analyse=False, rounds=None):
 		player: Player
 		spoken = set()
-		speaker_queue = []
+		# list of (Player, priority_level, turn_added)
+		speaker_queue: list[tuple[Player, int, int]] = []
 		alive_participants = [p for p in self.participants if p.alive]
-		
+
 		if rounds is None:
 			rounds = int(len(alive_participants) * 1.5)
 
@@ -169,15 +170,43 @@ CRITICAL FORMAT RULES
 					break
 				player = alive_participants[_ % len(alive_participants)]
 			elif _ > 0:
-				while speaker_queue and not speaker_queue[0].alive:
-					speaker_queue.pop(0)
-				
-				if speaker_queue:
-					player = speaker_queue.pop(0)
+				# Clean dead players from queue
+				speaker_queue = [item for item in speaker_queue if item[0].alive]
+
+				# Determine effective priority based on age
+				# (Player, priority, turn_added, effective_priority)
+				processed_queue = []
+				for p, priority, added_at in speaker_queue:
+					age = _ - added_at
+					effective_priority = priority
+					if age >= 4:
+						effective_priority += 1
+					processed_queue.append((p, priority, added_at, effective_priority))
+
+				# Sort processed queue by effective priority, then age (newest first for same priority)
+				if processed_queue:
+					processed_queue.sort(key=lambda x: (x[3], -x[2]))
+
+				# Logic:
+				# 1. If top of queue is NOT stale (age < 3), they take priority.
+				# 2. Otherwise, check if there are unsung players.
+				# 3. If no unsung players, fallback to the stale mention in the queue.
+				# 4. If queue is empty, fallback to a random alive player.
+
+				urgent_speaker = None
+				if processed_queue and (_ - processed_queue[0][2]) < 3:
+					urgent_speaker = processed_queue.pop(0)
+					speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
+					player = urgent_speaker[0]
 				else:
 					unsung = [p for p in self.participants if p not in spoken and p.alive]
 					if unsung:
 						player = random.choice(unsung)
+					elif processed_queue:
+						# If everyone has spoken, use the stale mentions
+						urgent_speaker = processed_queue.pop(0)
+						speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
+						player = urgent_speaker[0]
 					else:
 						alive_participants = [p for p in self.participants if p.alive]
 						if alive_participants:
@@ -254,7 +283,7 @@ CRITICAL FORMAT RULES
 				if not text:
 					await self.handle_player_failure(player)
 					continue
-				
+
 				self.player_failures[player.user] = 0
 				text = self._clean_ai_content(response.choices[0].message.content or "")
 
@@ -279,13 +308,29 @@ CRITICAL FORMAT RULES
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
 			spoken.add(player)
+			# Remove current speaker from queue if they were in it
+			speaker_queue = [item for item in speaker_queue if item[0] != player]
+
 			if analyse:
+				# next_speakers is list[(Player, level)]
 				next_speakers = await self.get_next_speaker(text, player)
-				urgent_speakers = [p for p, level in next_speakers if level < 4]
-				for p in urgent_speakers:
-					if p in speaker_queue:
-						speaker_queue.remove(p)
-				speaker_queue = urgent_speakers + speaker_queue
+				
+				# Only take COUNTERCLAIM, ACCUSED, ASKED, ROLE (level < 4)
+				new_mentions = [(p, level) for p, level in next_speakers if level < 4]
+				
+				for p, level in new_mentions:
+					# Remove if already in queue (to refresh position/priority)
+					speaker_queue = [item for item in speaker_queue if item[0] != p]
+					# Store (Player, priority, current_turn)
+					speaker_queue.append((p, level, _))
+				
+				# Initial sort to keep the list somewhat organized, 
+				# though we re-calculate effective priority when popping.
+				speaker_queue.sort(key=lambda x: (x[1], -x[2]))
+				
+				# Limit queue size to keep conversation moving and avoid stale topics
+				if len(speaker_queue) > 5:
+					speaker_queue = speaker_queue[:5]
 
 	async def get_next_speaker(self, text: str, speaker: Player) -> list[tuple[Player, int]]:
 		try:
@@ -303,32 +348,34 @@ Return ONLY a comma-separated list in this exact format:
 PlayerName:PRIORITY
 
 PRIORITY LEVELS:
-- COUNTERCLAIM: A player roleclaims and someone needs to counterclaim
-- ACCUSED: Directly accused of being Mafia, lying, or suspicious behaviour
-- ROLE: Role claim or speculation about their role (e.g. "I am the doctor", "if X is sheriff")
-- ASKED: Directly questioned or called out (e.g. "X, what do you think?")
-- CASUAL: Mentioned in passing or agreement (e.g. "I agree with X")
+- COUNTERCLAIM: A player roleclaims and another player needs to counterclaim (Highest Priority)
+- ACCUSED: Directly accused of being Mafia, lying, or acting suspicious
+- ASKED: The TARGET of a question (e.g. "X, what do you think?")
+- ROLE: Mentioned in relation to a specific role or claim
+- CASUAL: Mentioned as the SUBJECT of a question or in passing (Lowest Priority)
 
 RULES:
-1. Only include players from the provided list
-2. If a role is mentioned (e.g. "the sheriff"), include the player who claimed that role if known
-3. Include ALL players who should reasonably respond to this message
-4. If nobody is mentioned, return: NONE
-5. DO NOT include explanations, preambles, or extra text
-6. BE BRIEF
+1. Only include players from the provided list.
+2. If a role is mentioned (e.g. "the sheriff"), include the player who claimed that role if known.
+3. The person being spoken TO (the target of a question) MUST be first in the list.
+4. Distinguish between the target of a question (ASKED) and the subject of a question (CASUAL).
+5. Include ALL players who should reasonably respond to this message.
+6. If nobody is mentioned, return: NONE
+7. Return ONLY the comma-separated list, no other text.
 
 EXAMPLES:
+(In this scenario, Claude is the sheriff, and Grok is speaking.)
 Message: "I'm the sheriff, I investigated DeepSeek last night and got Mafia. Vote her out."
 Output: Claude:COUNTERCLAIM,DeepSeek:ACCUSED
+
+Message: "Qwen, what's your read on Gemini? She's defending GLM."
+Output: Qwen:ASKED,Gemini:CASUAL,GLM:CASUAL
 
 Message: "Kimi is definitely Mafia, she's been too quiet"
 Output: Kimi:ACCUSED
 
 Message: "I think the doctor saved themselves last night"
 Output: Llama:ROLE
-
-Message: "Qwen, why did you vote for DeepSeek?"
-Output: Qwen:ASKED,DeepSeek:CASUAL
 
 Message: "I agree with what ChatGPT said earlier"
 Output: ChatGPT:CASUAL
@@ -358,7 +405,7 @@ Message: '{text}'"""}
 		for mention in raw.split(","):
 			tags = mention.split(":")
 			try:
-				mentions.append({"name": tags[0].strip(), "level": ["COUNTERCLAIM", "ACCUSED", "ROLE", "ASKED", "CASUAL"].index(tags[1].strip())})
+				mentions.append({"name": tags[0].strip(), "level": ["COUNTERCLAIM", "ACCUSED", "ASKED", "ROLE", "CASUAL"].index(tags[1].strip())})
 			except (IndexError, ValueError):
 				continue
 
@@ -368,7 +415,7 @@ Message: '{text}'"""}
 			p = self._candidate_by_name(alive_participants, m["name"])
 			if p and p != speaker and not any(np[0] == p for np in next_players):
 				next_players.append((p, m["level"]))
-				
+
 		return next_players
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
@@ -435,10 +482,10 @@ Message: '{text}'"""}
 				)
 				content = self._clean_ai_content(response.choices[0].message.content or "")
 				choice = self.extract_choice(content, candidate_names)
-				
+
 				if not choice:
 					choice = random.choice(candidate_names)
-				
+
 				self.player_failures[ai_player.user] = 0
 			except Exception as exc:
 				logger.exception("AI vote failed for %s: %s", ai_player.name, exc)
