@@ -273,7 +273,7 @@ class EnabledRolesSelect(discord.ui.Select):
 
 class MafiaUp(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="mafia_up", row=1)
+		super().__init__(label="Mafia", style=discord.ButtonStyle.green, custom_id="mafia_up", row=1, emoji="➕")
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
@@ -285,11 +285,11 @@ class MafiaUp(discord.ui.Button):
 
 class MafiaDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1)
+		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1, emoji="➕")
 
 class TownUp(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="town_up", row=2)
+		super().__init__(label="Town", style=discord.ButtonStyle.green, custom_id="town_up", row=2)
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
@@ -313,7 +313,7 @@ class NeutralLabel(discord.ui.Button):
 
 class NeutralDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Neutral", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=3)
+		super().__init__(label="\u200b", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=3)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
