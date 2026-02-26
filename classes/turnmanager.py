@@ -143,12 +143,16 @@ CRITICAL FORMAT RULES
 			return "No votes yet."
 		return "\n".join(lines)
 
-	async def run_round(self, analyse=False, rounds=8):
+	async def run_round(self, analyse=False, rounds=None):
 		player: Player
 		spoken = set()
 		speaker_queue = []
+		alive_participants = [p for p in self.participants if p.alive]
+		
+		if rounds is None:
+			rounds = int(len(alive_participants) * 1.5)
+
 		if analyse:
-			alive_participants = [p for p in self.participants if p.alive]
 			if alive_participants:
 				player = random.choice(alive_participants)
 			else:
