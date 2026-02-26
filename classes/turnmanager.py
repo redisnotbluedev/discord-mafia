@@ -50,7 +50,7 @@ class TurnManager:
 			player.death_reason = "modkill"
 			await self.channel.send(msg)
 			self.broadcast(msg)
-		else:
+		elif not isinstance(user, AIAbstraction):
 			msg = f"**{player.name}** failed to respond. If this happens again, they will be removed from the game."
 			await self.channel.send(msg)
 			self.broadcast(msg)
@@ -149,27 +149,23 @@ CRITICAL FORMAT RULES
 		# list of (Player, priority_level, turn_added)
 		speaker_queue: list[tuple[Player, int, int]] = []
 		alive_participants = [p for p in self.participants if p.alive]
-
+		
 		if rounds is None:
 			rounds = int(len(alive_participants) * 1.5)
 
-		if analyse:
-			if alive_participants:
-				player = random.choice(alive_participants)
-			else:
-				return
-		else:
+		if not analyse:
 			random.shuffle(self.participants)
 
 		self.running = True
-		for _ in range(rounds):
+		_ = 0
+		while _ < rounds:
 			text = ""
 			if not analyse:
 				alive_participants = [p for p in self.participants if p.alive]
 				if not alive_participants:
 					break
 				player = alive_participants[_ % len(alive_participants)]
-			elif _ > 0:
+			else:
 				# Clean dead players from queue
 				speaker_queue = [item for item in speaker_queue if item[0].alive]
 
@@ -238,6 +234,8 @@ CRITICAL FORMAT RULES
 					self.player_failures[player.user] = 0
 				except asyncio.TimeoutError:
 					await self.handle_player_failure(player)
+					speaker_queue = [item for item in speaker_queue if item[0] != player]
+					spoken.add(player)
 					if isinstance(self.channel, discord.Thread):
 						await self.bot.get_channel(self.channel.parent_id).set_permissions(
 							player.user,
@@ -249,6 +247,8 @@ CRITICAL FORMAT RULES
 							send_messages=False
 						)
 					self.required_author = -1
+					if not analyse:
+						_ += 1
 					continue
 
 				self.required_author = -1
@@ -266,7 +266,6 @@ CRITICAL FORMAT RULES
 
 				self.broadcast(f"{player.name}: {text}", player)
 			elif isinstance(player.user, AIAbstraction):
-				await self.channel.send(f"It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
 				text = ""
 				try:
@@ -282,6 +281,10 @@ CRITICAL FORMAT RULES
 
 				if not text:
 					await self.handle_player_failure(player)
+					speaker_queue = [item for item in speaker_queue if item[0] != player]
+					spoken.add(player)
+					if not analyse:
+						_ += 1
 					continue
 
 				self.player_failures[player.user] = 0
@@ -331,6 +334,8 @@ CRITICAL FORMAT RULES
 				# Limit queue size to keep conversation moving and avoid stale topics
 				if len(speaker_queue) > 5:
 					speaker_queue = speaker_queue[:5]
+
+			_ += 1
 
 	async def get_next_speaker(self, text: str, speaker: Player) -> list[tuple[Player, int]]:
 		try:
