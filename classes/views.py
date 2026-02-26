@@ -285,11 +285,11 @@ class MafiaUp(discord.ui.Button):
 
 class MafiaDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1, emoji="➕")
+		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1)
 
 class TownUp(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Town", style=discord.ButtonStyle.green, custom_id="town_up", row=2)
+		super().__init__(label="Town", style=discord.ButtonStyle.green, custom_id="town_up", row=2, emoji="➕")
 
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
