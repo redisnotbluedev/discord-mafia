@@ -40,9 +40,15 @@ class TurnManager:
 		with open("models.json") as f:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
-	async def handle_player_failure(self, player: Player):
+	async def handle_player_failure(self, player: Player, message: discord.Message = None):
 		user = player.user
 		self.player_failures[user] = self.player_failures.get(user, 0) + 1
+
+		if message:
+			try:
+				await message.delete()
+			except Exception:
+				pass
 
 		if self.player_failures[user] >= 2:
 			msg = f"**{player.name}** has been removed from the game for failing to respond twice in a row."
@@ -215,7 +221,7 @@ CRITICAL FORMAT RULES
 
 			if isinstance(player.user, discord.Member):
 				timeout_at = int(__import__("time").time() + 180)
-				await self.channel.send(f"> {player.user.mention}, it's your turn to speak! Ends <t:{timeout_at}:R>.")
+				status_msg = await self.channel.send(f"> {player.user.mention}, it's your turn to speak! Ends <t:{timeout_at}:R>.")
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
@@ -233,7 +239,7 @@ CRITICAL FORMAT RULES
 					text = msg.content or ""
 					self.player_failures[player.user] = 0
 				except asyncio.TimeoutError:
-					await self.handle_player_failure(player)
+					await self.handle_player_failure(player, status_msg)
 					speaker_queue = [item for item in speaker_queue if item[0] != player]
 					spoken.add(player)
 					if isinstance(self.channel, discord.Thread):
@@ -266,6 +272,7 @@ CRITICAL FORMAT RULES
 
 				self.broadcast(f"{player.name}: {text}", player)
 			elif isinstance(player.user, AIAbstraction):
+				status_msg = await self.channel.send(f"It's {player.user.name}'s turn to speak!")
 				messages = self.context.setdefault(player.user, [])
 				text = ""
 				try:
@@ -280,7 +287,7 @@ CRITICAL FORMAT RULES
 					text = ""
 
 				if not text:
-					await self.handle_player_failure(player)
+					await self.handle_player_failure(player, status_msg)
 					speaker_queue = [item for item in speaker_queue if item[0] != player]
 					spoken.add(player)
 					if not analyse:
@@ -288,7 +295,6 @@ CRITICAL FORMAT RULES
 					continue
 
 				self.player_failures[player.user] = 0
-				text = self._clean_ai_content(response.choices[0].message.content or "")
 
 				if self.webhook:
 					if isinstance(self.channel, discord.Thread):
