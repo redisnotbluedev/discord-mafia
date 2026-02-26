@@ -231,8 +231,6 @@ class SettingsView(discord.ui.View):
 		elif self.message:
 			await self.message.edit(view=self)
 
-
-
 class EnabledRolesSelect(discord.ui.Select):
 	def __init__(self):
 		options = []
@@ -269,9 +267,8 @@ class MafiaUp(discord.ui.Button):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 		new_mafia = view.config["mafia"] + 1
-		if new_mafia >= view.config["town"]:
-			view.config["town"] = new_mafia + 1
-		view.config["mafia"] = min(new_mafia, total_players - 3)
+		if new_mafia < view.config["town"]:
+			view.config["mafia"] = min(new_mafia, total_players - 3)
 		await view.render(interaction)
 
 class MafiaDisplay(discord.ui.Button):
@@ -286,9 +283,8 @@ class TownUp(discord.ui.Button):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 		new_town = view.config["town"] + 1
-		if new_town <= view.config["mafia"]:
-			view.config["mafia"] = new_town - 1
-		view.config["town"] = min(new_town, total_players - 1)
+		if new_town < view.config["mafia"]:
+			view.config["town"] = min(new_town, total_players - 1)
 		# If town + mafia exceeds total, auto-decrement mafia
 		if view.config["town"] + view.config["mafia"] > total_players:
 			view.config["mafia"] = max(1, total_players - view.config["town"])
@@ -428,7 +424,7 @@ class SpecialActionsView(discord.ui.View):
 				self.pending_humans.clear()
 				return
 			await asyncio.sleep(1)
-		
+
 		# Reset failures for those who did act
 		if self.game and self.game.turns:
 			for pid in self.acted_players:
