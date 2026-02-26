@@ -1,5 +1,4 @@
 #!/bin/bash
-
 cd $HOME/discord-mafia
 git fetch --all
 git reset --hard origin/main
