@@ -101,6 +101,7 @@ class MafiaSheduler:
 				title="Roles",
 				description="\n".join([f"	{p.name}: {p.role}" for p in self.game.players])
 			)
+			await channel.send(embed=roles)
 
 		except Exception:
 			error = traceback.format_exc()
