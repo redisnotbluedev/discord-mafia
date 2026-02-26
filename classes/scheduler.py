@@ -55,8 +55,7 @@ class MafiaSheduler:
 			self.game.config = self.config
 
 			self.abstractor.game = self.game
-			embed = self.message.embeds[0].remove_field(1)
-			await self.message.edit(view=None, embed=embed)
+			await self.message.edit(view=None, embed=self.lobby.generate_embed(show_starting_soon=False))
 
 			config = data.load()
 			channel = self.message.channel

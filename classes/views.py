@@ -67,14 +67,14 @@ class JoinGameView(discord.ui.View):
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
 
-	def generate_embed(self):
+	def generate_embed(self, show_starting_soon=True):
 		embed: discord.Embed = discord.Embed(
 			title="AI Plays Mafia",
 			description="The series by Turing Games, now as a Discord bot!",
 			color=discord.Color.green()
 		)
 
-		embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
+		if show_starting_soon: embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
 		player_list = []
 		for player in self.abstractor.players.values():
 			result = "- "
