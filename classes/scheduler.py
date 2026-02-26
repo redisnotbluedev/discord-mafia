@@ -99,9 +99,11 @@ class MafiaSheduler:
 			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
 			roles = discord.Embed(
 				colour=discord.Colour.blurple(),
-				title="Roles",
-				description="\n".join([f"	{p.name}: {p.role}" for p in self.game.players])
+				title="Roles"
 			)
+
+			for alignment in Alignment:
+				roles.add_field(name=alignment.value, value="\n".join([f"{p.role.emoji}{p.name}: {p.role}" for p in self.game.players if p.role.alignment == alignment]), inline=False)
 			await channel.send(embed=roles)
 
 		except Exception:
