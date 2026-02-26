@@ -105,7 +105,10 @@ class MafiaSheduler:
 			)
 
 			for alignment in Alignment:
-				roles.add_field(name=alignment.value, value="\n".join([f"{p.role.emoji}{p.name}: {p.role}" for p in self.game.players if p.role.alignment == alignment]), inline=False)
+				aligned_players = [f"{p.role.emoji} {p.name}: {p.role}" for p in self.game.players if p.role.alignment == alignment]
+				if aligned_players:
+					roles.add_field(name=alignment.value, value="\n".join(aligned_players), inline=False)
+
 			await channel.send(embed=roles)
 
 		except Exception:
