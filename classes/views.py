@@ -283,8 +283,9 @@ class TownUp(discord.ui.Button):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 		new_town = view.config["town"] + 1
-		if new_town < view.config["mafia"]:
-			view.config["town"] = min(new_town, total_players - 1)
+		if new_town <= view.config["mafia"]:
+			view.config["mafia"] = new_town - 1
+		view.config["town"] = min(new_town, total_players - 1)
 		# If town + mafia exceeds total, auto-decrement mafia
 		if view.config["town"] + view.config["mafia"] > total_players:
 			view.config["mafia"] = max(1, total_players - view.config["town"])
