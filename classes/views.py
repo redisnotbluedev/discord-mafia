@@ -47,7 +47,9 @@ class StartGameView(discord.ui.View):
 		self.abstractor.owner = interaction.user
 		self.abstractor.save_config()
 
-		view = JoinGameView(self.abstractor, interaction.message, time.time() + 60 * 5)
+		# discord.py doesn't say if this expires so just to make sure...
+		message = await self.abstractor.bot.get_channel(interaction.message.channel.id).fetch_message(interaction.message.id)
+		view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
 		embed = view.generate_embed()
 		view.game.lobby = view
 
