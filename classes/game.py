@@ -127,6 +127,9 @@ class MafiaGame():
 			await self.channel.send(message)
 			self.turns.broadcast(message)
 
+		for p in self.players:
+			await p.role.on_night_end(self, p)
+
 		self.night_actions.clear()
 
 	async def run_day_phase(self):

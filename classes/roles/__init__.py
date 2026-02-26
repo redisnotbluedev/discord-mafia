@@ -48,6 +48,9 @@ class Role:
 	async def handle_button_click(self, game, player, interaction):
 		pass
 
+	async def on_night_end(self, game, player):
+		pass
+
 	async def night_action_ai(self, game, player):
 		pass
 
@@ -139,8 +142,17 @@ class SaveRole(SelectRole):
 		return "save"
 
 	async def handle_selection(self, game, player, user):
-		game.night_actions.setdefault("saves", []).append(user)
-		player.role_state["last_saved"] = user
+		saves = game.night_actions.setdefault("saves", [])
+		old_save = player.role_state.get("pending_save")
+		if old_save and old_save in saves:
+			saves.remove(old_save)
+		
+		saves.append(user)
+		player.role_state["pending_save"] = user
+
+	async def on_night_end(self, game, player):
+		player.role_state["last_saved"] = player.role_state.get("pending_save")
+		player.role_state["pending_save"] = None
 
 class KillRole(SelectRole):
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, skippable: bool = False):
