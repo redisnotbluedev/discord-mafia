@@ -260,7 +260,7 @@ class EnabledRolesSelect(discord.ui.Select):
 			max_values=len(options),
 			options=options,
 			custom_id="enabled_roles",
-			row=3
+			row=4
 		)
 
 	async def callback(self, interaction: discord.Interaction):
@@ -309,11 +309,11 @@ class TownDisplay(discord.ui.Button):
 
 class NeutralLabel(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Neutral", style=discord.ButtonStyle.green, custom_id="neutral_label", disabled=True, row=2)
+		super().__init__(label="Neutral", style=discord.ButtonStyle.green, custom_id="neutral_label", disabled=True, row=3)
 
 class NeutralDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Neutral", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=2)
+		super().__init__(label="Neutral", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=3)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
