@@ -236,7 +236,7 @@ class SettingsView(discord.ui.View):
 		if enabled_neutral:
 			get("neutral_display").label = f"{neutral_bar} ({len(enabled_neutral)})"
 		else:
-			get("neutral_display").label = " "
+			get("neutral_display").label = "\u200B"
 
 		if interaction:
 			await interaction.response.edit_message(view=self)
@@ -313,7 +313,7 @@ class NeutralLabel(discord.ui.Button):
 
 class NeutralDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label=" ", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=2)
+		super().__init__(label="Neutral", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=2)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
