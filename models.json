@@ -44,6 +44,11 @@
         	"model": "gemini-3-flash",
         	"name": "Gemini 3 Flash",
         	"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511439765648/geminiflash.png?ex=699ba762&is=699a55e2&hm=63e93b3120a0c35810d62ce4fbe95287654098c9665329a2e2be16417e574820&animated=true"
+        },
+        {
+        	"model": "kimi-k2",
+         	"name": "Kimi K2",
+          	"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512820811632680/Designer_1.png?ex=69a0edac&is=699f9c2c&hm=9c8e0b4b887662fd1576031627f1327fb0d27c23f5e953bdeb5f5669505217e8&animated=true"
         }
 	],
 	"discussion_analyser": "ministral-3-3b"
