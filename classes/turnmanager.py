@@ -146,8 +146,13 @@ CRITICAL FORMAT RULES
 	async def run_round(self, analyse=False, rounds=8):
 		player: Player
 		spoken = set()
+		speaker_queue = []
 		if analyse:
-			player = random.choice(self.participants)
+			alive_participants = [p for p in self.participants if p.alive]
+			if alive_participants:
+				player = random.choice(alive_participants)
+			else:
+				return
 		else:
 			random.shuffle(self.participants)
 
@@ -155,7 +160,29 @@ CRITICAL FORMAT RULES
 		for _ in range(rounds):
 			text = ""
 			if not analyse:
-				player = self.participants[_ % len(self.participants)]
+				alive_participants = [p for p in self.participants if p.alive]
+				if not alive_participants:
+					break
+				player = alive_participants[_ % len(alive_participants)]
+			elif _ > 0:
+				while speaker_queue and not speaker_queue[0].alive:
+					speaker_queue.pop(0)
+				
+				if speaker_queue:
+					player = speaker_queue.pop(0)
+				else:
+					unsung = [p for p in self.participants if p not in spoken and p.alive]
+					if unsung:
+						player = random.choice(unsung)
+					else:
+						alive_participants = [p for p in self.participants if p.alive]
+						if alive_participants:
+							player = random.choice(alive_participants)
+						else:
+							break
+
+			if not player or not player.alive:
+				continue
 
 			if isinstance(player.user, discord.Member):
 				timeout_at = int(__import__("time").time() + 180)
@@ -249,14 +276,14 @@ CRITICAL FORMAT RULES
 
 			spoken.add(player)
 			if analyse:
-				# ... (rest of the method)
-				player = await self.get_next_speaker(text, player)
-				if player in spoken:
-					unsung = [p for p in self.participants if p not in spoken]
-					if unsung:
-						player = random.choice(unsung)
+				next_speakers = await self.get_next_speaker(text, player)
+				urgent_speakers = [p for p, level in next_speakers if level < 4]
+				for p in urgent_speakers:
+					if p in speaker_queue:
+						speaker_queue.remove(p)
+				speaker_queue = urgent_speakers + speaker_queue
 
-	async def get_next_speaker(self, text: str, speaker: Player):
+	async def get_next_speaker(self, text: str, speaker: Player) -> list[tuple[Player, int]]:
 		try:
 			response = await self.client.chat.completions.create(
 				messages=[
@@ -272,6 +299,7 @@ Return ONLY a comma-separated list in this exact format:
 PlayerName:PRIORITY
 
 PRIORITY LEVELS:
+- COUNTERCLAIM: A player roleclaims and someone needs to counterclaim
 - ACCUSED: Directly accused of being Mafia, lying, or suspicious behaviour
 - ROLE: Role claim or speculation about their role (e.g. "I am the doctor", "if X is sheriff")
 - ASKED: Directly questioned or called out (e.g. "X, what do you think?")
@@ -286,6 +314,9 @@ RULES:
 6. BE BRIEF
 
 EXAMPLES:
+Message: "I'm the sheriff, I investigated DeepSeek last night and got Mafia. Vote her out."
+Output: Claude:COUNTERCLAIM,DeepSeek:ACCUSED
+
 Message: "Kimi is definitely Mafia, she's been too quiet"
 Output: Kimi:ACCUSED
 
@@ -301,7 +332,7 @@ Output: ChatGPT:CASUAL
 Message: "We need to be more careful"
 Output: NONE"""},
 				{"role": "user", "content": f"""Alive players:
-{"\n  - ".join([p.name for p in self.participants])}
+{"\n  - ".join([p.name for p in self.participants if p.alive])}
 Speaker: {speaker.name}
 Message: '{text}'"""}
 				],
@@ -309,26 +340,32 @@ Message: '{text}'"""}
 			)
 		except Exception as exc:
 			logger.error("OpenAI completion failed for model %s during speaker analysis: %s", self.DISCUSSION_ANALYSER, exc)
-			raise
+			return []
 		raw = response.choices[0].message.content.strip()
 
+		alive_participants = [p for p in self.participants if p.alive]
+		if not alive_participants:
+			return []
+
 		if raw == "NONE" or not raw:
-			return random.choice(self.participants)
+			return []
 
 		mentions = []
 		for mention in raw.split(","):
 			tags = mention.split(":")
 			try:
-				mentions.append({"name": tags[0], "level": ["ACCUSED", "ROLE", "ASKED", "CASUAL"].index(tags[1])})
+				mentions.append({"name": tags[0].strip(), "level": ["COUNTERCLAIM", "ACCUSED", "ROLE", "ASKED", "CASUAL"].index(tags[1].strip())})
 			except (IndexError, ValueError):
 				continue
 
 		mentions.sort(key=lambda x: x["level"])
-		if mentions:
-			next_player = self._candidate_by_name(self.participants, mentions[0]["name"])
-			if next_player and next_player != speaker:
-				return next_player
-		return random.choice(self.participants)
+		next_players = []
+		for m in mentions:
+			p = self._candidate_by_name(alive_participants, m["name"])
+			if p and p != speaker and not any(np[0] == p for np in next_players):
+				next_players.append((p, m["level"]))
+				
+		return next_players
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
 		votes: dict[int, str] = {}
