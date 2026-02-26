@@ -238,7 +238,7 @@ class SettingsView(discord.ui.View):
 				nd = NeutralDisplay()
 				self.add_item(nd)
 				neutral_display = nd
-			neutral_display.label = f"{neutral_bar} ({len(enabled_neutral)})"
+			neutral_display.label = f"Neutral: {neutral_bar} ({len(enabled_neutral)})"
 		else:
 			if neutral_display:
 				self.children.remove(neutral_display)
