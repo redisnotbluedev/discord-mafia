@@ -15,8 +15,8 @@ class MafiaSheduler:
 		self.attempts = 0
 		self.game = MafiaGame(abstractor)
 		total_players = len(self.abstractor.players)
-		# Ensure Mafia is at most half minus 1 of total players, and at least 3 players fewer than total
-		mafia = max(1, min((total_players - 1) // 2, total_players - 3))
+		# Default to 1/3 of players
+		mafia = max(1, total_players // 3)
 		# Ensure Town always has more players than Mafia at the start
 		town = max(mafia + 1, total_players - mafia)
 		self.config = {
@@ -147,15 +147,15 @@ class MafiaSheduler:
 	def setup_roles(self):
 		from classes.roles import ALL_ROLES
 		total_players = len(self.abstractor.players)
-		# Use config or default calculation (at most half minus 1 of total)
-		mafia = self.config.get("mafia", max(1, min((total_players - 1) // 2, total_players - 3)))
+		# Default to 1/3 of players if not in config
+		mafia = self.config.get("mafia", max(1, total_players // 3))
 		# Town must be at least mafia + 1 to prevent instant loss
 		town = self.config.get("town", max(mafia + 1, total_players - mafia))
 
 		# Final validation to ensure town > mafia and counts match total
 		if mafia + town > total_players:
 			# If we have too many, ensure Mafia is strictly less than half
-			mafia = max(1, (total_players - 1) // 2)
+			mafia = min(mafia, (total_players - 1) // 2)
 			town = total_players - mafia
 		elif mafia + town < total_players:
 			town += total_players - (mafia + town)
