@@ -115,11 +115,17 @@ class SelectRole(Role):
 		if self.skippable:
 			prompt_options.append("abstain")
 
-		prompt = f"NIGHT: {self.name.upper()} {self.action_label.upper()}\n> {self.get_prompt()}\nAvailable options:\n" + "\n".join([f"- {name}" for name in prompt_options])
+		prompt = f"NIGHT: {self.name.upper()} {self.action_label.upper()}\n> {self.get_prompt()}\n"
+		if self.skippable:
+			prompt += "Note: You are NOT required to act. If you don't have a strong suspicion, you should 'abstain' to avoid hurting your team.\n"
+		prompt += "Available options:\n" + "\n".join([f"- {name}" for name in prompt_options])
 		
 		choice_text = await game.turns.create_ai_completion(player, prompt)
 		
-		if self.skippable and choice_text and 'abstain' in choice_text.lower():
+		if not choice_text:
+			return
+
+		if self.skippable and 'abstain' in choice_text.lower():
 			return
 
 		chosen_name = game.turns.extract_choice(choice_text, opt_names)
@@ -127,7 +133,9 @@ class SelectRole(Role):
 		if chosen_name:
 			chosen = next((p for p in options if p.name == chosen_name), None)
 		
-		if not chosen and not self.skippable:
+		if not chosen:
+			if self.skippable:
+				return
 			import random
 			chosen = random.choice(options)
 		
