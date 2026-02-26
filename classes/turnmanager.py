@@ -122,10 +122,25 @@ CRITICAL FORMAT RULES
 		return self.context
 
 	def _candidate_by_name(self, candidates: list[Player], name: str) -> Player | None:
-		name = (name or "").strip()
+		name = (name or "").strip().lower()
+		if not name:
+			return None
+
+		# 1. Exact match (case-insensitive)
 		for c in candidates:
-			if c.name == name:
+			if c.name.lower() == name:
 				return c
+
+		# 2. Word boundary match (e.g. "Qwen" matches "Qwen 3")
+		for c in candidates:
+			if re.search(rf'\b{re.escape(name)}\b', c.name.lower()):
+				return c
+
+		# 3. Simple inclusion
+		for c in candidates:
+			if name in c.name.lower():
+				return c
+
 		return None
 
 	def _format_vote_details(self, votes: dict[int, str], candidates: list[Player], voter_names: dict[int, str], allow_abstain: bool = False) -> str:
@@ -152,6 +167,7 @@ CRITICAL FORMAT RULES
 	async def run_round(self, analyse=False, rounds=None):
 		player: Player
 		spoken = set()
+		speech_counts = {}
 		# list of (Player, priority_level, turn_added)
 		speaker_queue: list[tuple[Player, int, int]] = []
 		alive_participants = [p for p in self.participants if p.alive]
@@ -175,44 +191,52 @@ CRITICAL FORMAT RULES
 				# Clean dead players from queue
 				speaker_queue = [item for item in speaker_queue if item[0].alive]
 
-				# Determine effective priority based on age
-				# (Player, priority, turn_added, effective_priority)
+				# Determine effective priority based on age and speech frequency
 				processed_queue = []
 				for p, priority, added_at in speaker_queue:
 					age = _ - added_at
 					effective_priority = priority
+					
+					# Penalty for repeated speech to encourage variety
+					effective_priority += speech_counts.get(p, 0)
+					
 					if age >= 4:
 						effective_priority += 1
 					processed_queue.append((p, priority, added_at, effective_priority))
 
-				# Sort processed queue by effective priority, then age (newest first for same priority)
+				# Sort by effective priority, then original priority, then age (newest first)
 				if processed_queue:
-					processed_queue.sort(key=lambda x: (x[3], -x[2]))
+					processed_queue.sort(key=lambda x: (x[3], x[1], -x[2]))
 
 				# Logic:
-				# 1. If top of queue is NOT stale (age < 3), they take priority.
-				# 2. Otherwise, check if there are unsung players.
-				# 3. If no unsung players, fallback to the stale mention in the queue.
-				# 4. If queue is empty, fallback to a random alive player.
+				# 1. If top of queue is NOT stale (age < 3) and has low speech count, they take priority.
+				# 2. Otherwise, check for unsung players.
+				# 3. Fallback to queue then random.
 
 				urgent_speaker = None
-				if processed_queue and (_ - processed_queue[0][2]) < 3:
-					urgent_speaker = processed_queue.pop(0)
-					speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
-					player = urgent_speaker[0]
-				else:
-					unsung = [p for p in self.participants if p not in spoken and p.alive]
+				unsung = [p for p in self.participants if p not in spoken and p.alive]
+				
+				if processed_queue:
+					top_p, top_pri, top_added, top_eff = processed_queue[0]
+					# Highly urgent (COUNTERCLAIM/ACCUSED) or fresh mention for unsung player
+					if top_pri <= 1 or (not unsung) or (_ - top_added < 2 and top_p in unsung):
+						urgent_speaker = processed_queue.pop(0)
+						speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
+						player = urgent_speaker[0]
+
+				if not urgent_speaker:
 					if unsung:
 						player = random.choice(unsung)
 					elif processed_queue:
-						# If everyone has spoken, use the stale mentions
 						urgent_speaker = processed_queue.pop(0)
 						speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
 						player = urgent_speaker[0]
 					else:
 						alive_participants = [p for p in self.participants if p.alive]
 						if alive_participants:
-							player = random.choice(alive_participants)
+							# Pick whoever has spoken the least
+							alive_participants.sort(key=lambda p: speech_counts.get(p, 0))
+							player = alive_participants[0]
 						else:
 							break
 
@@ -242,6 +266,7 @@ CRITICAL FORMAT RULES
 					await self.handle_player_failure(player, status_msg)
 					speaker_queue = [item for item in speaker_queue if item[0] != player]
 					spoken.add(player)
+					speech_counts[player] = speech_counts.get(player, 0) + 1
 					if isinstance(self.channel, discord.Thread):
 						await self.bot.get_channel(self.channel.parent_id).set_permissions(
 							player.user,
@@ -290,6 +315,7 @@ CRITICAL FORMAT RULES
 					await self.handle_player_failure(player, status_msg)
 					speaker_queue = [item for item in speaker_queue if item[0] != player]
 					spoken.add(player)
+					speech_counts[player] = speech_counts.get(player, 0) + 1
 					if not analyse:
 						_ += 1
 					continue
@@ -317,6 +343,7 @@ CRITICAL FORMAT RULES
 				self.context.setdefault(player.user, []).append({"role": "assistant", "content": text})
 
 			spoken.add(player)
+			speech_counts[player] = speech_counts.get(player, 0) + 1
 			# Remove current speaker from queue if they were in it
 			speaker_queue = [item for item in speaker_queue if item[0] != player]
 
