@@ -163,6 +163,7 @@ class SettingsView(discord.ui.View):
 		self.add_item(MafiaDisplay())
 		self.add_item(TownUp())
 		self.add_item(TownDisplay())
+		self.add_item(NeutralLabel())
 		self.add_item(NeutralDisplay())
 		self.add_item(EnabledRolesSelect())
 
@@ -235,7 +236,7 @@ class SettingsView(discord.ui.View):
 		if enabled_neutral:
 			get("neutral_display").label = f"{neutral_bar} ({len(enabled_neutral)})"
 		else:
-			get("neutral_display").label = "Neutral"
+			get("neutral_display").label = " "
 
 		if interaction:
 			await interaction.response.edit_message(view=self)
@@ -306,9 +307,13 @@ class TownDisplay(discord.ui.Button):
 	def __init__(self):
 		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True, row=2)
 
+class NeutralLabel(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="Neutral", style=discord.ButtonStyle.green, custom_id="neutral_label", disabled=True, row=2)
+
 class NeutralDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="Neutral", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=4)
+		super().__init__(label=" ", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=2)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
