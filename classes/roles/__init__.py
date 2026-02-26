@@ -12,11 +12,12 @@ class Alignment(Enum):
 NEUTRAL = Alignment.NEUTRAL
 
 class Role:
-	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
+	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, emoji: str = "❓"):
 		self.name = name
 		self.alignment = alignment
 		self.description = description
 		self.short_description = short_description
+		self.emoji = emoji
 
 	def __str__(self):
 		return self.name
@@ -39,7 +40,7 @@ class Role:
 		return None
 
 	def get_button_info(self):
-		return {"label": self.name, "emoji": "❓"}
+		return {"label": self.name, "emoji": self.emoji}
 
 	def get_prompt(self):
 		return f"## {self.name}\nWhat do you want to do?"
