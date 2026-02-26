@@ -390,7 +390,7 @@ Message: '{text}'"""}
 						model=ai_player.user.model,
 						messages=self.context[ai_player.user]
 					),
-					timeout=min(timeout_s, 20.0)
+					timeout=min(timeout_s, 60.0)
 				)
 				content = self._clean_ai_content(response.choices[0].message.content or "")
 				choice = self.extract_choice(content, candidate_names)
@@ -401,7 +401,9 @@ Message: '{text}'"""}
 				self.player_failures[ai_player.user] = 0
 			except Exception as exc:
 				logger.exception("AI vote failed for %s: %s", ai_player.name, exc)
-				return ai_player, None
+				choice = random.choice(candidate_names)
+				self.context[ai_player.user].append({"role": "assistant", "content": choice})
+				return ai_player, choice
 
 			self.context[ai_player.user].append({"role": "assistant", "content": choice})
 			return ai_player, choice
