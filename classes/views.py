@@ -43,6 +43,7 @@ class StartGameView(discord.ui.View):
 
 		self.abstractor.interactions[interaction.user.id] = interaction
 		self.abstractor.running = True
+		data.update_game_status(self.abstractor.bot)
 		self.abstractor.last_lobby_id = None
 		self.abstractor.owner = interaction.user
 		self.abstractor.save_config()
@@ -103,6 +104,7 @@ class JoinGameView(discord.ui.View):
 					await interaction.message.delete()
 					self.game.start_job.cancel()
 					self.abstractor.running = False
+					data.update_game_status(self.abstractor.bot)
 					await self.abstractor.on_message(True)
 				else:
 					embed = self.generate_embed()

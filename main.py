@@ -40,6 +40,7 @@ async def on_ready():
 		bot.abstractors.append(abstractor)
 	await asyncio.gather(*tasks)
 	logger.info("Loading game abstractors, total %i", len(bot.abstractors))
+	data.update_game_status(bot)
 
 @bot.event
 async def setup_hook():

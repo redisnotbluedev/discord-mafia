@@ -35,7 +35,8 @@ class MafiaSheduler:
 				if self.attempts >= 3:
 					await self.message.channel.send("Not enough players to start the game!\nPlease restart with more players.")
 					await self.message.delete()
-					self.abstractor.running = True
+					self.abstractor.running = False
+					data.update_game_status(self.abstractor.bot)
 					await self.abstractor.on_message(True) # God idek what this does but I implemented it so I should know...
 					# Oh it cancels it and then sends a ghost message to move the lobby down
 					return
@@ -120,6 +121,7 @@ class MafiaSheduler:
 
 			self.abstractor.reset()
 			self.abstractor.running = False
+			data.update_game_status(self.abstractor.bot)
 
 			tasks = []
 			for player in self.game.players:

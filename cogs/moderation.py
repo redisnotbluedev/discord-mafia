@@ -77,6 +77,7 @@ class ModerationCog(commands.Cog):
 			self.bot.abstractors.append(GameAbstractor(channel.id, self.bot))
 
 			data.save(config)
+			data.update_game_status(self.bot)
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
 		except Exception:
