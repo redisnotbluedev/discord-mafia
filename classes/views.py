@@ -163,6 +163,7 @@ class SettingsView(discord.ui.View):
 		self.add_item(MafiaDisplay())
 		self.add_item(TownUp())
 		self.add_item(TownDisplay())
+		self.add_item(NeutralDisplay())
 		self.add_item(EnabledRolesSelect())
 
 		# Initialize role configs (exclude Town and Mafia)
@@ -214,8 +215,10 @@ class SettingsView(discord.ui.View):
 			mafia = town
 			self.config["mafia"] = mafia
 
-		# Mafia bar
-		mafia_bar = "🔪" * mafia
+		# Mafia bar - show enabled special mafia roles
+		enabled_special_mafia = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.MAFIA and role.is_special()]
+		mafia_regular = max(mafia - len(enabled_special_mafia), 0)
+		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_mafia)
 		get("mafia_display").label = f"{mafia_bar} ({mafia})"
 		get("mafia_up").disabled = mafia >= town
 
@@ -225,6 +228,14 @@ class SettingsView(discord.ui.View):
 		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
 		get("town_display").label = f"{town_bar} ({town})"
 		get("town_up").disabled = town >= total_players - 1
+
+		# Neutral bar - show enabled neutral roles
+		enabled_neutral = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.NEUTRAL]
+		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_neutral)
+		if enabled_neutral:
+			get("neutral_display").label = f"{neutral_bar} ({len(enabled_neutral)})"
+		else:
+			get("neutral_display").label = ""
 
 		if interaction:
 			await interaction.response.edit_message(view=self)
@@ -294,6 +305,10 @@ class TownUp(discord.ui.Button):
 class TownDisplay(discord.ui.Button):
 	def __init__(self):
 		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True, row=2)
+
+class NeutralDisplay(discord.ui.Button):
+	def __init__(self):
+		super().__init__(label="", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=3)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
