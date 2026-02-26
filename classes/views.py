@@ -209,15 +209,15 @@ class SettingsView(discord.ui.View):
 		mafia = self.config["mafia"]
 		town = self.config["town"]
 
-		# Ensure mafia < town
-		if mafia >= town:
-			town = mafia + 1
-			self.config["town"] = town
+		# Ensure mafia <= town
+		if mafia > town:
+			mafia = town
+			self.config["mafia"] = mafia
 
 		# Mafia bar
 		mafia_bar = "🔪" * mafia
 		get("mafia_display").label = f"{mafia_bar} ({mafia})"
-		get("mafia_up").disabled = mafia >= town - 1
+		get("mafia_up").disabled = mafia >= town
 
 		# Town bar - show enabled special town roles
 		enabled_special_town = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.TOWN and role.is_special()]
@@ -267,7 +267,7 @@ class MafiaUp(discord.ui.Button):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 		new_mafia = view.config["mafia"] + 1
-		if new_mafia < view.config["town"]:
+		if new_mafia <= view.config["town"]:
 			view.config["mafia"] = min(new_mafia, total_players - 3)
 		await view.render(interaction)
 
@@ -283,9 +283,9 @@ class TownUp(discord.ui.Button):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 		new_town = view.config["town"] + 1
-		if new_town <= view.config["mafia"]:
-			view.config["mafia"] = new_town - 1
 		view.config["town"] = min(new_town, total_players - 1)
+		if view.config["mafia"] > view.config["town"]:
+			view.config["mafia"] = view.config["town"]
 		# If town + mafia exceeds total, auto-decrement mafia
 		if view.config["town"] + view.config["mafia"] > total_players:
 			view.config["mafia"] = max(1, total_players - view.config["town"])
