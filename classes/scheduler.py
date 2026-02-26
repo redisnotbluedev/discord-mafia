@@ -96,6 +96,11 @@ class MafiaSheduler:
 
 			winner = await self.game.run()
 			await channel.send(f"# 🎉 {winner} wins! 🎉\n-# Thanks for playing!")
+			roles = discord.Embed(
+				colour=discord.Colour.blurple(),
+				title="Roles",
+				description="\n".join([f"	{p.name}: {p.role}" for p in self.game.players])
+			)
 
 		except Exception:
 			error = traceback.format_exc()
