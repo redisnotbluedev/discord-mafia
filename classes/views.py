@@ -1,8 +1,8 @@
-import discord, time, logging, data, asyncio
+import discord, time, logging, data, asyncio, json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
 from classes.roles import Role, Alignment, ALL_ROLES
-from classes.player import Player, create_ai_players
+from classes.player import Player, create_ai_players, AIAbstraction
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
@@ -169,6 +169,16 @@ class SettingsView(discord.ui.View):
 		self.add_item(TownDisplay())
 
 		self.add_item(EnabledRolesSelect())
+		self.add_item(ModelSelect())
+
+		# Initialize models if not set
+		if "models" not in self.config:
+			try:
+				with open("models.json") as f:
+					m_data = json.load(f)
+					self.config["models"] = [m["model"] for m in m_data.get("models", [])[:10]]
+			except Exception:
+				self.config["models"] = []
 
 		# Initialize role configs (exclude Town and Mafia)
 		for role in ALL_ROLES:
@@ -179,21 +189,6 @@ class SettingsView(discord.ui.View):
 	async def render(self, interaction: discord.Interaction=None):
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
-
-		# Update enabled roles select with current selections
-		enabled_select = get("enabled_roles")
-		if enabled_select:
-			enabled_roles = [role.name for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.name not in ["Town", "Mafia"]]
-			new_options = []
-			for opt in enabled_select.options:
-				new_options.append(discord.SelectOption(
-					label=opt.label,
-					description=opt.description,
-					emoji=opt.emoji,
-					value=opt.value,
-					default=opt.value in enabled_roles
-				))
-			enabled_select.options = new_options
 
 		total_players = len(self.game.abstractor.players)
 
@@ -253,6 +248,13 @@ class SettingsView(discord.ui.View):
 			for option in select.options:
 				option.default = self.config.get(f"role_{option.value}", False)
 
+		# Update model select defaults
+		model_select = get("selected_models")
+		if model_select and isinstance(model_select, discord.ui.Select):
+			selected_models = self.config.get("models", [])
+			for option in model_select.options:
+				option.default = option.value in selected_models
+
 		if interaction:
 			await interaction.response.edit_message(view=self)
 		elif self.message:
@@ -275,7 +277,7 @@ class EnabledRolesSelect(discord.ui.Select):
 			max_values=len(options),
 			options=options,
 			custom_id="enabled_roles",
-			row=4
+			row=3
 		)
 
 	async def callback(self, interaction: discord.Interaction):
@@ -284,6 +286,43 @@ class EnabledRolesSelect(discord.ui.Select):
 		for role in ALL_ROLES:
 			if role.name not in ["Town", "Mafia"]:
 				view.config[f"role_{role.name}"] = role.name in selected
+		await view.render(interaction)
+
+class ModelSelect(discord.ui.Select):
+	def __init__(self):
+		try:
+			with open("models.json") as f:
+				m_data = json.load(f)
+				models = m_data.get("models", [])[:10]
+		except Exception:
+			models = []
+
+		options = []
+		for m in models:
+			options.append(discord.SelectOption(
+				label=m["name"],
+				value=m["model"],
+				emoji=None
+			))
+
+		super().__init__(
+			placeholder="AI Models",
+			min_values=1,
+			max_values=len(options) if options else 1,
+			options=options,
+			custom_id="selected_models",
+			row=4
+		)
+
+	async def callback(self, interaction: discord.Interaction):
+		view: SettingsView = self.view  # type: ignore
+		view.config["models"] = self.values
+
+		# Sync AI players in the lobby
+		view.game.abstractor.players = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		for ai_player in create_ai_players(view.config["models"]):
+			view.game.abstractor.players[hash(ai_player.name)] = ai_player
+
 		await view.render(interaction)
 
 class MafiaUp(discord.ui.Button):
@@ -348,6 +387,19 @@ class DefaultButton(discord.ui.Button):
 		town = max(mafia + 1, total_players - mafia)
 		view.config["mafia"] = mafia
 		view.config["town"] = town
+
+		# Reset models to defaults (all 10)
+		try:
+			with open("models.json") as f:
+				m_data = json.load(f)
+				view.config["models"] = [m["model"] for m in m_data.get("models", [])[:10]]
+		except Exception:
+			pass
+
+		# Sync AI players in the lobby
+		view.game.abstractor.players = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		for ai_player in create_ai_players(view.config["models"]):
+			view.game.abstractor.players[hash(ai_player.name)] = ai_player
 
 		await view.render(interaction)
 
@@ -501,5 +553,4 @@ class SpecialActionButton(discord.ui.Button):
 		player = next(p for p in view.players if p.user.id == interaction.user.id and p.role == self.role)
 		await self.role.handle_button_click(view.game, player, interaction)
 		view.acted_players.add(interaction.user.id)
-		view.pending_humans.discard(interaction.user.id)
 		view.pending_humans.discard(interaction.user.id)

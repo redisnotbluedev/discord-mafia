@@ -18,7 +18,7 @@ class Player:
 		self.role_state = {}  # For role-specific state like vigilante shots, doctor protections
 		self.death_reason = None  # "lynch", "mafia", "vigilante", etc.
 
-def create_ai_players() -> list[Player]:
+def create_ai_players(selected_models: list[str] = None) -> list[Player]:
 	players = []
 	with open("models.json") as f:
 		data = json.load(f)
@@ -26,7 +26,10 @@ def create_ai_players() -> list[Player]:
 		avatar_format = data["avatar_template"]
 
 	for m in models:
-		model = AIAbstraction(m["model"], m.get("name", "Unknown"), avatar_format.format(m.get("avatar")))
+		if selected_models is not None and m["model"] not in selected_models:
+			continue
+		avatar = m.get("avatar") or m.get("avatar_url")
+		model = AIAbstraction(m["model"], m.get("name", "Unknown"), avatar_format.format(avatar))
 		players.append(model.player)
 
 	return players
