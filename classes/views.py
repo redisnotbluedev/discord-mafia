@@ -52,7 +52,6 @@ class StartGameView(discord.ui.View):
 		message = await self.abstractor.bot.get_channel(interaction.message.channel.id).fetch_message(interaction.message.id)
 		view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
 		embed = view.generate_embed()
-		view.game.lobby = view
 
 		await interaction.response.edit_message(embed=embed, view=view)
 
@@ -64,6 +63,7 @@ class JoinGameView(discord.ui.View):
 		self.start_at = int(start_at)
 		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor)
 		self.game.message = message
+		self.game.lobby = self
 		self.running = False
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
@@ -259,6 +259,14 @@ class SettingsView(discord.ui.View):
 			await interaction.response.edit_message(view=self)
 		elif self.message:
 			await self.message.edit(view=self)
+
+		# Update the lobby message if it exists to reflect changes in player list or settings
+		if self.game.lobby and self.game.message:
+			try:
+				embed = self.game.lobby.generate_embed()
+				await self.game.message.edit(embed=embed)
+			except Exception:
+				logger.exception("Failed to update lobby message")
 
 class EnabledRolesSelect(discord.ui.Select):
 	def __init__(self):
