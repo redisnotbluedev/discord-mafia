@@ -247,6 +247,12 @@ class SettingsView(discord.ui.View):
 			if neutral_display:
 				self.children.remove(neutral_display)
 
+		# Update select defaults
+		select = get("enabled_roles")
+		if select and isinstance(select, discord.ui.Select):
+			for option in select.options:
+				option.default = self.config.get(f"role_{option.value}", False)
+
 		if interaction:
 			await interaction.response.edit_message(view=self)
 		elif self.message:
@@ -276,7 +282,7 @@ class EnabledRolesSelect(discord.ui.Select):
 		view: SettingsView = self.view  # type: ignore
 		selected = set(self.values)
 		for role in ALL_ROLES:
-			if role.name not in ["Townsperson", "Mafia"]:
+			if role.name not in ["Town", "Mafia"]:
 				view.config[f"role_{role.name}"] = role.name in selected
 		await view.render(interaction)
 
@@ -330,7 +336,7 @@ class DefaultButton(discord.ui.Button):
 
 		# Reset role toggles to defaults
 		for role in ALL_ROLES:
-			if role.name not in ["Townsperson", "Mafia"]:
+			if role.name not in ["Town", "Mafia"]:
 				enabled = role.name in ["Doctor", "Sheriff"]
 				view.config[f"role_{role.name}"] = enabled
 		# Town and Mafia are always enabled
