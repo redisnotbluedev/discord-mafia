@@ -318,7 +318,7 @@ class TownDisplay(discord.ui.Button):
 
 class NeutralDisplay(discord.ui.Button):
 	def __init__(self):
-		super().__init__(label="\u200b", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=3)
+		super().__init__(label="\u200b", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=0)
 
 class DefaultButton(discord.ui.Button):
 	def __init__(self):
