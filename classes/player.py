@@ -21,10 +21,12 @@ class Player:
 def create_ai_players() -> list[Player]:
 	players = []
 	with open("models.json") as f:
-		models = json.load(f)["models"]
+		data = json.load(f)
+		models = data["models"]
+		avatar_format = data["avatar_template"]
 
 	for m in models:
-		model = AIAbstraction(m["model"], m.get("name", "Unknown"), m.get("avatar"))
+		model = AIAbstraction(m["model"], m.get("name", "Unknown"), avatar_format.format(m.get("avatar")))
 		players.append(model.player)
 
 	return players

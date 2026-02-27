@@ -1,54 +1,55 @@
 {
+	"avatar_template": "https://github.com/redisnotbluedev/discord-mafia/blob/main/images/{}.png?raw=true",
 	"models": [
 		{
 			"model": "gpt-4o",
 			"name": "ChatGPT 4o",
-			"avatar_url": "https://media.discordapp.net/attachments/1460808917289533601/1465512821285453964/chatgpt4o.png?ex=697960ac&is=69780f2c&hm=0f8f102918d95575239072772e01b0ee33b5a50cdccf077db0bd1ec45ba5985a&animated=true"
+			"avatar_url": "chatgpt4o"
 		},
 	    {
 			"model": "gpt-5.2",
 			"name": "ChatGPT 5.2",
-			"avatar_url": "https://media.discordapp.net/attachments/1460808917289533601/1465512821784580147/chatgpt.jpg?ex=697960ac&is=69780f2c&hm=8f7ceabc60c94096ae9c472f141e7764e69854b60d56884dc72d2959f89fece8&animated=true"
+			"avatar_url": "chatgpt5.2"
 		},
 		{
 			"model": "deepseek-r1",
 			"name": "DeepSeek R1",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512822468251729/deepseek.png?ex=697960ac&is=69780f2c&hm=7cfdec6b45dd87eb5ec9e2d63b08f96e72dc9a305a8a6aef9cd9990a36e98b30&animated=true"
+			"avatar": "deepseek"
 		},
 		{
 			"model": "claude-haiku-4.5",
 			"name": "Claudia Haiku 4.5",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512509845803128/claudehaiku.png?ex=699ba762&is=699a55e2&hm=3f19bfd77b07dcd2b43d5c5fe15efe56da68810c349d66e96075157b064c1d00&animated=true"
+			"avatar": "claudehaiku"
 		},
 		{
 			"model": "llama-4-maverick",
 			"name": "Llama 4",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511116939284/llama.png?ex=69796062&is=69780ee2&hm=be5ae39c391c68842ec88312b06bf3ff68a83738172fa0109cc95bd584639731&animated=true"
+			"avatar": "llama"
 		},
 		{
 			"model": "qwen3-235b-a22b",
 			"name": "Qwen 3",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512510785585303/qwen.png?ex=69796062&is=69780ee2&hm=bccbd1ea7ea76bc0b6ff7f7eb7f8a1b81bb510fd67fbf47ff4b2b7cf98fb7a51&animated=true"
+			"avatar": "qwen"
 		},
 		{
 			"model": "mistral-large-3",
 			"name": "Mistral 3",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511838355656/mistral.png?ex=69796062&is=69780ee2&hm=bc637a4480fd2bc2e3eded35f3133eb840cf19c99dc3a3bc2e8b2d59e2c080aa&animated=true"
+			"avatar": "mistral"
 		},
 		{
 			"model": "glm-4.7",
 			"name": "GLM 4.7",
-			"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512510219092060/glm.png?ex=69796062&is=69780ee2&hm=c896eb74043c141d4566ffb34cd0673e5a0161b407bd3e8b731f2461b5089d97&animated=true"
+			"avatar": "glm"
         },
         {
         	"model": "gemini-3-flash",
         	"name": "Gemini 3 Flash",
-        	"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512511439765648/geminiflash.png?ex=699ba762&is=699a55e2&hm=63e93b3120a0c35810d62ce4fbe95287654098c9665329a2e2be16417e574820&animated=true"
+        	"avatar": "geminiflash"
         },
         {
         	"model": "kimi-k2",
          	"name": "Kimi K2",
-          	"avatar": "https://media.discordapp.net/attachments/1460808917289533601/1465512820811632680/Designer_1.png?ex=69a0edac&is=699f9c2c&hm=9c8e0b4b887662fd1576031627f1327fb0d27c23f5e953bdeb5f5669505217e8&animated=true"
+          	"avatar": "kimi"
         }
 	],
 	"discussion_analyser": "ministral-3-3b"
