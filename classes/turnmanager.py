@@ -171,7 +171,7 @@ CRITICAL FORMAT RULES
 		# list of (Player, priority_level, turn_added)
 		speaker_queue: list[tuple[Player, int, int]] = []
 		alive_participants = [p for p in self.participants if p.alive]
-		
+
 		if rounds is None:
 			rounds = int(len(alive_participants) * 1.5)
 
@@ -196,10 +196,10 @@ CRITICAL FORMAT RULES
 				for p, priority, added_at in speaker_queue:
 					age = _ - added_at
 					effective_priority = priority
-					
+
 					# Penalty for repeated speech to encourage variety
 					effective_priority += speech_counts.get(p, 0)
-					
+
 					if age >= 4:
 						effective_priority += 1
 					processed_queue.append((p, priority, added_at, effective_priority))
@@ -215,7 +215,7 @@ CRITICAL FORMAT RULES
 
 				urgent_speaker = None
 				unsung = [p for p in self.participants if p not in spoken and p.alive]
-				
+
 				if processed_queue:
 					top_p, top_pri, top_added, top_eff = processed_queue[0]
 					# Highly urgent (COUNTERCLAIM/ACCUSED) or fresh mention for unsung player
@@ -270,12 +270,12 @@ CRITICAL FORMAT RULES
 					if isinstance(self.channel, discord.Thread):
 						await self.bot.get_channel(self.channel.parent_id).set_permissions(
 							player.user,
-							send_messages_in_threads=False
+							send_messages_in_threads=None
 						)
 					else:
 						await self.channel.set_permissions(
 							player.user,
-							send_messages=False
+							send_messages=None
 						)
 					self.required_author = -1
 					if not analyse:
@@ -287,12 +287,12 @@ CRITICAL FORMAT RULES
 				if isinstance(self.channel, discord.Thread):
 					await self.bot.get_channel(self.channel.parent_id).set_permissions(
 						player.user,
-						send_messages_in_threads=False
+						send_messages_in_threads=None
 					)
 				else:
 					await self.channel.set_permissions(
 						player.user,
-						send_messages=False
+						send_messages=None
 					)
 
 				self.broadcast(f"{player.name}: {text}", player)
@@ -350,20 +350,20 @@ CRITICAL FORMAT RULES
 			if analyse:
 				# next_speakers is list[(Player, level)]
 				next_speakers = await self.get_next_speaker(text, player)
-				
+
 				# Only take COUNTERCLAIM, ACCUSED, ASKED, ROLE (level < 4)
 				new_mentions = [(p, level) for p, level in next_speakers if level < 4]
-				
+
 				for p, level in new_mentions:
 					# Remove if already in queue (to refresh position/priority)
 					speaker_queue = [item for item in speaker_queue if item[0] != p]
 					# Store (Player, priority, current_turn)
 					speaker_queue.append((p, level, _))
-				
-				# Initial sort to keep the list somewhat organized, 
+
+				# Initial sort to keep the list somewhat organized,
 				# though we re-calculate effective priority when popping.
 				speaker_queue.sort(key=lambda x: (x[1], -x[2]))
-				
+
 				# Limit queue size to keep conversation moving and avoid stale topics
 				if len(speaker_queue) > 5:
 					speaker_queue = speaker_queue[:5]

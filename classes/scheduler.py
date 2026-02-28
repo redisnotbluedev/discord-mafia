@@ -69,6 +69,18 @@ class MafiaSheduler:
 			self.setup_roles()
 			player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
 
+			original_overwrites = channel.overwrites_for(guild.default_role)
+
+			await channel.set_permissions(
+				guild.default_role,
+				send_messages=False,
+				send_messages_in_threads=False,
+				create_private_threads=False,
+				create_public_threads=False,
+				add_reactions=False,
+				use_application_commands=False
+			)
+
 			for player in self.game.players:
 				user = player.user
 				if isinstance(user, discord.Member):
@@ -81,7 +93,7 @@ class MafiaSheduler:
 						""", ephemeral=True)
 				elif not isinstance(user, AIAbstraction):
 					# hmmmm
-					logger.warning(f"User is of type {user.type}.")
+					logger.warning(f"User is of type {type(user)}?!?!?!?!?!??!?! What is this?!?!?!??!?!?!")
 
 			mafia_chat: discord.Thread = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
@@ -135,6 +147,8 @@ class MafiaSheduler:
 				user = player.user
 				if isinstance(user, discord.Member):
 					tasks.append(user.remove_roles(player_role))
+
+			tasks.append(channel.set_permissions(guild.default_role, overwrite=original_overwrites))
 
 			try:
 				await asyncio.gather(*tasks)
