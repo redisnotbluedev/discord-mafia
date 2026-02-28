@@ -146,8 +146,12 @@ class JoinGameView(discord.ui.View):
 
 		view = SettingsView(self.game)
 		await view.render()
+
+		commands = await self.abstractor.bot.tree.fetch_commands()
+		get_command = lambda name: discord.utils.get(commands, name=name).mention
+
 		await interaction.response.send_message(
-			embed=discord.Embed(title="Settings", description="Change the configuration of this game."),
+			embed=discord.Embed(title="Settings", description="Change the configuration of this game.").add_field(name="Extra Commands", value="""(This feature is comming soon)"""),
 			view=view,
 			ephemeral=True
 		)

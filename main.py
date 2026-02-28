@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from classes.abstractor import GameAbstractor
 from cogs.moderation import ModerationCog
 from cogs.info import InfoCog
+from cogs.games import GamesCog
 from logging_utils import WebhookLoggingHandler
 
 load_dotenv()
@@ -45,6 +46,7 @@ async def on_ready():
 async def setup_hook():
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
+	await bot.add_cog(GamesCog(bot))
 
 	synced_global = await bot.tree.sync()
 	logger.info("Commands synced globally: %s", [c.name for c in synced_global])
