@@ -19,10 +19,9 @@ class GamesCog(commands.Cog):
 				if player.id in abstractor.players:
 					del abstractor.players[player.id]
 
-				from classes.scheduler import MafiaSheduler
-				scheduler = abstractor.game
-				if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
-					await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
+				scheduler = getattr(abstractor.game, "scheduler", None)
+				if scheduler and scheduler.lobby:
+					await scheduler.message.edit(embed=scheduler.lobby.generate_embed(), view=scheduler.lobby)
 				await interaction.response.send_message(f"Kicked {player.mention} from the game.")
 			else:
 				await interaction.response.send_message("You need to be the owner of this game to kick players.", ephemeral=True)
@@ -59,12 +58,12 @@ class GamesCog(commands.Cog):
 
 		for i in range(10):
 			avatar = llama_meta.get("avatar") or llama_meta.get("avatar_url")
-			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
+			name = f"{llama_meta['name']} #{i+1}"
+			ai_user = AIAbstraction(llama_meta["model"], name, avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
-		from classes.scheduler import MafiaSheduler
-		scheduler = abstractor.game
-		if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
+		scheduler = getattr(abstractor.game, "scheduler", None)
+		if scheduler and scheduler.lobby:
 			new_embed = scheduler.lobby.generate_embed()
 
 			total_players = len(abstractor.players)
@@ -79,8 +78,11 @@ class GamesCog(commands.Cog):
 			if scheduler.config["mafia"] > scheduler.config["town"]:
 				scheduler.config["mafia"] = scheduler.config["town"]
 
+			# Also update the config models to Llama 4 so SettingsView syncs correctly
+			scheduler.config["models"] = ["llama-4-maverick"]
+
 			# Re-generate embed after config changes to ensure counts are right
-			await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
+			await scheduler.message.edit(embed=scheduler.lobby.generate_embed(), view=scheduler.lobby)
 			await interaction.response.send_message("Replaced AIs with 10 Llama 4 players.")
 		else:
-			await interaction.response.send_message("Lobby initialized with 10 Llama 4 players.")
+			await interaction.response.send_message("Lobby initialized with 10 Llama 4 players (Note: embed update failed).")
