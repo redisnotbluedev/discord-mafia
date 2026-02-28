@@ -56,14 +56,19 @@ class GamesCog(commands.Cog):
 			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
-		if abstractor.game and abstractor.game.lobby:
-			total = len(abstractor.players)
-			mafia = max(1, total // 3)
-			town = total - mafia
-			abstractor.game.config["mafia"] = mafia
-			abstractor.game.config["town"] = town
+		scheduler = abstractor.game
+		if scheduler and scheduler.lobby:
+			# Use the same auto-adjustment logic as SettingsView.render
+			total_players = len(abstractor.players)
+			current_mafia = scheduler.config.get("mafia", 0)
+			current_town = scheduler.config.get("town", 0)
 
-			await abstractor.game.message.edit(embed=abstractor.game.lobby.generate_embed())
+			if current_mafia + current_town > total_playersx(1, total // 3)
+			town = total - mafia
+			scheduler.config["mafia"] = mafia
+			scheduler.config["town"] = town
+
+			await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
 			await interaction.response.send_message("Replaced AIs with 10 Llama 4 players.")
 		else:
 			await interaction.response.send_message("Lobby initialized with 10 Llama 4 players.")

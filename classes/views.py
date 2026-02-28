@@ -165,6 +165,7 @@ class JoinGameView(discord.ui.View):
 		await interaction.response.send_message(
 			embed=discord.Embed(title="Settings", description="Change the configuration of this game.").add_field(name="Extra Commands", value=f"""
 				- {get_command("kick")}: Kick a player from the game.
+				- {get_command("llama10")}: Remove all AIs and add 10 Llamas.
 				"""),
 			view=view,
 			ephemeral=True
