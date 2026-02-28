@@ -75,13 +75,25 @@ class JoinGameView(discord.ui.View):
 		)
 
 		if show_starting_soon: embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
+		
+		# Ensure unique names across all players
+		counts = {}
+		for player in self.abstractor.players.values():
+			base_name = player.user.name
+			if base_name not in counts:
+				counts[base_name] = 0
+				player.name = base_name
+			else:
+				counts[base_name] += 1
+				player.name = f"{base_name} ({counts[base_name]})"
+
 		player_list = []
 		for player in self.abstractor.players.values():
 			result = "- "
 			user = player.user
 
 			if isinstance(user, discord.Member) and user == self.abstractor.owner: result += "<:owner:1474651989798289488> "
-			result += user.name
+			result += player.name
 
 			player_list.append(result)
 
