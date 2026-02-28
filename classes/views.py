@@ -79,7 +79,7 @@ class JoinGameView(discord.ui.View):
 		# Ensure unique names across all players
 		counts = {}
 		for player in self.abstractor.players.values():
-			base_name = player.user.name
+			base_name = player.user.name.split(" #")[0]
 			if base_name not in counts:
 				counts[base_name] = 0
 				player.name = base_name
@@ -345,7 +345,9 @@ class ModelSelect(discord.ui.Select):
 		view.config["models"] = self.values
 
 		# Sync AI players in the lobby
-		view.game.abstractor.players = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		humans = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		view.game.abstractor.players.clear()
+		view.game.abstractor.players.update(humans)
 		for ai_player in create_ai_players(view.config["models"]):
 			view.game.abstractor.players[hash(ai_player.name)] = ai_player
 
@@ -423,7 +425,9 @@ class DefaultButton(discord.ui.Button):
 			pass
 
 		# Sync AI players in the lobby
-		view.game.abstractor.players = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		humans = {k: v for k, v in view.game.abstractor.players.items() if not isinstance(v.user, AIAbstraction)}
+		view.game.abstractor.players.clear()
+		view.game.abstractor.players.update(humans)
 		for ai_player in create_ai_players(view.config["models"]):
 			view.game.abstractor.players[hash(ai_player.name)] = ai_player
 

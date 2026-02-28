@@ -18,7 +18,7 @@ class GamesCog(commands.Cog):
 			if abstractor.owner == interaction.user:
 				if player.id in abstractor.players:
 					del abstractor.players[player.id]
-				
+
 				from classes.scheduler import MafiaSheduler
 				scheduler = abstractor.game
 				if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
@@ -40,7 +40,9 @@ class GamesCog(commands.Cog):
 			await interaction.response.send_message("You need to be the owner of this game to do this.", ephemeral=True)
 			return
 
-		abstractor.players = {k: v for k, v in abstractor.players.items() if isinstance(v.user, discord.Member)}
+		humans = {k: v for k, v in abstractor.players.items() if isinstance(v.user, discord.Member)}
+		abstractor.players.clear()
+		abstractor.players.update(humans)
 
 		try:
 			with open("models.json") as f:
@@ -57,18 +59,12 @@ class GamesCog(commands.Cog):
 
 		for i in range(10):
 			avatar = llama_meta.get("avatar") or llama_meta.get("avatar_url")
-			# Use a unique name during creation; generate_embed will handle the clean (n) suffixing
-			name = f"{llama_meta['name']} #{i+1}"
-			ai_user = AIAbstraction(llama_meta["model"], name, avatar_format.format(avatar))
+			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
 		from classes.scheduler import MafiaSheduler
 		scheduler = abstractor.game
 		if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
-			# Force the suffixing logic by calling generate_embed
-			# This updates Player.name for everyone in abstractor.players
-			new_embed = scheduler.lobby.generate_embed()
-			# Use the same auto-adjustment logic as SettingsView.render
 			total_players = len(abstractor.players)
 			current_mafia = scheduler.config.get("mafia", 0)
 			current_town = scheduler.config.get("town", 0)
