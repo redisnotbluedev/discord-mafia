@@ -65,6 +65,8 @@ class GamesCog(commands.Cog):
 		from classes.scheduler import MafiaSheduler
 		scheduler = abstractor.game
 		if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
+			new_embed = scheduler.lobby.generate_embed()
+
 			total_players = len(abstractor.players)
 			current_mafia = scheduler.config.get("mafia", 0)
 			current_town = scheduler.config.get("town", 0)
