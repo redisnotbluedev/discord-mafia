@@ -69,14 +69,30 @@ class MafiaSheduler:
 
 			original_overwrites = channel.overwrites_for(guild.default_role)
 
+			# Use PermissionOverwrite to ensure the bot keeps necessary permissions
+			# while restricting the @everyone role.
+			await channel.set_permissions(
+				guild.me,
+				overwrite=discord.PermissionOverwrite(
+					view_channel=True,
+					send_messages=True,
+					create_public_threads=True,
+					create_private_threads=True,
+					manage_threads=True,
+					send_messages_in_threads=True
+				)
+			)
+
 			await channel.set_permissions(
 				guild.default_role,
-				send_messages=False,
-				send_messages_in_threads=False,
-				create_private_threads=False,
-				create_public_threads=False,
-				add_reactions=False,
-				use_application_commands=False
+				overwrite=discord.PermissionOverwrite(
+					send_messages=False,
+					send_messages_in_threads=False,
+					create_private_threads=False,
+					create_public_threads=False,
+					add_reactions=False,
+					use_application_commands=False
+				)
 			)
 
 			for player in self.game.players:
