@@ -58,8 +58,7 @@ class GamesCog(commands.Cog):
 
 		for i in range(10):
 			avatar = llama_meta.get("avatar") or llama_meta.get("avatar_url")
-			name = f"{llama_meta['name']} #{i+1}"
-			ai_user = AIAbstraction(llama_meta["model"], name, avatar_format.format(avatar))
+			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
 		scheduler = getattr(abstractor.game, "scheduler", None)
