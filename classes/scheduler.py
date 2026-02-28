@@ -13,7 +13,7 @@ class MafiaSheduler:
 		self.message: discord.Message = None
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
-		self.game = MafiaGame(abstractor)
+		self.game = MafiaGame(abstractor, self)
 		total_players = len(self.abstractor.players)
 		mafia = max(1, total_players // 3)
 		town = max(mafia + 1, total_players - mafia)

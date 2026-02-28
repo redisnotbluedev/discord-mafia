@@ -8,9 +8,6 @@ class GamesCog(commands.Cog):
 
 	@app_commands.command(name="kick", description="Kick a player from this game.")
 	async def kick(self, interaction: discord.Interaction, player: discord.User):
-		await interaction.response.send_message("coming soon")
-		return
-
 		if interaction.user == player:
 			await interaction.response.send_message("You can't kick yourself.", ephemeral=True)
 			return
@@ -19,7 +16,8 @@ class GamesCog(commands.Cog):
 		if abstractor:
 			if abstractor.owner == interaction.user:
 				del abstractor.players[player.id]
-
+				scheduler = abstractor.game.scheduler
+				scheduler.message.edit(embed=scheduler.lobby.generate_embed())
 			else:
 				await interaction.response.send_message("You need to be the owner of this game to kick players.", ephemeral=True)
 		else:

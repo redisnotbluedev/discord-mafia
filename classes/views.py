@@ -151,7 +151,9 @@ class JoinGameView(discord.ui.View):
 		get_command = lambda name: discord.utils.get(commands, name=name).mention
 
 		await interaction.response.send_message(
-			embed=discord.Embed(title="Settings", description="Change the configuration of this game.").add_field(name="Extra Commands", value="""(This feature is comming soon)"""),
+			embed=discord.Embed(title="Settings", description="Change the configuration of this game.").add_field(name="Extra Commands", value=f"""
+				- {get_command("kick")}: Kick a player from the game.
+				"""),
 			view=view,
 			ephemeral=True
 		)

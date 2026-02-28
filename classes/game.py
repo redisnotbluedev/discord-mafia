@@ -11,7 +11,7 @@ sheriff_already_done = False
 doctor_already_done = False
 
 class MafiaGame():
-	def __init__(self, abstractor):
+	def __init__(self, abstractor, scheduler):
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
@@ -23,6 +23,7 @@ class MafiaGame():
 		self.turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: AsyncOpenAI = AsyncOpenAI()
+		self.scheduler = scheduler # Reference so you can get to the JoinGameView because OK SHUT UP ABOUT MY MESSY CODE OK
 
 	def get_alive_players(self) -> list[Player]:
 		return [p for p in self.players if p.alive]
