@@ -44,12 +44,6 @@
 			"emoji": "<:mistral:1468394629400498423>"
 		},
 		{
-			"model": "glm-4.7",
-			"name": "GLM 4.7",
-			"avatar": "glm",
-			"emoji": "<:glm:1468394831758889001>"
-		},
-		{
 			"model": "gemini-3-flash",
 			"name": "Gemini 3 Flash",
 			"avatar": "geminiflash",
@@ -60,6 +54,18 @@
 			"name": "Kimi K2",
 			"avatar": "kimi",
 			"emoji": "<:kimi:1468394507006382283>"
+		},
+		{
+			"model": "grok-4.1",
+			"name": "Grok 4.1",
+			"avatar": "grok",
+			"emoji": "<:grok:1468394466632274020>"
+		},
+		{
+			"model": "glm-4.7",
+			"name": "GLM 4.7",
+			"avatar": "glm",
+			"emoji": "<:glm:1468394831758889001>"
 		}
 	],
 	"discussion_analyser": "ministral-3-3b"
