@@ -30,12 +30,10 @@ class MafiaGame():
 	def is_game_over(self):
 		players_alive = self.get_alive_players()
 
-		# Check role win conditions
 		for player in self.players:
 			if player.role.win_condition(player, self.players):
 				return player.role.name
 
-		# Fallback to traditional checks
 		mafia_alive = sum(1 for p in players_alive if p.role.alignment == Alignment.MAFIA)
 		town_alive = len(players_alive) - mafia_alive
 
@@ -67,7 +65,6 @@ class MafiaGame():
 				break
 
 		winner = self.is_game_over() or "No one"
-		# Broadcast game end to all AIs
 		self.turns.broadcast(f"**GAME OVER!** {winner} wins!")
 		return winner
 

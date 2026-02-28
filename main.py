@@ -22,7 +22,6 @@ bot.abstractors = []
 
 @bot.event
 async def on_ready():
-	# Set up global webhook logging if configured
 	log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
 	if log_webhook_url:
 		log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
@@ -68,7 +67,7 @@ async def on_message(message: discord.Message):
 			exec(wrapped_code, globals_dict)
 			result = await globals_dict["_eval"](bot, message, discord, asyncio, __import__, abstractor)
 			await message.channel.send(f"Result: {result}")
-		except Exception as e:
+		except Exception:
 			await message.channel.send(f"Error:\n```python\n{traceback.format_exc()}\n```")
 		return
 

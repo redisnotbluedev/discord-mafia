@@ -15,9 +15,7 @@ class MafiaSheduler:
 		self.attempts = 0
 		self.game = MafiaGame(abstractor)
 		total_players = len(self.abstractor.players)
-		# Default to 1/3 of players
 		mafia = max(1, total_players // 3)
-		# Ensure Town always has more players than Mafia at the start
 		town = max(mafia + 1, total_players - mafia)
 		self.config = {
 			"mafia": mafia,
@@ -161,14 +159,10 @@ class MafiaSheduler:
 	def setup_roles(self):
 		from classes.roles import ALL_ROLES
 		total_players = len(self.abstractor.players)
-		# Default to 1/3 of players if not in config
 		mafia = self.config.get("mafia", max(1, total_players // 3))
-		# Town must be at least mafia + 1 to prevent instant loss
 		town = self.config.get("town", max(mafia + 1, total_players - mafia))
 
-		# Final validation to ensure town > mafia and counts match total
 		if mafia + town > total_players:
-			# If we have too many, ensure Mafia is strictly less than half
 			mafia = min(mafia, (total_players - 1) // 2)
 			town = total_players - mafia
 		elif mafia + town < total_players:
@@ -180,19 +174,15 @@ class MafiaSheduler:
 
 		players_rolled = 0
 
-		# Get enabled roles
 		enabled_roles = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False)]
 
-		# Separate by alignment
 		neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
 		special_town_roles = [r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN]
 
-		# Calculate available slots for town (regular town)
 		assigned_special = len(neutral_roles) + len(special_town_roles)
 		available_for_town = max(0, total_players - mafia - assigned_special)
 		town_count = min(town - len(special_town_roles), available_for_town)
 
-		# Assign neutral roles
 		for role in neutral_roles:
 			if players_rolled >= total_players:
 				break
@@ -202,7 +192,6 @@ class MafiaSheduler:
 			self.game.players.append(player)
 			players_rolled += 1
 
-		# Assign special town roles
 		for role in special_town_roles:
 			if players_rolled >= total_players:
 				break
@@ -212,7 +201,6 @@ class MafiaSheduler:
 			self.game.players.append(player)
 			players_rolled += 1
 
-		# Assign town roles
 		for _ in range(town_count):
 			if players_rolled >= total_players:
 				break
@@ -222,7 +210,6 @@ class MafiaSheduler:
 			self.game.players.append(player)
 			players_rolled += 1
 
-		# Assign mafia roles
 		for _ in range(min(mafia, total_players - players_rolled)):
 			user = players[players_rolled]
 			player = Player(user.user)

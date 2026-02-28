@@ -58,7 +58,6 @@ class Role:
 		return True
 
 	def win_condition(self, player, players):
-		# Default: no win condition
 		return False
 
 class SelectRole(Role):
@@ -88,7 +87,7 @@ class SelectRole(Role):
 			discord.SelectOption(label=p.name, value=str(i), emoji=self.emoji)
 			for i, p in enumerate(options)
 		]
-		
+
 		if self.skippable:
 			select_options.append(discord.SelectOption(label="Abstain", value="abstain", emoji="⏭️"))
 
@@ -119,9 +118,9 @@ class SelectRole(Role):
 		if self.skippable:
 			prompt += "Note: You are NOT required to act. If you don't have a strong suspicion, you should 'abstain' to avoid hurting your team.\n"
 		prompt += "Available options:\n" + "\n".join([f"- {name}" for name in prompt_options])
-		
+
 		choice_text = await game.turns.create_ai_completion(player, prompt)
-		
+
 		if not choice_text:
 			return
 
@@ -132,13 +131,13 @@ class SelectRole(Role):
 		chosen = None
 		if chosen_name:
 			chosen = next((p for p in options if p.name == chosen_name), None)
-		
+
 		if not chosen:
 			if self.skippable:
 				return
 			import random
 			chosen = random.choice(options)
-		
+
 		if chosen:
 			await self.handle_selection(game, player, chosen)
 
@@ -154,7 +153,7 @@ class SaveRole(SelectRole):
 		old_save = player.role_state.get("pending_save")
 		if old_save and old_save in saves:
 			saves.remove(old_save)
-		
+
 		saves.append(user)
 		player.role_state["pending_save"] = user
 
@@ -193,7 +192,7 @@ class InvestigateRole(SelectRole):
 		from classes.player import AIAbstraction
 		if isinstance(player.user, AIAbstraction):
 			await game.turns.create_ai_completion(player, result_prompt)
-# Import all roles
+
 from .townsperson import Town, TOWN
 from .mafia import Mafia, MAFIA
 from .doctor import Doctor, DOCTOR
@@ -201,30 +200,6 @@ from .sheriff import Sheriff, SHERIFF
 from .vigilante import Vigilante, VIGILANTE
 from .jester import Jester, JESTER
 
-# List of all roles
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
 
 __all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES']
-
-# Example of adding a new role:
-# Create a new file in this directory, e.g., newrole.py
-# from classes.roles import SaveRole, Alignment  # Or KillRole, InvestigateRole
-#
-# class NewRole(SaveRole):  # Inherit from appropriate base class
-#     def __init__(self):
-#         super().__init__("NewRole", Alignment.TOWN, "Description of the new role.", "Short description.")
-#
-#     # Override methods as needed for custom behavior
-#     async def handle_button_click(self, game, player, interaction):
-#         # Custom button logic if needed
-#         await super().handle_button_click(game, player, interaction)
-#
-#     async def night_action_ai(self, game, player):
-#         # Custom AI logic
-#         await super().night_action_ai(game, player)
-#
-# NEW_ROLE = NewRole()
-# Then, in __init__.py:
-# from .newrole import NewRole, NEW_ROLE
-# ALL_ROLES.append(NEW_ROLE)
-# __all__.extend(['NewRole', 'NEW_ROLE'])
