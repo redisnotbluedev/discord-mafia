@@ -56,9 +56,10 @@ class GamesCog(commands.Cog):
 			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
+		# abstractor.game points to the MafiaSheduler before the game starts
+		from classes.scheduler import MafiaSheduler
 		scheduler = abstractor.game
-		scheduler = abstractor.game
-		if scheduler and scheduler.lobby:
+		if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
 			# Use the same auto-adjustment logic as SettingsView.render
 			total_players = len(abstractor.players)
 			current_mafia = scheduler.config.get("mafia", 0)
