@@ -4,53 +4,63 @@
 		{
 			"model": "gpt-4o",
 			"name": "ChatGPT 4o",
-			"avatar_url": "chatgpt4o"
+			"avatar_url": "chatgpt4o",
+			"emoji": "<:gpt4o:1468394058924818554>"
 		},
-	    {
+		{
 			"model": "gpt-5.2",
 			"name": "ChatGPT 5.2",
-			"avatar_url": "chatgpt5.2"
+			"avatar_url": "chatgpt5.2",
+			"emoji": "<:gpt52:1468393997352570933>"
 		},
 		{
 			"model": "deepseek-r1",
 			"name": "DeepSeek R1",
-			"avatar": "deepseek"
+			"avatar": "deepseek",
+			"emoji": "<:deepseek:1468394312860438708>"
 		},
 		{
 			"model": "claude-haiku-4.5",
 			"name": "Claudia Haiku 4.5",
-			"avatar": "claudehaiku"
+			"avatar": "claudehaiku",
+			"emoji": "<:haiku:1468394244396814529>"
 		},
 		{
 			"model": "llama-4-maverick",
 			"name": "Llama 4",
-			"avatar": "llama"
+			"avatar": "llama",
+			"emoji": "<:llama:1468394533799727239>"
 		},
 		{
 			"model": "qwen3-235b-a22b",
 			"name": "Qwen 3",
-			"avatar": "qwen"
+			"avatar": "qwen",
+			"emoji": "<:qwen:1468394687952846984>"
 		},
 		{
 			"model": "mistral-large-3",
 			"name": "Mistral 3",
-			"avatar": "mistral"
+			"avatar": "mistral",
+			"emoji": "<:mistral:1468394629400498423>"
 		},
 		{
 			"model": "glm-4.7",
 			"name": "GLM 4.7",
-			"avatar": "glm"
-        },
-        {
-        	"model": "gemini-3-flash",
-        	"name": "Gemini 3 Flash",
-        	"avatar": "geminiflash"
-        },
-        {
-        	"model": "kimi-k2",
-         	"name": "Kimi K2",
-          	"avatar": "kimi"
-        }
+			"avatar": "glm",
+			"emoji": "<:glm:1468394831758889001>"
+		},
+		{
+			"model": "gemini-3-flash",
+			"name": "Gemini 3 Flash",
+			"avatar": "geminiflash",
+			"emoji": "<:flash:1468394382242742333>"
+		},
+		{
+			"model": "kimi-k2",
+			"name": "Kimi K2",
+			"avatar": "kimi",
+			"emoji": "<:kimi:1468394507006382283>"
+		}
 	],
 	"discussion_analyser": "ministral-3-3b"
 }

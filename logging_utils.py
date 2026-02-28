@@ -8,6 +8,8 @@ class WebhookLoggingHandler(logging.Handler):
 		self.setFormatter(logging.Formatter("%(message)s"))
 
 	def emit(self, record):
+		if record.name.startswith("discord.webhook"):
+			return
 		try:
 			asyncio.create_task(self._send_to_webhook(record))
 		except Exception as e:
