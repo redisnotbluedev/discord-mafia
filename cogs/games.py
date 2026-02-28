@@ -18,6 +18,7 @@ class GamesCog(commands.Cog):
 				del abstractor.players[player.id]
 				scheduler = abstractor.game.scheduler
 				scheduler.message.edit(embed=scheduler.lobby.generate_embed())
+				await interaction.response.send_message(f"Kicked {interaction.user.mention} from the game.")
 			else:
 				await interaction.response.send_message("You need to be the owner of this game to kick players.", ephemeral=True)
 		else:
