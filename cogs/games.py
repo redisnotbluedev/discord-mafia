@@ -1,6 +1,7 @@
 from discord.ext import commands
 from discord import app_commands
-import discord
+import discord, json
+from classes.player import AIAbstraction
 
 class GamesCog(commands.Cog):
 	def __init__(self, bot: commands.Bot):
@@ -23,3 +24,46 @@ class GamesCog(commands.Cog):
 				await interaction.response.send_message("You need to be the owner of this game to kick players.", ephemeral=True)
 		else:
 			await interaction.response.send_message("There's no ongoing game in this channel.", ephemeral=True)
+
+	@app_commands.command(name="llama10", description="Removes all AIs and creates a game with 10 Llama 4 players.")
+	async def llama10(self, interaction: discord.Interaction):
+		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
+		if not abstractor or not abstractor.running:
+			await interaction.response.send_message("There's no lobby active in this channel. Send a message to create one.", ephemeral=True)
+			return
+
+		if abstractor.owner != interaction.user:
+			await interaction.response.send_message("You need to be the owner of this game to do this.", ephemeral=True)
+			return
+
+		abstractor.players = {k: v for k, v in abstractor.players.items() if isinstance(v.user, discord.Member)}
+
+		try:
+			with open("models.json") as f:
+				m_data = json.load(f)
+				llama_meta = next((m for m in m_data["models"] if m["model"] == "llama-4-maverick"), None)
+				avatar_format = m_data["avatar_template"]
+		except Exception:
+			await interaction.response.send_message("Failed to load models.json", ephemeral=True)
+			return
+
+		if not llama_meta:
+			await interaction.response.send_message("Llama 4 model not found in models.json", ephemeral=True)
+			return
+
+		for i in range(10):
+			avatar = llama_meta.get("avatar") or llama_meta.get("avatar_url")
+			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
+			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
+
+		if abstractor.game and abstractor.game.lobby:
+			total = len(abstractor.players)
+			mafia = max(1, total // 3)
+			town = total - mafia
+			abstractor.game.config["mafia"] = mafia
+			abstractor.game.config["town"] = town
+
+			await abstractor.game.message.edit(embed=abstractor.game.lobby.generate_embed())
+			await interaction.response.send_message("Replaced AIs with 10 Llama 4 players.")
+		else:
+			await interaction.response.send_message("Lobby initialized with 10 Llama 4 players.")

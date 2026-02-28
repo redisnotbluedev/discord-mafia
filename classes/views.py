@@ -75,7 +75,7 @@ class JoinGameView(discord.ui.View):
 		)
 
 		if show_starting_soon: embed.add_field(name="Starting soon", value=f"Game starting <t:{self.start_at}:R>\nNeed at least ({len(self.abstractor.players)}/5) players to start", inline=False)
-		
+
 		# Ensure unique names across all players
 		counts = {}
 		for player in self.abstractor.players.values():
@@ -327,12 +327,12 @@ class ModelSelect(discord.ui.Select):
 			options.append(discord.SelectOption(
 				label=m["name"],
 				value=m["model"],
-				emoji=None
+				emoji=m.get("emoji", None)
 			))
 
 		super().__init__(
 			placeholder="AI Models",
-			min_values=1,
+			min_values=0,
 			max_values=len(options) if options else 1,
 			options=options,
 			custom_id="selected_models",
