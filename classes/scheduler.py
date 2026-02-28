@@ -14,6 +14,7 @@ class MafiaSheduler:
 		self.start_job: asyncio.Task = None
 		self.attempts = 0
 		self.game = MafiaGame(abstractor, self)
+		self.abstractor.game = self.game
 		total_players = len(self.abstractor.players)
 		mafia = max(1, total_players // 3)
 		town = max(mafia + 1, total_players - mafia)
@@ -54,8 +55,6 @@ class MafiaSheduler:
 		mafia_chat = None
 		try:
 			self.game.config = self.config
-
-			self.abstractor.game = self.game
 			await self.message.edit(view=None, embed=self.lobby.generate_embed(show_starting_soon=False))
 
 			config = data.load()
