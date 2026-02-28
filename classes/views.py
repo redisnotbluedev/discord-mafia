@@ -37,7 +37,14 @@ class StartGameView(discord.ui.View):
 			return
 
 		self.abstractor.players[interaction.user.id] = Player(interaction.user)
-		for ai_player in create_ai_players():
+		try:
+			with open("models.json") as f:
+				m_data = json.load(f)
+				models = [m["model"] for m in m_data.get("models", [])[:10]]
+		except Exception:
+			models = []
+
+		for ai_player in create_ai_players(models):
 			self.abstractor.players[hash(ai_player.name)] = ai_player
 
 		self.abstractor.interactions[interaction.user.id] = interaction
@@ -319,7 +326,7 @@ class ModelSelect(discord.ui.Select):
 		try:
 			with open("models.json") as f:
 				m_data = json.load(f)
-				models = m_data.get("models", [])[:10]
+				models = m_data.get("models", [])[:25]
 		except Exception:
 			models = []
 
