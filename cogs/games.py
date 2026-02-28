@@ -16,9 +16,13 @@ class GamesCog(commands.Cog):
 		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
 		if abstractor:
 			if abstractor.owner == interaction.user:
-				del abstractor.players[player.id]
-				scheduler = abstractor.game.scheduler
-				await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
+				if player.id in abstractor.players:
+					del abstractor.players[player.id]
+				
+				from classes.scheduler import MafiaSheduler
+				scheduler = abstractor.game
+				if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
+					await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
 				await interaction.response.send_message(f"Kicked {player.mention} from the game.")
 			else:
 				await interaction.response.send_message("You need to be the owner of this game to kick players.", ephemeral=True)
@@ -53,13 +57,17 @@ class GamesCog(commands.Cog):
 
 		for i in range(10):
 			avatar = llama_meta.get("avatar") or llama_meta.get("avatar_url")
-			ai_user = AIAbstraction(llama_meta["model"], llama_meta["name"], avatar_format.format(avatar))
+			# Use a unique name during creation; generate_embed will handle the clean (n) suffixing
+			name = f"{llama_meta['name']} #{i+1}"
+			ai_user = AIAbstraction(llama_meta["model"], name, avatar_format.format(avatar))
 			abstractor.players[hash(f"{ai_user.name}_{i}")] = ai_user.player
 
-		# abstractor.game points to the MafiaSheduler before the game starts
 		from classes.scheduler import MafiaSheduler
 		scheduler = abstractor.game
 		if isinstance(scheduler, MafiaSheduler) and scheduler.lobby:
+			# Force the suffixing logic by calling generate_embed
+			# This updates Player.name for everyone in abstractor.players
+			new_embed = scheduler.lobby.generate_embed()
 			# Use the same auto-adjustment logic as SettingsView.render
 			total_players = len(abstractor.players)
 			current_mafia = scheduler.config.get("mafia", 0)
@@ -70,10 +78,10 @@ class GamesCog(commands.Cog):
 			elif current_mafia + current_town < total_players:
 				scheduler.config["town"] = current_town + (total_players - (current_mafia + current_town))
 
-			# Ensure mafia <= town
 			if scheduler.config["mafia"] > scheduler.config["town"]:
 				scheduler.config["mafia"] = scheduler.config["town"]
 
+			# Re-generate embed after config changes to ensure counts are right
 			await scheduler.message.edit(embed=scheduler.lobby.generate_embed())
 			await interaction.response.send_message("Replaced AIs with 10 Llama 4 players.")
 		else:
