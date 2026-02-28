@@ -325,10 +325,20 @@ class ModelSelect(discord.ui.Select):
 
 		options = []
 		for m in models:
+			emoji = m.get("emoji")
+
+			if emoji:
+				parts = emoji.split(":")
+				emoji = discord.PartialEmoji(
+					name=parts[1],
+					animated="a" in parts[0],
+					id=parts[2].rstrip(">")
+				)
+
 			options.append(discord.SelectOption(
 				label=m["name"],
 				value=m["model"],
-				emoji=m.get("emoji", None)
+				emoji=emoji
 			))
 
 		super().__init__(
