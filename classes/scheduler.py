@@ -53,6 +53,7 @@ class MafiaSheduler:
 	async def start_game(self):
 		if len(self.abstractor.players) < 5: return False
 		mafia_chat = None
+		original_overwrites = None
 		try:
 			self.game.config = self.config
 			await self.message.edit(view=None, embed=self.lobby.generate_embed(show_starting_soon=False))
@@ -149,7 +150,7 @@ class MafiaSheduler:
 					await mafia_chat.edit(locked=True)
 			except (discord.errors.HTTPException, RuntimeError):
 				# Session might be closed during shutdown or thread doesn't exist
-				logger.debug("Could not lock mafia chat thread during cleanup")
+				logger.warn("Could not lock mafia chat thread during cleanup")
 
 			self.abstractor.reset()
 			self.abstractor.running = False
@@ -161,13 +162,19 @@ class MafiaSheduler:
 				if isinstance(user, discord.Member):
 					tasks.append(user.remove_roles(player_role))
 
-			tasks.append(channel.set_permissions(guild.default_role, overwrite=original_overwrites))
+			if original_overwrites is not None:
+				if original_overwrites.is_empty():
+					tasks.append(channel.set_permissions(guild.default_role, overwrite=None))
+				else:
+					tasks.append(channel.set_permissions(guild.default_role, overwrite=original_overwrites))
 
 			try:
 				await asyncio.gather(*tasks)
 			except (discord.errors.HTTPException, RuntimeError):
 				# Session might be closed during shutdown
-				logger.debug("Could not remove player roles during cleanup")
+				logger.warn("Could not remove player roles during cleanup")
+
+			await self.abstractor.on_message(True)
 
 			return True
 
