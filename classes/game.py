@@ -29,6 +29,9 @@ class MafiaGame():
 		return [p for p in self.players if p.alive]
 
 	def is_game_over(self):
+		if not self.running:
+			return "No one"
+
 		players_alive = self.get_alive_players()
 
 		for player in self.players:

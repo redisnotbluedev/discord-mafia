@@ -13,7 +13,7 @@ class InfoCog(commands.Cog):
 	@app_commands.command(name="echo", description="Say something as the bot")
 	async def echo(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel):
 		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
-			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!", ephemeral=True)
+			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Admins", ephemeral=True)
 			return
 		await asyncio.gather(*[interaction.response.send_message("Sent message!", ephemeral=True), channel.send(text)])
 
