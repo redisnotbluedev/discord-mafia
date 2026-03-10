@@ -7,11 +7,11 @@ class Vigilante(KillRole):
 	def can_act(self, player):
 		return not player.role_state.get("has_shot", False)
 
-	async def handle_button_click(self, game, player, interaction):
+	async def handle_button_click(self, game, player, interaction, action_view=None):
 		if not self.can_act(player):
 			await interaction.response.send_message("You have already used your shot!", ephemeral=True)
 			return
-		await super().handle_button_click(game, player, interaction)
+		await super().handle_button_click(game, player, interaction, action_view)
 
 	async def handle_selection(self, game, player, user):
 		await super().handle_selection(game, player, user)

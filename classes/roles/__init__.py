@@ -45,7 +45,7 @@ class Role:
 	def get_prompt(self):
 		return f"## {self.name}\nWhat do you want to do?"
 
-	async def handle_button_click(self, game, player, interaction):
+	async def handle_button_click(self, game, player, interaction, action_view=None):
 		pass
 
 	async def on_night_end(self, game, player):
@@ -79,7 +79,7 @@ class SelectRole(Role):
 	def get_options(self, game, player):
 		return [p for p in game.get_alive_players() if p.alive]
 
-	async def handle_button_click(self, game, player, interaction):
+	async def handle_button_click(self, game, player, interaction, action_view=None):
 		import discord
 		from classes.views import SelectView
 		options = self.get_options(game, player)
@@ -91,18 +91,28 @@ class SelectRole(Role):
 		if self.skippable:
 			select_options.append(discord.SelectOption(label="Abstain", value="abstain", emoji="⏭️"))
 
-		select_view = SelectView(select_options, lambda inter: self.on_selected(game, player, inter, options))
+		select_view = SelectView(select_options, lambda inter: self.on_selected(game, player, inter, options, action_view))
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
-	async def on_selected(self, game, player, interaction, options):
+	async def on_selected(self, game, player, interaction, options, action_view=None):
+		if action_view and interaction.user.id in action_view.acted_players:
+			await interaction.response.edit_message(content="You have already performed your action!", view=None)
+			return
+
 		selection = interaction.data['values'][0]
 		if selection == "abstain":
 			await interaction.response.edit_message(content=f"You chose to abstain.", view=None)
+			if action_view:
+				action_view.acted_players.add(interaction.user.id)
+				action_view.pending_humans.discard(interaction.user.id)
 			return
 
 		user = options[int(selection)]
 		await self.handle_selection(game, player, user)
 		await interaction.response.edit_message(content=f"You chose to {self.action_label} {user.name}.", view=None)
+		if action_view:
+			action_view.acted_players.add(interaction.user.id)
+			action_view.pending_humans.discard(interaction.user.id)
 
 	async def handle_selection(self, game, player, user):
 		pass

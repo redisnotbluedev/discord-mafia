@@ -598,6 +598,4 @@ class SpecialActionButton(discord.ui.Button):
 			return
 
 		player = next(p for p in view.players if p.user.id == interaction.user.id and p.role == self.role)
-		await self.role.handle_button_click(view.game, player, interaction)
-		view.acted_players.add(interaction.user.id)
-		view.pending_humans.discard(interaction.user.id)
+		await self.role.handle_button_click(view.game, player, interaction, action_view=view)
