@@ -456,7 +456,7 @@ Message: '{text}'"""}
 
 		return next_players
 
-	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False):
+	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False, require_majority=False):
 		votes: dict[int, str] = {}
 
 		voter_names = {}
@@ -597,6 +597,11 @@ Message: '{text}'"""}
 				picked = random.choice(winners)
 				return self._candidate_by_name(candidates, picked)
 			return None
+
+		if require_majority:
+			majority_threshold = len(self.participants) // 2 + 1
+			if best < majority_threshold:
+				return None
 
 		return self._candidate_by_name(candidates, winners[0])
 

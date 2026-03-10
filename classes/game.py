@@ -207,7 +207,8 @@ class MafiaGame():
 			message=f"Day {self.day_number}: Vote to eliminate a player.",
 			placeholder="Vote for a player...",
 			emoji="🗳️",
-			allow_abstain=True
+			allow_abstain=True,
+			require_majority=True
 		)
 
 		if victim:
