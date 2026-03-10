@@ -191,35 +191,31 @@ CRITICAL FORMAT RULES
 				# Clean dead players from queue
 				speaker_queue = [item for item in speaker_queue if item[0].alive]
 
-				# Determine effective priority based on age and speech frequency
+				alive_participants = [p for p in self.participants if p.alive]
+				min_speech = min((speech_counts.get(p, 0) for p in alive_participants), default=0)
+
 				processed_queue = []
 				for p, priority, added_at in speaker_queue:
 					age = _ - added_at
 					effective_priority = priority
 
-					# Penalty for repeated speech to encourage variety
-					effective_priority += speech_counts.get(p, 0)
+					# Heavy penalty for monopolizing conversation
+					effective_priority += (speech_counts.get(p, 0) - min_speech) * 2
 
 					if age >= 4:
 						effective_priority += 1
 					processed_queue.append((p, priority, added_at, effective_priority))
 
-				# Sort by effective priority, then original priority, then age (newest first)
 				if processed_queue:
 					processed_queue.sort(key=lambda x: (x[3], x[1], -x[2]))
-
-				# Logic:
-				# 1. If top of queue is NOT stale (age < 3) and has low speech count, they take priority.
-				# 2. Otherwise, check for unsung players.
-				# 3. Fallback to queue then random.
 
 				urgent_speaker = None
 				unsung = [p for p in self.participants if p not in spoken and p.alive]
 
 				if processed_queue:
 					top_p, top_pri, top_added, top_eff = processed_queue[0]
-					# Highly urgent (COUNTERCLAIM/ACCUSED) or fresh mention for unsung player
-					if top_pri <= 1 or (not unsung) or (_ - top_added < 2 and top_p in unsung):
+					# Highly urgent, or player hasn't spoken significantly more than others
+					if top_pri <= 1 or speech_counts.get(top_p, 0) <= min_speech + 1:
 						urgent_speaker = processed_queue.pop(0)
 						speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
 						player = urgent_speaker[0]
@@ -227,15 +223,10 @@ CRITICAL FORMAT RULES
 				if not urgent_speaker:
 					if unsung:
 						player = random.choice(unsung)
-					elif processed_queue:
-						urgent_speaker = processed_queue.pop(0)
-						speaker_queue = [(p, pr, ad) for p, pr, ad, ef in processed_queue]
-						player = urgent_speaker[0]
 					else:
-						alive_participants = [p for p in self.participants if p.alive]
 						if alive_participants:
-							# Pick whoever has spoken the least
-							alive_participants.sort(key=lambda p: speech_counts.get(p, 0))
+							# Pick whoever has spoken the least, with a bit of randomness among ties
+							alive_participants.sort(key=lambda p: (speech_counts.get(p, 0), random.random()))
 							player = alive_participants[0]
 						else:
 							break
