@@ -200,6 +200,7 @@ class MafiaGame():
 
 	async def voting_phase(self):
 		alive = self.get_alive_players()
+		self.turns.set_participants(alive)
 
 		victim = await self.turns.run_vote(
 			candidates=alive,
