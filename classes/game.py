@@ -113,17 +113,18 @@ class MafiaGame():
 				await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
 				self.turns.broadcast(message)
 
-		if kill and kill not in saves and kill.alive:
-			kill.alive = False
-			kill.death_reason = "mafia"
-			message = f"{kill.name} was killed by the Mafia during the night. They were {kill.role}."
-			await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
-			self.turns.broadcast(message)
-		elif kill:
-			message = f"{kill.name} was attacked by the Mafia but was saved!"
-			await self.channel.send(message)
-			self.turns.broadcast(message)
-		else:
+		if kill:
+			if kill not in saves and kill.alive:
+				kill.alive = False
+				kill.death_reason = "mafia"
+				message = f"{kill.name} was killed by the Mafia during the night. They were {kill.role}."
+				await self.channel.send(f"> {message}\n-# {len(self.get_alive_players())} players left.")
+				self.turns.broadcast(message)
+			elif kill in saves:
+				message = f"{kill.name} was attacked by the Mafia but was saved!"
+				await self.channel.send(message)
+				self.turns.broadcast(message)
+		elif not vigilante_kills:
 			message = "Nobody was killed last night. Either someone saved the target, or the Mafia didn't send a kill."
 			await self.channel.send(message)
 			self.turns.broadcast(message)
