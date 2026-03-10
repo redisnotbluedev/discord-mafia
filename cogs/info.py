@@ -34,6 +34,7 @@ class InfoCog(commands.Cog):
 			<:bot:1474641567032676402> Bot created by <@1337909802931716197>
 			<:developer:1474641229743657085> Developers: <@750631921079287839> & <@1282734265955520545>
 			<:tester:1474652259001569474> Playtesters: <@503232391993622540>, SpaceKiwi, lolcaku, Nanji & SilverArrow
+			<:profile:1481041777757651024> Profile picture created by <@1017256628879380520>
 		""", inline=False)
 		embed.add_field(name="Info", value="""
 			<:wifi:1474651483109855334> this bot literally runs on my trash home wifi in australia the ping is terrible sorry
