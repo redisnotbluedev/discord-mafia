@@ -1,0 +1,32 @@
+# Secrets — NEVER include these in the image
+.env
+.env.*
+!.env.example
+
+# Runtime data
+data.json
+games_ongoing.txt
+
+# Version control
+.git
+.gitignore
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Notes (development docs, not needed at runtime)
+notes/
+
+# Images directory may be large; the bot fetches avatars via URL anyway
+# Uncomment the next line if you want a smaller image:
+# images/

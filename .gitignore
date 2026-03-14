@@ -5,3 +5,6 @@ venv/*
 **/__pycache__/*
 *.pyc
 *.pyo
+.vscode/settings.json
+
+.local/*
