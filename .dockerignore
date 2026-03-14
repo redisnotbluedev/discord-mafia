@@ -24,9 +24,6 @@ venv/
 *.swp
 *.swo
 
-# Notes (development docs, not needed at runtime)
-notes/
-
 # Images directory may be large; the bot fetches avatars via URL anyway
 # Uncomment the next line if you want a smaller image:
 # images/

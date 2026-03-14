@@ -9,15 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # --- Install source code ---
 WORKDIR /opt/discord-mafia
 
-# Install dependencies first (layer caching — only re-runs when
-# requirements.txt changes, not on every source edit).
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application source.
 COPY . .
-
-# Make the entrypoint script executable.
 RUN chmod +x docker_entrypoint.sh
 
 # --- Data volume ---
