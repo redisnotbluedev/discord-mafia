@@ -1,3 +1,5 @@
+"""Admin/moderation slash commands (setup)."""
+
 from discord.ext import commands
 from discord import app_commands
 import discord, data, traceback, os
@@ -5,11 +7,32 @@ import discord, data, traceback, os
 from classes.abstractor import GameAbstractor
 
 class ModerationCog(commands.Cog):
+	"""Admin commands for bot configuration.
+
+	Provides /setup, which:
+	1. Checks required bot permissions
+	2. Creates a webhook for AI player messages
+	3. Creates a 'Mafia Player' role (once per guild)
+	4. Registers a GameAbstractor for the channel
+	"""
+
 	def __init__(self, bot: commands.Bot):
 		self.bot = bot
 
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
 	async def setup(self, interaction: discord.Interaction):
+		"""Installs the bot.
+		
+		If the user is not an admin, the bot does not have the permissions
+		it needs to play the game, or the bot is already set up in the
+		specified channel, this sends an error message instead of
+		setting up the bot.
+
+		If an operation throws an exception, the bot will send an error
+		message to the channel and stop. Setup may be partially complete.
+
+		When setup completes, data and game state files are updated.
+		"""
 		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Admins", ephemeral=True)
 			return

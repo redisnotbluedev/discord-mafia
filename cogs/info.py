@@ -1,17 +1,31 @@
+"""Informational slash commands (ping, echo, info)."""
+
 from discord.ext import commands
 from discord import app_commands
 import discord, platform, psutil, asyncio, os
 
 class InfoCog(commands.Cog):
+	"""Slash commands for bot info and diagnostics.
+
+	Provides /ping (latency check), /echo (admin-only message relay),
+	and /info (system stats and credits).
+	"""
+
 	def __init__(self, bot: commands.Bot):
 		self.bot: commands.Bot = bot
 
 	@app_commands.command(name="ping", description="ping pong")
 	async def hello(self, interaction: discord.Interaction):
+		"""Resoponds with a ping message."""
 		await interaction.response.send_message("🏓 Pong!\nLatency: %.2fms" % (self.bot.latency * 1000))
 
 	@app_commands.command(name="echo", description="Say something as the bot")
 	async def echo(self, interaction: discord.Interaction, text: str, channel: discord.TextChannel):
+		"""Sends a message as the bot.
+
+		If the user is not an admin, the bot replies with an error message
+		instead of sending the message to the game channel.
+		"""
 		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Admins", ephemeral=True)
 			return
@@ -19,6 +33,7 @@ class InfoCog(commands.Cog):
 
 	@app_commands.command(name="info", description="View bot information and stats")
 	async def info(self, interaction: discord.Interaction):
+		"""Responds with embed with bot information and stats."""
 		embed = discord.Embed(
 			title="Info"
 		)
