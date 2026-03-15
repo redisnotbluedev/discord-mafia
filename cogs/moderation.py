@@ -122,6 +122,10 @@ class ModerationCog(commands.Cog):
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
 		except Exception:
+			# Display it locally ...
+			traceback.print_exc()
+
+			# .. then send it to Discord!
 			e = traceback.format_exc()
 			await interaction.response.send_message(f"Failed to set up game:\n```python\n{e}\n```")
 			traceback.print_exc()

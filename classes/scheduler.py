@@ -148,8 +148,7 @@ class MafiaSheduler:
 					create_public_threads=True,
 					create_private_threads=True,
 					manage_threads=True,
-					send_messages_in_threads=True
-
+					send_messages_in_threads=True,
 				)
 			)
 
