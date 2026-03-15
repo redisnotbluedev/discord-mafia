@@ -1,14 +1,28 @@
+"""Game management slash commands (kick, llama10, stop)."""
+
 from discord.ext import commands
 from discord import app_commands
 import discord, json, os
 from classes.player import AIAbstraction
 
 class GamesCog(commands.Cog):
+	"""Slash commands for managing active game lobbies.
+
+	Provides /kick (remove a player), /llama10 (replace all AIs with
+	10 Llama 4 players), and /stop (end the current game after this round).
+	"""
+
 	def __init__(self, bot: commands.Bot):
 		self.bot: commands.Bot = bot
 
 	@app_commands.command(name="kick", description="Kick a player from this game.")
 	async def kick(self, interaction: discord.Interaction, player: discord.User):
+		"""Kicks a player from the current game.
+
+		If the user is not the owner of the game, or the bot is not in a game
+		in the current channel, the bot replies with an error message instead
+		of kicking the player.
+		"""
 		if interaction.user == player:
 			await interaction.response.send_message("You can't kick yourself.", ephemeral=True)
 			return
@@ -30,6 +44,18 @@ class GamesCog(commands.Cog):
 
 	@app_commands.command(name="llama10", description="Removes all AIs and creates a game with 10 Llama 4 players.")
 	async def llama10(self, interaction: discord.Interaction):
+		"""Replaces all AIs with 10 Llama 4 players.
+
+		If the user is not the owner of the game, or the bot is not in a game
+		in the current channel, the bot replies with an error message instead
+		of replacing the AIs.
+
+		It is not clear that this method configures roles for the new players.
+		It makes some effort to update role counts, but it is not clear whether
+		it does so correctly.
+
+		If it initializes a new game, it does not start that game.
+		"""
 		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
 		if not abstractor or not abstractor.running:
 			await interaction.response.send_message("There's no lobby active in this channel. Send a message to create one.", ephemeral=True)
@@ -87,6 +113,12 @@ class GamesCog(commands.Cog):
 
 	@app_commands.command(name="stop", description="Stop the current game.")
 	async def stop(self, interaction: discord.Interaction):
+		"""Stops the current game.
+
+		If the user is not the owner of the game, or the bot is not in a game
+		in the current channel, the bot replies with an error message instead
+		of stopping the game.
+		"""
 		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
 		if not abstractor or not abstractor.running:
 			await interaction.response.send_message("There's no lobby active in this channel. Send a message to create one.", ephemeral=True)
