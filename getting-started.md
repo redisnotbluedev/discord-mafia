@@ -8,10 +8,51 @@ You'll need:
 - **Git** — to clone the repository
 - **Python 3.10+** — the codebase uses modern type syntax (`int | None`, `dict[int, str]`); this guide sets up Python 3.14
 - [**Podman**](https://podman.io/) or [**Docker**](https://www.docker.com/) — recommended for running the bot in an isolated container (Podman recommended)
-- A **Discord bot token** — from the [Discord Developer Portal](https://discord.com/developers/applications)
+- A **Discord bot application** — see next section
 - An **OpenAI-compatible API key** — for AI player completions
 
-## 1. Install Python with pyenv
+## 1. Create a Discord Bot Application
+
+Go to the [Discord Developer Portal](https://discord.com/developers/applications) and create a new application (or select an existing one).
+
+### Privileged Gateway Intents
+
+Under **Bot → Privileged Gateway Intents**, enable:
+
+| Intent | Required | Why |
+|---|---|---|
+| **Message Content** | **Yes** | The bot reads message content to route player speech to the game engine (`on_message` in `main.py` and `turnmanager.py`). Without this, `message.content` is empty for messages the bot didn't send. |
+| Presence | No | Not used. |
+| Server Members | No | Not used. |
+
+The bot also uses `Intents.default()` (which includes non-privileged intents like Guilds, Guild Messages, and Guild Message Reactions) — these don't need to be toggled on in the portal.
+
+### Bot Permissions
+
+Under **OAuth2 → URL Generator**, select the scopes **`bot`** and **`applications.commands`**, then enable these permissions:
+
+| Permission | Where it's used |
+|---|---|
+| **View Channel** | `scheduler.py` — the bot grants itself `view_channel=True` on the game channel during a game to guarantee visibility even when @everyone is locked out. |
+| **Send Messages** | Everywhere — lobby embeds, game announcements, AI player speech, error messages. |
+| **Manage Messages** | `abstractor.py` — deletes stale lobby messages. `turnmanager.py` — deletes timed-out turn prompts. |
+| **Manage Roles** | `scheduler.py` — assigns/removes the "Mafia Player" role to participants. `moderation.py` — creates the role during `/setup`. |
+| **Manage Webhooks** | `moderation.py` — creates a webhook during `/setup` so AI players can post with custom names and avatars. |
+| **Manage Threads** | `scheduler.py` — locks the Mafia private thread after the game ends. |
+| **Create Public Threads** | `scheduler.py` — the bot grants itself this permission on the channel during a game (used as part of its self-permission override). |
+| **Create Private Threads** | `scheduler.py` — creates "Mafia Private Chat" as a private thread for Mafia-team discussion. |
+| **Send Messages in Threads** | `turnmanager.py` — AI players and the bot post in the Mafia private thread. The bot also grants/revokes this per-player to enforce turn order. |
+
+The generated permission integer should be **`395942308864`**.
+
+> ⚠️ Copy the generated invite URL from the portal and use it to invite your bot to a server. The URL will look like:
+> `https://discord.com/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=395942308864&integration_type=0&scope=bot+applications.commands`
+
+### Bot Token
+
+Under **Bot → Token**, click **Reset Token** to generate a new token. Copy it — you'll need it for the `.env` file in step 5. You can only see the token once; if you lose it, you'll need to reset it again.
+
+## 2. Install Python with pyenv
 
 [pyenv](https://github.com/pyenv/pyenv) lets you install and switch between Python versions without touching your system Python.
 
@@ -44,7 +85,7 @@ pyenv local 3.14
 python --version
 ```
 
-## 2. Create a Virtual Environment
+## 3. Create a Virtual Environment
 
 ```bash
 python -m venv .venv
@@ -60,7 +101,7 @@ Activate it:
 
 Your prompt should now show `(.venv)`.
 
-## 3. Install Dependencies
+## 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -72,7 +113,7 @@ This installs:
 - `openai` — OpenAI-compatible API client (used for AI player completions)
 - `psutil` — system info for the `/info` command
 
-## 4. Configure Secrets
+## 5. Configure Secrets
 
 ```bash
 cp .env.example .env
@@ -90,7 +131,7 @@ Edit `.env` and fill in the values:
 
 > ⚠️ **Never commit `.env`** — it's already in `.gitignore`. Double-check before pushing.
 
-## 5. Initialize Runtime Data
+## 6. Initialize Runtime Data
 
 Create an empty `data.json` in the project root:
 
@@ -100,7 +141,7 @@ echo {} > data.json
 
 This file stores channel profiles, webhook URLs, and guild configs at runtime. It's also in `.gitignore`.
 
-## 6. Run the Bot
+## 7. Run the Bot
 
 ### Option A: Direct (for quick testing)
 
@@ -154,7 +195,7 @@ docker volume inspect mafia-data
 docker volume rm mafia-data
 ```
 
-## 7. Set Up a Discord Channel
+## 8. Set Up a Discord Channel
 
 Once the bot is running and invited to your server:
 
