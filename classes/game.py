@@ -1,3 +1,10 @@
+"""Core game loop for Mafia.
+
+Contains MafiaGame, which manages the night/day phase cycle, win
+condition checks, and coordination between discussion, voting,
+and special actions.
+"""
+
 from classes.roles import MAFIA, Alignment
 from classes.player import Player, AIAbstraction
 from classes.turnmanager import TurnManager
@@ -7,11 +14,34 @@ import logging, discord, asyncio, time
 
 logger = logging.getLogger(__name__)
 
+# These are never read anywhere.
 sheriff_already_done = False
 doctor_already_done = False
 
 class MafiaGame():
+	"""Core game engine managing phases, win conditions, and game state.
+
+	The game runs a loop of night → day phases until a win condition
+	is met.  Each phase delegates to TurnManager for discussion/voting
+	and to role-specific handlers for special night actions.
+
+	Attributes:
+		players: List of Player instances with assigned roles.
+		day_number: Current day count (starts at 0, incremented on entry).
+		night_actions: Dict collecting actions during the night phase
+			(e.g. 'mafia_kill', 'saves', 'kills').  Cleared after resolution.
+		config: Shared settings dict from MafiaScheduler/SettingsView.
+		turns: TurnManager instance (created on first run).
+	"""
+
 	def __init__(self, abstractor, scheduler):
+		"""Initialize a new game.
+
+		Args:
+			abstractor: The GameAbstractor for this channel.
+			scheduler: The MafiaSheduler that owns this game, needed to
+				access the JoinGameView for lobby updates.
+		"""
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
@@ -23,12 +53,24 @@ class MafiaGame():
 		self.turns: TurnManager = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: AsyncOpenAI = AsyncOpenAI()
-		self.scheduler = scheduler # Reference so you can get to the JoinGameView because OK SHUT UP ABOUT MY MESSY CODE OK
+		self.scheduler = scheduler
 
 	def get_alive_players(self) -> list[Player]:
+		"""Return the list of players who are still alive."""
 		return [p for p in self.players if p.alive]
 
 	def is_game_over(self):
+		"""Check if any win condition has been met.
+
+		Checks individual role win conditions first (e.g. Jester), then
+		team-level conditions (all mafia dead = Town wins; mafia >= town
+		= Mafia wins).
+
+		Returns:
+			The name of the winning faction/role (str), or False if the
+			game is still going.  Returns 'No one' if the game isn't
+			running at all.
+		"""
 		if not self.running:
 			return "No one"
 
@@ -49,6 +91,14 @@ class MafiaGame():
 		return False
 
 	async def run(self):
+		"""Main game loop: alternate night and day until someone wins.
+
+		Creates a TurnManager on first call and runs night → day in a
+		loop, checking win conditions after each phase.
+
+		Returns:
+			The name of the winning faction/role (str).
+		"""
 		self.running = True
 		self.turns = TurnManager(
 			self.players,
@@ -73,6 +123,21 @@ class MafiaGame():
 		return winner
 
 	async def run_night_phase(self):
+		"""Execute one night phase.
+
+		1. Mafia discuss in their private thread and vote on a kill target
+		   (runs concurrently with special actions).
+		2. Special role holders (Doctor, Sheriff, Vigilante, etc.) perform
+		   their actions via buttons or AI completions.
+		3. Resolves kills and saves: Vigilante kills first, then Mafia
+		   kill (blocked if Doctor saved the target).
+		4. Calls on_night_end() for each player's role (used for
+		   Jester win condition check).
+
+		Side effects:
+			Modifies player alive/death_reason state.
+			Clears self.night_actions after resolution.
+		"""
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
 
@@ -135,6 +200,7 @@ class MafiaGame():
 		self.night_actions.clear()
 
 	async def run_day_phase(self):
+		"""Execute one day phase: discussion followed by a vote."""
 		if not self.get_alive_players():
 			return
 
@@ -142,6 +208,7 @@ class MafiaGame():
 		victim = await self.voting_phase()
 
 		if victim:
+			# voting_phase also sets this.
 			victim.alive = False
 			message = f"{victim.name} was eliminated! They were {victim.role}."
 			await self.channel.send(f"> {message}")
@@ -152,6 +219,16 @@ class MafiaGame():
 			self.turns.broadcast(message)
 
 	async def mafia_choose_target(self):
+		"""Run the mafia night discussion and kill vote.
+
+		Switches the TurnManager to the mafia private thread, lets mafia
+		players discuss (one round per mafia member), then runs a vote.
+		If the vote is inconclusive, a random non-mafia target is chosen.
+
+		Side effects:
+			Sets self.night_actions['mafia_kill'] to the chosen target.
+			Restores TurnManager to the main channel and full player list.
+		"""
 		alive = self.get_alive_players()
 		mafia = [p for p in alive if p.role == MAFIA]
 
@@ -181,6 +258,8 @@ class MafiaGame():
 		self.turns.set_participants(alive)
 
 	async def discussion_phase(self):
+		"""Set up a TurnManager if needed and use it to run the discussion."""
+
 		alive = self.get_alive_players()
 		if not self.turns:
 			self.turns = TurnManager(
@@ -200,6 +279,14 @@ class MafiaGame():
 		await self.turns.run_round(analyse=True)
 
 	async def voting_phase(self):
+		"""Kick off the voting phase and handle its results.
+
+		The vote itself is mostly handled by TurnManager, which must
+		already be initialized.
+
+		Returns:
+			The eliminated Player, or None if the vote was inconclusive.
+		"""
 		alive = self.get_alive_players()
 		self.turns.set_participants(alive)
 
@@ -213,6 +300,7 @@ class MafiaGame():
 		)
 
 		if victim:
+			# run_day_phase also sets this.
 			victim.alive = False
 			victim.death_reason = "lynch"
 			message = f"{victim.name} was voted out and eliminated. They were {victim.role}."

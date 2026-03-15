@@ -1,3 +1,9 @@
+"""Game scheduling, role assignment, and lifecycle management.
+
+Contains MafiaSheduler which manages the pre-game lobby countdown, role
+distribution, Discord permission setup, and the overall game lifecycle.
+"""
+
 from classes.game import MafiaGame
 from classes.roles import Alignment, TOWN, MAFIA
 from classes.player import Player, AIAbstraction
@@ -7,7 +13,26 @@ import asyncio, time, discord, random, data, logging, traceback
 logger = logging.getLogger(__name__)
 
 class MafiaSheduler:
+	"""Orchestrates game setup, role assignment, and the game lifecycle.
+
+	Created by JoinGameView when a player clicks Play.  Manages:
+	- Pre-game countdown with automatic retry (up to 3 attempts)
+	- Role distribution based on the settings config
+	- Discord permission lockdown during the game
+	- Game execution (delegates to MafiaGame.run())
+	- Post-game cleanup (role removal, permission restoration, thread locking)
+	"""
+
 	def __init__(self, abstractor):
+		"""Initialize the scheduler with default role distribution.
+
+		Sets up the initial mafia/town split (~1/3 mafia) and creates
+		a MafiaGame instance.  The config dict is shared with SettingsView
+		so settings changes are reflected here.
+
+		Args:
+			abstractor: The GameAbstractor for this channel.
+		"""
 		self.abstractor = abstractor
 		self.lobby: JoinGameView = None
 		self.message: discord.Message = None
@@ -29,6 +54,15 @@ class MafiaSheduler:
 		self.game.config = self.config
 
 	def schedule(self, start_at: int):
+		"""Schedule the game to start at a given Unix timestamp.
+
+		Creates an asyncio task that sleeps until start_at, then calls
+		start_game().  If there aren't enough players, retries up to 3
+		times with a 5-minute delay.  After 3 failures, cancels the game.
+
+		Args:
+			start_at: Unix timestamp when the game should start.
+		"""
 		async def task():
 			await asyncio.sleep(start_at - time.time())
 			if not await self.start_game():
@@ -51,6 +85,22 @@ class MafiaSheduler:
 		self.start_job = new_task
 
 	async def start_game(self):
+		"""Set up permissions, assign roles, run the game, and clean up.
+
+		This is the main game lifecycle method.  It:
+		1. Locks the channel (disables @everyone from sending messages)
+		2. Grants the bot necessary permissions
+		3. Assigns the 'Mafia Player' Discord role
+		4. DMs each human player their role
+		5. Creates the Mafia private thread
+		6. Runs the game via MafiaGame.run()
+		7. Announces the winner and reveals all roles
+		8. Cleans up (unlock channel, remove roles, lock thread)
+
+		Returns:
+			True if the game ran (regardless of errors), False if there
+			weren't enough players (< 5) to start.
+		"""
 		if len(self.abstractor.players) < 5: return False
 		mafia_chat = None
 		original_overwrites = None
@@ -179,6 +229,17 @@ class MafiaSheduler:
 			return True
 
 	def setup_roles(self):
+		"""Shuffle players and assign roles based on the config.
+
+		Adjusts mafia/town counts if they don't sum to total_players.
+		Players are shuffled before assignment for random distribution.
+
+		Side effects:
+			Populates self.game.players with new Player instances
+			(copies of the lobby players with roles assigned).
+			The `self.game.players` list is *not* cleared before the new
+			players are appended.
+		"""
 		from classes.roles import ALL_ROLES
 		total_players = len(self.abstractor.players)
 		mafia = self.config.get("mafia", max(1, total_players // 3))
