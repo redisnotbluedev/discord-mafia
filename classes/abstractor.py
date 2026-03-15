@@ -62,7 +62,7 @@ class GameAbstractor:
 			logger.warning("Channel %s not found to delete last lobby", self.channel)
 			return
 
-		assert isinstance(channel, TEXTUAL_CHANNEL)  # PYREX NOTE: ... because otherwise the below conditions fail
+		assert isinstance(channel, (discord.TextChannel, discord.Thread))  # PYREX NOTE: ... because otherwise the below conditions fail
 
 		try:
 			msg = await channel.fetch_message(self.last_lobby_id)
@@ -111,7 +111,7 @@ class GameAbstractor:
 		# PYREX NOTE: Seems defeasible to me? Should be handled
 		channel = self.bot.get_channel(self.channel)  
 		assert channel is not None, "channel unexpectedly None"
-		assert isinstance(channel, TEXTUAL_CHANNEL)  
+		assert isinstance(channel, (discord.TextChannel, discord.Thread))  
 
 		new_msg = await asyncio.gather(
 			channel.send(

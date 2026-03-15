@@ -1,10 +1,15 @@
 """Admin/moderation slash commands (setup)."""
 
+from typing import TYPE_CHECKING
+
 from discord.ext import commands
 from discord import app_commands
 import discord, data, traceback, os
 
 from classes.abstractor import GameAbstractor
+
+if TYPE_CHECKING:
+	from main import BotWithAbstractors
 
 class ModerationCog(commands.Cog):
 	"""Admin commands for bot configuration.
@@ -16,7 +21,7 @@ class ModerationCog(commands.Cog):
 	4. Registers a GameAbstractor for the channel
 	"""
 
-	def __init__(self, bot: commands.Bot):
+	def __init__(self, bot: "BotWithAbstractors"):
 		self.bot = bot
 
 	@app_commands.command(name="setup", description="Set up the bot in this channel.")
@@ -33,11 +38,17 @@ class ModerationCog(commands.Cog):
 
 		When setup completes, data and game state files are updated.
 		"""
-		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
+		admin_users = os.getenv("ADMIN_USERS")
+		assert admin_users is not None
+		if str(interaction.user.id) not in admin_users.split(","):
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Admins", ephemeral=True)
 			return
 		try:
-			permissions = interaction.channel.permissions_for(interaction.guild.me)
+			channel = interaction.channel
+			assert channel is not None
+			guild = interaction.guild
+			assert guild is not None
+			permissions = channel.permissions_for(guild.me)
 
 			if not permissions.send_messages:
 				await interaction.response.send_message("The bot needs the `Send Messages` permission.")
@@ -64,12 +75,16 @@ class ModerationCog(commands.Cog):
 			channel = interaction.channel
 			config = data.load()
 
+			assert channel is not None
 			if str(channel.id) in config.get("profiles", {}):
 				await interaction.response.send_message(f"The game is already set up in <#{channel.id}>.", ephemeral=True)
 				return
 
+			guild = interaction.guild
+			assert guild is not None
+			assert isinstance(channel, discord.TextChannel)
 			await channel.set_permissions(
-				interaction.guild.me,
+				guild.me,
 				send_messages=True,
 				create_private_threads=True
 			)
@@ -77,14 +92,14 @@ class ModerationCog(commands.Cog):
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
 			config.setdefault("profiles", {})[str(channel.id)] = {"webhook": webhook.url}
 
-			guild_id_str = str(interaction.guild.id)
+			guild_id_str = str(guild.id)
 			guilds_config = config.setdefault("guilds", {})
 			guild_config = guilds_config.get(guild_id_str, {})
 			player_role_id = guild_config.get("player_role")
-			player = interaction.guild.get_role(player_role_id) if player_role_id else None
+			player = guild.get_role(player_role_id) if player_role_id else None
 
 			if player is None:
-				player = await interaction.guild.create_role(name="Mafia Player")
+				player = await guild.create_role(name="Mafia Player")
 				guilds_config[guild_id_str] = {"player_role": player.id}
 
 			await channel.set_permissions(
