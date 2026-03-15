@@ -70,8 +70,11 @@ class ModerationCog(commands.Cog):
 
 			await channel.set_permissions(
 				interaction.guild.me,
+				view_channel=True,
+				manage_channels=True,
+				manage_permissions=True,
 				send_messages=True,
-				create_private_threads=True
+				create_private_threads=True,
 			)
 
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
@@ -104,5 +107,9 @@ class ModerationCog(commands.Cog):
 
 			await interaction.response.send_message(f"Mafia game set up in <#{channel.id}>!", ephemeral=True)
 		except Exception:
+			# Display it locally ...
+			traceback.print_exc()
+
+			# .. then send it to Discord!
 			e = traceback.format_exc()
 			await interaction.response.send_message(f"Failed to set up game:\n```python\n{e}\n```")

@@ -125,11 +125,13 @@ class MafiaSheduler:
 				guild.me,
 				overwrite=discord.PermissionOverwrite(
 					view_channel=True,
+					manage_channels=True,
+					manage_permissions=True,
 					send_messages=True,
 					create_public_threads=True,
 					create_private_threads=True,
 					manage_threads=True,
-					send_messages_in_threads=True
+					send_messages_in_threads=True,
 				)
 			)
 
