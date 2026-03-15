@@ -5,6 +5,8 @@ stand-in for discord.Member used by AI players).  Also provides
 create_ai_players() to build the AI player list from models.json.
 """
 
+from typing import Any, Literal
+
 import discord, json
 from classes.roles import *
 
@@ -44,14 +46,20 @@ class Player:
 	"""
 
 	def __init__(self, user: discord.Member | AIAbstraction):
-		self.user = user
-		self.role: Role = None
-		self.name = user.name
-		self.alive = True
-		self.role_state = {}
-		self.death_reason = None
+		self.user: discord.Member | AIAbstraction = user
+		self.role: Role | None = None
+		self.name: str = user.name
+		self.alive: bool = True
+		self.role_state: dict[str, Any] = {}
+		self.death_reason: Literal["lynch", "mafia", "vigilante", "modkill", None] = None
 
-def create_ai_players(selected_models: list[str] = None) -> list[Player]:
+	@property
+	def role_or_die(self):
+		if self.role is None:
+			raise TypeError("role unexpectedly none")
+		return self.role
+
+def create_ai_players(selected_models: list[str] | None = None) -> list[Player]:
 	"""Create AI Player instances from models.json.
 
 	Reads the models list and avatar template from models.json.  If

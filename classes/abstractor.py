@@ -8,10 +8,17 @@ the current MafiaGame reference, and handles the lobby message lifecycle
 
 import discord, logging, data, asyncio
 
+from discord.abc import PrivateChannel
+from discord.guild import GuildChannel
+
 from discord.ext import commands
 from classes.player import Player
 from classes.game import MafiaGame
 logger = logging.getLogger(__name__)
+
+# PYREX NOTE: These are the channel types that support the operations GameAbstractor actually attempts
+# (I think? There may be others...)
+TEXTUAL_CHANNEL = discord.TextChannel | discord.Thread 
 
 class GameAbstractor:
 	"""Per-channel coordinator for lobby state and game routing.
@@ -45,11 +52,11 @@ class GameAbstractor:
 		self.bot = bot
 		self.players: dict[int, Player] = {}  # user_id -> Player
 		self.running: bool = False
-		self.owner: discord.User = None
+		self.owner: discord.User | None = None
 		self.interactions: dict[int, discord.Interaction] = {}
 		config = data.load()
 		self.last_lobby_id: int | None = config.get("profiles", {}).get(self.channel_key, {}).get("last_lobby")
-		self.game: MafiaGame = None
+		self.game: MafiaGame | None = None
 
 	async def _delete_last_lobby(self) -> None:
 		"""Delete the previous lobby embed message, if it still exists."""
@@ -61,6 +68,8 @@ class GameAbstractor:
 		if not channel:
 			logger.warning("Channel %s not found to delete last lobby", self.channel)
 			return
+
+		assert isinstance(channel, TEXTUAL_CHANNEL)  # PYREX NOTE: ... because otherwise the below conditions fail
 
 		try:
 			msg = await channel.fetch_message(self.last_lobby_id)
@@ -98,13 +107,21 @@ class GameAbstractor:
 		logger.debug(f"Received a message, running: {self.running}")
 		if self.running:
 			if self.game and self.game.turns:
+				# PYREX NOTE: This is fairly obviously not always true...
+				# Still, the original code tacitly assumed it was.
+				assert isinstance(message, discord.Message), f"expected discord.Message, got {type(message)}"
 				await self.game.turns.on_message(message)
 			return
 
 		from classes.views import StartGameView
 
+		# PYREX NOTE: Seems defeasible to me? Should be handled
+		channel = self.bot.get_channel(self.channel)  
+		assert channel is not None, "channel unexpectedly None"
+		assert isinstance(channel, TEXTUAL_CHANNEL)  
+
 		new_msg = await asyncio.gather(
-			self.bot.get_channel(self.channel).send(
+			channel.send(
 				embed=discord.Embed(
 					title="AI Plays Mafia",
 					description="The series by Turing Games, now as a Discord bot!",

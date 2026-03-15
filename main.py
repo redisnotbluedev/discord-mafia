@@ -23,7 +23,13 @@ config = data.load()
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="", intents=intents)
+
+class BotWithAbstractors(commands.Bot):
+	def __init__(self):
+		super().__init__(command_prefix="", intents=intents)
+		self.abstractors: list[GameAbstractor] = []
+
+bot = BotWithAbstractors()
 logger = logging.getLogger(__name__)
 
 bot.abstractors = []
@@ -91,4 +97,5 @@ async def on_message(message: discord.Message):
 
 if __name__ == "__main__":
 	TOKEN = os.getenv("TOKEN")
+	assert TOKEN is not None
 	bot.run(TOKEN, root_logger=True)

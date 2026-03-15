@@ -9,7 +9,13 @@ not in the Role instances themselves.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+
+import discord
+from discord.types.interactions import SelectMessageComponentInteractionData
+
+from classes.game import MafiaGame
+from classes.views import SpecialActionsView
 
 if TYPE_CHECKING:
     from classes.player import Player
@@ -21,6 +27,12 @@ class Alignment(Enum):
 	NEUTRAL = "Neutral"
 
 NEUTRAL = Alignment.NEUTRAL
+
+
+class ButtonInfo(TypedDict):
+	label: str
+	emoji: str 
+
 
 class Role:
 	"""Base class for all game roles.
@@ -44,52 +56,52 @@ class Role:
 		self.short_description = short_description
 		self.emoji = emoji
 
-	def __str__(self):
+	def __str__(self) -> str:
 		return self.name
 
-	def __eq__(self, other):
+	def __eq__(self, other: object) -> bool:
 		"""Compares roles by name."""
 		if isinstance(other, Role):
 			return self.name == other.name
 		return False
 
-	def __hash__(self):
+	def __hash__(self) -> int:
 		"""Returns the hash of the role name."""
 		return hash(self.name)
 
-	def describe(self):
+	def describe(self) -> str:
 		"""Return the full role description text."""
 		return self.description
 
-	def is_special(self):
+	def is_special(self) -> bool:
 		"""Return True if this role has a night action."""
 		return False
 
-	def night_action_type(self):
+	def night_action_type(self) -> Literal["save", "kill", "investigate", None]:
 		"""Return the action type string ('save', 'kill', 'investigate'), or None."""
 		return None
 
-	def get_button_info(self):
+	def get_button_info(self) -> ButtonInfo:
 		"""Return a dict for labeling a button with this role."""
 		return {"label": self.name, "emoji": self.emoji}
 
-	def get_prompt(self):
+	def get_prompt(self) -> str:
 		"""Return a prompt inviting the player to act."""
 		return f"## {self.name}\nWhat do you want to do?"
 
-	async def handle_button_click(self, game, player, interaction, action_view=None):
+	async def handle_button_click(self, game: MafiaGame, player: Player, interaction: discord.Interaction, action_view: SpecialActionsView | None=None):
 		"""Handle a human player clicking their night action button.  No-op for base Role."""
 		pass
 
-	async def on_night_end(self, game, player):
+	async def on_night_end(self, game: MafiaGame, player: Player):
 		"""Called after night resolution.  Used by roles that track state across nights."""
 		pass
 
-	async def night_action_ai(self, game, player):
+	async def night_action_ai(self, game: MafiaGame, player: Player):
 		"""Execute the night action for an AI player.  No-op for base Role."""
 		pass
 
-	def can_act(self, player) -> bool:
+	def can_act(self, player: Player) -> bool:
 		"""Return whether this player can use their special action, if any.
 		
 		Used to identify whether a player has skipped their turn
@@ -98,7 +110,7 @@ class Role:
 		"""
 		return True
 
-	def win_condition(self, player, players):
+	def win_condition(self, player: Player, players: list[Player]) -> bool:
 		"""Check if this player has won due to their special ability."""
 		return False
 
@@ -129,19 +141,19 @@ class SelectRole(Role):
 		self.action_label = action_label
 		self.skippable = skippable
 
-	def is_special(self):
+	def is_special(self) -> bool:
 		return True
 
-	def get_button_info(self):
+	def get_button_info(self) -> ButtonInfo:
 		return {"label": self.name, "emoji": self.emoji}
 
-	def get_prompt(self):
+	def get_prompt(self) -> str:
 		return f"## {self.name}\nWho do you want to {self.action_label}?"
 
-	def get_options(self, game, player):
+	def get_options(self, game: MafiaGame, player: Player) -> list[Player]:
 		return [p for p in game.get_alive_players() if p.alive]
 
-	async def handle_button_click(self, game, player, interaction, action_view=None):
+	async def handle_button_click(self, game: MafiaGame, player: Player, interaction: discord.Interaction, action_view: SpecialActionsView | None=None) -> None:
 		"""Show a select menu of valid targets for this role's night action."""
 		import discord
 		from classes.views import SelectView
@@ -157,7 +169,7 @@ class SelectRole(Role):
 		select_view = SelectView(select_options, lambda inter: self.on_selected(game, player, inter, options, action_view))
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
-	async def on_selected(self, game, player, interaction, options, action_view=None):
+	async def on_selected(self, game: MafiaGame, player: Player, interaction: discord.Interaction, options: list[Player], action_view: SpecialActionsView | None=None) -> None:
 		"""Handle the human player's target selection from the select menu.
 
 		Marks the player as having acted and delegates to handle_selection().
@@ -166,7 +178,10 @@ class SelectRole(Role):
 			await interaction.response.edit_message(content="You have already performed your action!", view=None)
 			return
 
-		selection = interaction.data['values'][0]
+		# PYREX NOTE: It's not clear, but the previous data types in this code
+		# imply that this is probably the implicit cast that was meant
+		data = cast(SelectMessageComponentInteractionData, interaction.data)
+		selection = data['values'][0]
 		if selection == "abstain":
 			await interaction.response.edit_message(content=f"You chose to abstain.", view=None)
 			if action_view:
@@ -181,14 +196,14 @@ class SelectRole(Role):
 			action_view.acted_players.add(interaction.user.id)
 			action_view.pending_humans.discard(interaction.user.id)
 
-	async def handle_selection(self, game, player, user):
+	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
 		"""Apply the role's effect to the chosen target.  Override in subclasses.
 		
 		Common path between on_selected and night_action_ai.
 		"""
 		pass
 
-	async def night_action_ai(self, game, player):
+	async def night_action_ai(self, game: MafiaGame, player: Player) -> None:
 		"""Prompt the AI to choose a target and apply the role's effect."""
 
 		options = self.get_options(game, player)
@@ -202,6 +217,7 @@ class SelectRole(Role):
 			prompt += "Note: You are NOT required to act. If you don't have a strong suspicion, you should 'abstain' to avoid hurting your team.\n"
 		prompt += "Available options:\n" + "\n".join([f"- {name}" for name in prompt_options])
 
+		assert game.turns is not None
 		choice_text = await game.turns.create_ai_completion(player, prompt)
 
 		if not choice_text:
@@ -230,10 +246,10 @@ class SaveRole(SelectRole):
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		super().__init__(name, alignment, description, short_description, "🧑‍⚕️", "save", skippable=False)
 
-	def night_action_type(self):
+	def night_action_type(self) -> Literal["save"]:
 		return "save"
 
-	async def handle_selection(self, game, player, user):
+	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
 		saves = game.night_actions.setdefault("saves", [])
 		old_save = player.role_state.get("pending_save")
 		if old_save and old_save in saves:
@@ -242,7 +258,7 @@ class SaveRole(SelectRole):
 		saves.append(user)
 		player.role_state["pending_save"] = user
 
-	async def on_night_end(self, game, player):
+	async def on_night_end(self, game: MafiaGame, player: Player) -> None:
 		player.role_state["last_saved"] = player.role_state.get("pending_save")
 		player.role_state["pending_save"] = None
 
@@ -252,10 +268,10 @@ class KillRole(SelectRole):
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, skippable: bool = False):
 		super().__init__(name, alignment, description, short_description, "🔫", "kill", skippable=skippable)
 
-	def night_action_type(self):
+	def night_action_type(self) -> Literal["kill"]:
 		return "kill"
 
-	async def handle_selection(self, game, player, user):
+	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
 		game.night_actions.setdefault("kills", []).append(user)
 
 class InvestigateRole(SelectRole):
@@ -270,13 +286,14 @@ class InvestigateRole(SelectRole):
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		super().__init__(name, alignment, description, short_description, "🕵️", "investigate", skippable=False)
 
-	def night_action_type(self):
+	def night_action_type(self) -> Literal["investigate"]:
 		return "investigate"
 
-	def get_options(self, game, player):
+	def get_options(self, game: MafiaGame, player: Player):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
-	async def on_selected(self, game, player, interaction, options):
+	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
+	async def on_selected(self, game: MafiaGame, player: Player, interaction: discord.Interaction, options: list[Player]) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
 		"""Handle the human player's target selection from the select menu.
 
 		The prototype of this function is incompatible with
@@ -284,12 +301,20 @@ class InvestigateRole(SelectRole):
 		This function is not reached, however, because `handle_button_click`
 		specifically binds to `SelectRole.on_selected` via a lambda.
 		"""
-		selection = interaction.data['values'][0]
+		# PYREX NOTE: This is, again, the type implied by the use site!
+		data = cast(SelectMessageComponentInteractionData, interaction.data)
+		selection = data['values'][0]
 		user = options[int(selection)]
 		await self.handle_selection(game, player, user)
+
+		# PYREX NOTE: Tacit assumption made by the existing code pre-typechecking
+		assert user.role is not None, "role was unexpectedly None"
 		await interaction.response.edit_message(content=f"You chose to investigate {user.name}. {user.name} is **{user.role.alignment.value.upper()}**!", view=None)
 
 	async def handle_selection(self, game, player, user):
+		# PYREX NOTE: Tacit assumption made by the existing code pre-typechecking
+		assert game.turns is not None
+		assert user.role is not None, "role was unexpectedly None"
 		result_prompt = f"{user.name} is **{user.role.alignment.value.upper()}**."
 		from classes.player import AIAbstraction
 		if isinstance(player.user, AIAbstraction):
