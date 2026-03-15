@@ -83,10 +83,13 @@ class ModerationCog(commands.Cog):
 			guild = interaction.guild
 			assert guild is not None
 			assert isinstance(channel, discord.TextChannel)
-			await channel.set_permissions(
+			await channel.set_permissions(  # PYREX NOTE: This hits 403 if the bot doesn't have the Manage Permissions permission on the channel
 				guild.me,
+				view_channel=True,
+				manage_channels=True,
+				manage_permissions=True,
 				send_messages=True,
-				create_private_threads=True
+				create_private_threads=True,
 			)
 
 			webhook: discord.Webhook = await channel.create_webhook(name="AI Plays Mafia", reason="Required for sending AI messages")
@@ -121,3 +124,4 @@ class ModerationCog(commands.Cog):
 		except Exception:
 			e = traceback.format_exc()
 			await interaction.response.send_message(f"Failed to set up game:\n```python\n{e}\n```")
+			traceback.print_exc()
