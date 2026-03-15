@@ -536,7 +536,7 @@ class SpecialActionsView(discord.ui.View):
 				self.add_item(SpecialActionButton(player.role))
 				added_roles.add(player.role.name)
 
-		self.pending_humans = {p.user.id for p in alive_players if p.role.is_special() and isinstance(p.user, discord.Member)}
+		self.pending_humans = {p.user.id for p in alive_players if p.role.is_special() and isinstance(p.user, discord.Member) and p.role.can_act(p)}
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
