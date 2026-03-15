@@ -1,10 +1,26 @@
 from classes.roles import KillRole, Alignment
 
 class Vigilante(KillRole):
+	"""Town role with a single-use kill shot.
+
+	Can opt to skip ('abstain') each night.  Once the shot is fired,
+	player.role_state['has_shot'] is set True and the action becomes
+	unavailable.
+	"""
+
 	def __init__(self):
 		super().__init__("Vigilante", Alignment.TOWN, 'a **Vigilante**.\n> You have one bullet and can shoot any player during the night. Pick your shot carefully, since you only have one! Help the town identify Mafia, and shoot anyone if the need arises.', 'Has one shot to kill a player at night.', skippable=True)
 
 	def can_act(self, player):
+		"""Return whether the vigilante can act (has not already shot).
+
+		Args:
+			player: The vigilante player.
+
+		Returns:
+			True if the vigilante can act, False otherwise.
+		"""
+		# "Has" refers to "has already shot", not "has a bullet available".
 		return not player.role_state.get("has_shot", False)
 
 	async def handle_button_click(self, game, player, interaction, action_view=None):
