@@ -1,3 +1,13 @@
+"""Role system for Mafia game.
+
+Defines abstract categories of roles, which are inherited by specific
+role implementations.
+
+Role instances are module-level singletons (TOWN, MAFIA, DOCTOR, etc.)
+shared across all games.  Per-player state is stored in Player.role_state,
+not in the Role instances themselves.
+"""
+
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -5,6 +15,7 @@ if TYPE_CHECKING:
     from classes.player import Player
 
 class Alignment(Enum):
+	"""Faction alignment.  Used for win condition checks and UI grouping."""
 	TOWN = "Town"
 	MAFIA = "Mafia"
 	NEUTRAL = "Neutral"
@@ -12,6 +23,20 @@ class Alignment(Enum):
 NEUTRAL = Alignment.NEUTRAL
 
 class Role:
+	"""Base class for all game roles.
+
+	Roles are module-level singletons.  Override is_special() to return
+	True for roles with night actions, and implement handle_button_click()
+	and night_action_ai() for the actual action logic.
+
+	Attributes:
+		name: Display name (e.g. 'Doctor').
+		alignment: Alignment.TOWN, MAFIA, or NEUTRAL.
+		description: Full role description shown to the player.
+		short_description: One-line description for the settings select.
+		emoji: Emoji used in buttons and select options.
+	"""
+
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, emoji: str = "❓"):
 		self.name = name
 		self.alignment = alignment
@@ -23,45 +48,82 @@ class Role:
 		return self.name
 
 	def __eq__(self, other):
+		"""Compares roles by name."""
 		if isinstance(other, Role):
 			return self.name == other.name
 		return False
 
 	def __hash__(self):
+		"""Returns the hash of the role name."""
 		return hash(self.name)
 
 	def describe(self):
+		"""Return the full role description text."""
 		return self.description
 
 	def is_special(self):
+		"""Return True if this role has a night action."""
 		return False
 
 	def night_action_type(self):
+		"""Return the action type string ('save', 'kill', 'investigate'), or None."""
 		return None
 
 	def get_button_info(self):
+		"""Return a dict for labeling a button with this role."""
 		return {"label": self.name, "emoji": self.emoji}
 
 	def get_prompt(self):
+		"""Return a prompt inviting the player to act."""
 		return f"## {self.name}\nWhat do you want to do?"
 
 	async def handle_button_click(self, game, player, interaction, action_view=None):
+		"""Handle a human player clicking their night action button.  No-op for base Role."""
 		pass
 
 	async def on_night_end(self, game, player):
+		"""Called after night resolution.  Used by roles that track state across nights."""
 		pass
 
 	async def night_action_ai(self, game, player):
+		"""Execute the night action for an AI player.  No-op for base Role."""
 		pass
 
 	def can_act(self, player) -> bool:
+		"""Return whether this player can use their special action, if any.
+		
+		Used to identify whether a player has skipped their turn
+		because they had no action available. A player who repeatedly
+		skips for *no* good reason will eventually be modkilled.
+		"""
 		return True
 
 	def win_condition(self, player, players):
+		"""Check if this player has won due to their special ability."""
 		return False
 
 class SelectRole(Role):
+	"""Role with a target-selection night action (choose a player to act on).
+
+	Provides the common UI flow: button click → select menu → on_selected →
+	handle_selection.  Subclasses override handle_selection() to implement
+	the actual effect.
+
+	Also provides night_action_ai() which prompts the AI to choose a target.
+	"""
+
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, emoji: str, action_label: str, skippable: bool = False):
+		"""Initialize a SelectRole.
+
+		Args:
+			name: Display name (e.g. 'Doctor').
+			alignment: Alignment.TOWN, MAFIA, or NEUTRAL.
+			description: Full role description shown to the player.
+			short_description: One-line description for the settings select.
+			emoji: Emoji used in buttons and select options.
+			action_label: String describing the action (e.g. 'save', 'kill', 'investigate').
+			skippable: Whether the player can choose to abstain from acting.
+		"""
 		super().__init__(name, alignment, description, short_description)
 		self.emoji = emoji
 		self.action_label = action_label
@@ -80,6 +142,7 @@ class SelectRole(Role):
 		return [p for p in game.get_alive_players() if p.alive]
 
 	async def handle_button_click(self, game, player, interaction, action_view=None):
+		"""Show a select menu of valid targets for this role's night action."""
 		import discord
 		from classes.views import SelectView
 		options = self.get_options(game, player)
@@ -95,6 +158,10 @@ class SelectRole(Role):
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
 	async def on_selected(self, game, player, interaction, options, action_view=None):
+		"""Handle the human player's target selection from the select menu.
+
+		Marks the player as having acted and delegates to handle_selection().
+		"""
 		if action_view and interaction.user.id in action_view.acted_players:
 			await interaction.response.edit_message(content="You have already performed your action!", view=None)
 			return
@@ -115,9 +182,15 @@ class SelectRole(Role):
 			action_view.pending_humans.discard(interaction.user.id)
 
 	async def handle_selection(self, game, player, user):
+		"""Apply the role's effect to the chosen target.  Override in subclasses.
+		
+		Common path between on_selected and night_action_ai.
+		"""
 		pass
 
 	async def night_action_ai(self, game, player):
+		"""Prompt the AI to choose a target and apply the role's effect."""
+
 		options = self.get_options(game, player)
 		opt_names = [p.name for p in options]
 		prompt_options = opt_names.copy()
@@ -152,6 +225,8 @@ class SelectRole(Role):
 			await self.handle_selection(game, player, chosen)
 
 class SaveRole(SelectRole):
+	"""Role that can protect a player from being killed."""
+
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		super().__init__(name, alignment, description, short_description, "🧑‍⚕️", "save", skippable=False)
 
@@ -172,6 +247,8 @@ class SaveRole(SelectRole):
 		player.role_state["pending_save"] = None
 
 class KillRole(SelectRole):
+	"""Role that can kill a player during the night."""
+
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str, skippable: bool = False):
 		super().__init__(name, alignment, description, short_description, "🔫", "kill", skippable=skippable)
 
@@ -182,6 +259,14 @@ class KillRole(SelectRole):
 		game.night_actions.setdefault("kills", []).append(user)
 
 class InvestigateRole(SelectRole):
+	"""Role that can investigate a player's alignment (Sheriff).
+
+	Note: on_selected() has a different signature from SelectRole.on_selected()
+	(missing action_view parameter), but this method is never actually called
+	because handle_button_click() binds the callback to SelectRole.on_selected
+	via the lambda.
+	"""
+
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		super().__init__(name, alignment, description, short_description, "🕵️", "investigate", skippable=False)
 
@@ -192,6 +277,13 @@ class InvestigateRole(SelectRole):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
 	async def on_selected(self, game, player, interaction, options):
+		"""Handle the human player's target selection from the select menu.
+
+		The prototype of this function is incompatible with
+		`SelectRole.on_selected` -- the `action_view` parameter is missing.
+		This function is not reached, however, because `handle_button_click`
+		specifically binds to `SelectRole.on_selected` via a lambda.
+		"""
 		selection = interaction.data['values'][0]
 		user = options[int(selection)]
 		await self.handle_selection(game, player, user)
