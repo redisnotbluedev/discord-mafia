@@ -1,13 +1,21 @@
+"""Simple JSON file persistence for bot configuration.
+
+Stores channel profiles, webhook URLs, guild configs, and lobby state
+in data.json.  Uses a read-modify-write pattern.
+"""
+
 import json, logging, os
 
 logger = logging.getLogger(__name__)
 
 def save(data: dict):
+	"""Write the entire config dict to data.json, overwriting previous contents."""
 	logger.info("Saving data to disk...")
 	with open("data.json", "w") as f:
 		json.dump(data, f)
 
 def load():
+	"""Load config from data.json, creating an empty file if it doesn't exist."""
 	try:
 		with open("data.json", "r") as f:
 			return json.load(f) or {}
