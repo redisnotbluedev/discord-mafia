@@ -1,3 +1,11 @@
+"""Per-channel game coordinator.
+
+GameAbstractor is a singleton per configured channel that bridges Discord
+messages to the game engine.  It manages the lobby player list, owns
+the current MafiaGame reference, and handles the lobby message lifecycle
+(creating new lobby embeds and deleting stale ones).
+"""
+
 import discord, logging, data, asyncio
 
 from discord.ext import commands
@@ -6,7 +14,32 @@ from classes.game import MafiaGame
 logger = logging.getLogger(__name__)
 
 class GameAbstractor:
+	"""Per-channel coordinator for lobby state and game routing.
+
+	One GameAbstractor exists per channel where /setup has been run.
+	It holds the player list during the lobby phase, routes incoming
+	messages to the active TurnManager during a game, and manages
+	the lobby embed (posting new ones, deleting old ones via
+	_delete_last_lobby).
+
+	Attributes:
+		channel: The Discord channel ID (int) for this game instance.
+		players: Dict of user_id -> Player for the current lobby.
+		running: True if a game is currently in progress.
+		owner: The Discord user who started the current lobby.
+		game: The active MafiaGame instance, or None.
+	"""
+
 	def __init__(self, channel: int, bot: commands.Bot):
+		"""Create a GameAbstractor for a specific channel.
+
+		Loads the last lobby message ID from data.json so it can be
+		deleted when a new lobby is posted.
+
+		Args:
+			channel: Discord channel ID.
+			bot: The bot client instance.
+		"""
 		self.channel = channel
 		self.channel_key = str(channel)
 		self.bot = bot
@@ -19,6 +52,8 @@ class GameAbstractor:
 		self.game: MafiaGame = None
 
 	async def _delete_last_lobby(self) -> None:
+		"""Delete the previous lobby embed message, if it still exists."""
+
 		if not self.last_lobby_id:
 			return
 
@@ -38,6 +73,19 @@ class GameAbstractor:
 			logger.error("Failed to delete message %s: %s", self.last_lobby_id, exc)
 
 	async def on_message(self, message: discord.Message | bool):
+		"""Route messages to the active game or post a new lobby embed.
+
+		If a game is running, forwards the message to the TurnManager.
+		Otherwise, posts a fresh StartGameView lobby embed and deletes
+		the old one.
+
+		If `message` is `False`, the call is ignored.
+
+		Args:
+			message: A Discord message to route, or True to trigger a
+				new lobby without an actual message (used after game end
+				and after failed lobby cancellation). False is ignored.
+		"""
 		if isinstance(message, discord.Message):
 			# Accept message if it's in the main channel OR in the mafia chat
 			is_in_main_channel = message.channel.id == self.channel
@@ -71,11 +119,13 @@ class GameAbstractor:
 		self.save_config()
 
 	def save_config(self):
+		"""Persist the last lobby message ID to data.json."""
 		config = data.load()
 		config.setdefault("profiles", {}).setdefault(self.channel_key, {})["last_lobby"] = self.last_lobby_id
 		data.save(config)
 
 	def reset(self):
+		"""Clear all lobby state after a game ends."""
 		self.players.clear()
 		self.owner = None
 		self.interactions.clear()
