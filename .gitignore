@@ -6,5 +6,6 @@ venv/*
 *.pyc
 *.pyo
 .vscode/settings.json
+.python-version
 
 .local/*

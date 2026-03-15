@@ -6,7 +6,7 @@ How to set up a local development environment for the Discord Mafia bot.
 
 You'll need:
 - **Git** — to clone the repository
-- **Python 3.10+** — the codebase uses modern type syntax (`int | None`, `dict[int, str]`)
+- **Python 3.10+** — the codebase uses modern type syntax (`int | None`, `dict[int, str]`); this guide sets up Python 3.14
 - [**Podman**](https://podman.io/) or [**Docker**](https://www.docker.com/) — recommended for running the bot in an isolated container (Podman recommended)
 - A **Discord bot token** — from the [Discord Developer Portal](https://discord.com/developers/applications)
 - An **OpenAI-compatible API key** — for AI player completions
@@ -43,8 +43,6 @@ pyenv install 3.14
 pyenv local 3.14
 python --version
 ```
-
-> **Why 3.14?** It's the latest stable release (October 2025). The code requires 3.10+ at minimum (for `X | Y` type union syntax), and 3.14 maximizes the setup's lifespan.
 
 ## 2. Create a Virtual Environment
 
