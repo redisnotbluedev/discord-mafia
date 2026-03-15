@@ -9,16 +9,27 @@ not in the Role instances themselves.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 import discord
-from discord.types.interactions import SelectMessageComponentInteractionData
 
-from classes.game import MafiaGame
-from classes.views import SpecialActionsView
 
 if TYPE_CHECKING:
-    from classes.player import Player
+	from classes.game import MafiaGame
+	from classes.player import Player
+	from classes.views import SpecialActionsView
+	# PYREX NOTE: discord.types.interactions is _explicitly_
+	# not a public interface, because discord.py is a great library
+	#
+	# However -- the relevant type is st ill part of the public interface
+	# So, I still think we should import this because I think we deeply want 
+	# an explicit compile failure if they (for some ungodly reason) change this
+	#
+	# (https://github.com/Rapptz/discord.py/issues/9653#issuecomment-1822374218)
+	# (https://github.com/Rapptz/discord.py/issues/9653#issuecomment-1822374218)
+	from discord.types.interactions import SelectMessageComponentInteractionData
+
+
 
 class Alignment(Enum):
 	"""Faction alignment.  Used for win condition checks and UI grouping."""
@@ -89,19 +100,19 @@ class Role:
 		"""Return a prompt inviting the player to act."""
 		return f"## {self.name}\nWhat do you want to do?"
 
-	async def handle_button_click(self, game: MafiaGame, player: Player, interaction: discord.Interaction, action_view: SpecialActionsView | None=None):
+	async def handle_button_click(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, action_view: "SpecialActionsView | None"=None):
 		"""Handle a human player clicking their night action button.  No-op for base Role."""
 		pass
 
-	async def on_night_end(self, game: MafiaGame, player: Player):
+	async def on_night_end(self, game: "MafiaGame", player: "Player"):
 		"""Called after night resolution.  Used by roles that track state across nights."""
 		pass
 
-	async def night_action_ai(self, game: MafiaGame, player: Player):
+	async def night_action_ai(self, game: "MafiaGame", player: "Player"):
 		"""Execute the night action for an AI player.  No-op for base Role."""
 		pass
 
-	def can_act(self, player: Player) -> bool:
+	def can_act(self, player: "Player") -> bool:
 		"""Return whether this player can use their special action, if any.
 		
 		Used to identify whether a player has skipped their turn
@@ -110,7 +121,7 @@ class Role:
 		"""
 		return True
 
-	def win_condition(self, player: Player, players: list[Player]) -> bool:
+	def win_condition(self, player: "Player", players: list["Player"]) -> bool:
 		"""Check if this player has won due to their special ability."""
 		return False
 
@@ -150,10 +161,10 @@ class SelectRole(Role):
 	def get_prompt(self) -> str:
 		return f"## {self.name}\nWho do you want to {self.action_label}?"
 
-	def get_options(self, game: MafiaGame, player: Player) -> list[Player]:
+	def get_options(self, game: "MafiaGame", player: "Player") -> "list[Player]":
 		return [p for p in game.get_alive_players() if p.alive]
 
-	async def handle_button_click(self, game: MafiaGame, player: Player, interaction: discord.Interaction, action_view: SpecialActionsView | None=None) -> None:
+	async def handle_button_click(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, action_view: "SpecialActionsView | None"=None) -> None:
 		"""Show a select menu of valid targets for this role's night action."""
 		import discord
 		from classes.views import SelectView
@@ -169,7 +180,7 @@ class SelectRole(Role):
 		select_view = SelectView(select_options, lambda inter: self.on_selected(game, player, inter, options, action_view))
 		await interaction.response.send_message(self.get_prompt(), view=select_view, ephemeral=True)
 
-	async def on_selected(self, game: MafiaGame, player: Player, interaction: discord.Interaction, options: list[Player], action_view: SpecialActionsView | None=None) -> None:
+	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]", action_view: "SpecialActionsView | None"=None) -> None:
 		"""Handle the human player's target selection from the select menu.
 
 		Marks the player as having acted and delegates to handle_selection().
@@ -196,14 +207,14 @@ class SelectRole(Role):
 			action_view.acted_players.add(interaction.user.id)
 			action_view.pending_humans.discard(interaction.user.id)
 
-	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
+	async def handle_selection(self, game: "MafiaGame", player: "Player", user: "Player") -> None:
 		"""Apply the role's effect to the chosen target.  Override in subclasses.
 		
 		Common path between on_selected and night_action_ai.
 		"""
 		pass
 
-	async def night_action_ai(self, game: MafiaGame, player: Player) -> None:
+	async def night_action_ai(self, game: "MafiaGame", player: "Player") -> None:
 		"""Prompt the AI to choose a target and apply the role's effect."""
 
 		options = self.get_options(game, player)
@@ -249,7 +260,7 @@ class SaveRole(SelectRole):
 	def night_action_type(self) -> Literal["save"]:
 		return "save"
 
-	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
+	async def handle_selection(self, game: "MafiaGame", player: "Player", user: "Player") -> None:
 		saves = game.night_actions.setdefault("saves", [])
 		old_save = player.role_state.get("pending_save")
 		if old_save and old_save in saves:
@@ -258,7 +269,7 @@ class SaveRole(SelectRole):
 		saves.append(user)
 		player.role_state["pending_save"] = user
 
-	async def on_night_end(self, game: MafiaGame, player: Player) -> None:
+	async def on_night_end(self, game: "MafiaGame", player: "Player") -> None:
 		player.role_state["last_saved"] = player.role_state.get("pending_save")
 		player.role_state["pending_save"] = None
 
@@ -271,7 +282,7 @@ class KillRole(SelectRole):
 	def night_action_type(self) -> Literal["kill"]:
 		return "kill"
 
-	async def handle_selection(self, game: MafiaGame, player: Player, user: Player) -> None:
+	async def handle_selection(self, game: "MafiaGame", player: "Player", user: "Player") -> None:
 		game.night_actions.setdefault("kills", []).append(user)
 
 class InvestigateRole(SelectRole):
@@ -289,11 +300,11 @@ class InvestigateRole(SelectRole):
 	def night_action_type(self) -> Literal["investigate"]:
 		return "investigate"
 
-	def get_options(self, game: MafiaGame, player: Player):
+	def get_options(self, game: "MafiaGame", player: "Player"):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
 	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
-	async def on_selected(self, game: MafiaGame, player: Player, interaction: discord.Interaction, options: list[Player]) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]") -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
 		"""Handle the human player's target selection from the select menu.
 
 		The prototype of this function is incompatible with

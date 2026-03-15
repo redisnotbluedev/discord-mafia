@@ -1,6 +1,4 @@
-from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
-from classes.views import VoteView
 import discord, random, asyncio, logging, data, json, re
 from openai import AsyncOpenAI
 
@@ -70,6 +68,7 @@ class TurnManager:
 		return None
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
+		from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 		context = {}
 		role_counts = {}
 		player_list = "\n  - ".join([p.name for p in participants])
@@ -456,6 +455,7 @@ Message: '{text}'"""}
 		return next_players
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False, require_majority=False):
+		from classes.views import VoteView
 		votes: dict[int, str] = {}
 
 		voter_names = {}

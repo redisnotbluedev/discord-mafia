@@ -1,6 +1,3 @@
-from classes.abstractor import TEXTUAL_CHANNEL
-from classes.game import MafiaGame
-from classes.turnmanager import TurnManager
 import discord, time, logging, data, asyncio, json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, cast
@@ -9,7 +6,9 @@ from classes.player import Player, create_ai_players, AIAbstraction
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
+	from classes.game import MafiaGame
 	from classes.scheduler import MafiaSheduler
+	from classes.turnmanager import TurnManager
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +65,7 @@ class StartGameView(discord.ui.View):
 		interaction_message = interaction.message
 		assert interaction_message is not None
 		interaction_message_channel = self.abstractor.bot.get_channel(interaction_message.channel.id)
-		assert isinstance(interaction_message_channel, TEXTUAL_CHANNEL)
+		assert isinstance(interaction_message_channel, (discord.TextChannel | discord.Thread))
 		message = await interaction_message_channel.fetch_message(interaction_message.id)
 		view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
 		embed = view.generate_embed()
@@ -551,7 +550,7 @@ class SelectView(discord.ui.View):
 		self.add_item(self.dropdown)
 
 class SpecialActionsView(discord.ui.View):
-	def __init__(self, alive_players: list[Player], turn_manager: TurnManager, game: MafiaGame):
+	def __init__(self, alive_players: list[Player], turn_manager: "TurnManager", game: "MafiaGame"):
 		super().__init__(timeout=None)
 		self.players = alive_players
 		self.turn_manager = turn_manager

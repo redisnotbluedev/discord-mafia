@@ -12,9 +12,6 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from classes.abstractor import GameAbstractor
-from cogs.moderation import ModerationCog
-from cogs.info import InfoCog
-from cogs.games import GamesCog
 from logging_utils import WebhookLoggingHandler
 
 load_dotenv()
@@ -59,6 +56,10 @@ async def on_ready():
 @bot.event
 async def setup_hook():
 	"""Register cogs and sync slash commands on bot startup."""
+	from cogs.moderation import ModerationCog
+	from cogs.info import InfoCog
+	from cogs.games import GamesCog
+
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 	await bot.add_cog(GamesCog(bot))

@@ -6,8 +6,6 @@ distribution, Discord permission setup, and the overall game lifecycle.
 
 from typing import TypedDict
 
-from classes.abstractor import TEXTUAL_CHANNEL
-from classes.game import MafiaGame
 from classes.roles import Alignment, TOWN, MAFIA
 from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
@@ -46,6 +44,7 @@ class MafiaSheduler:
 			lobby: The Lobby for this channel.
 			message: A Discord message from JoinGameView (I'm not clear on where _this_ comes from)
 		"""
+		from classes.game import MafiaGame
 		self.abstractor = abstractor
 		self.lobby: JoinGameView = lobby
 		self.message: discord.Message = message

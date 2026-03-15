@@ -5,7 +5,6 @@ condition checks, and coordination between discussion, voting,
 and special actions.
 """
 
-from classes.roles import MAFIA, Alignment
 from classes.player import Player, AIAbstraction
 from classes.scheduler import MafiaSchedulerConfig
 from classes.turnmanager import TurnManager
@@ -72,6 +71,7 @@ class MafiaGame():
 			game is still going.  Returns 'No one' if the game isn't
 			running at all.
 		"""
+		from classes.roles import Alignment
 		if not self.running:
 			return "No one"
 
@@ -238,6 +238,7 @@ class MafiaGame():
 			Sets self.night_actions['mafia_kill'] to the chosen target.
 			Restores TurnManager to the main channel and full player list.
 		"""
+		from classes.roles import MAFIA
 		alive = self.get_alive_players()
 		mafia = [p for p in alive if p.role == MAFIA]
 

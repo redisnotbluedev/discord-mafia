@@ -8,7 +8,6 @@ create_ai_players() to build the AI player list from models.json.
 from typing import Any, Literal
 
 import discord, json
-from classes.roles import *
 
 class AIAbstraction:
 	"""Representation of an AI player. Partially compatible with Player.
@@ -46,6 +45,8 @@ class Player:
 	"""
 
 	def __init__(self, user: discord.Member | AIAbstraction):
+		from classes.roles import Role
+
 		self.user: discord.Member | AIAbstraction = user
 		self.role: Role | None = None
 		self.name: str = user.name

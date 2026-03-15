@@ -8,17 +8,10 @@ the current MafiaGame reference, and handles the lobby message lifecycle
 
 import discord, logging, data, asyncio
 
-from discord.abc import PrivateChannel
-from discord.guild import GuildChannel
-
 from discord.ext import commands
 from classes.player import Player
 from classes.game import MafiaGame
 logger = logging.getLogger(__name__)
-
-# PYREX NOTE: These are the channel types that support the operations GameAbstractor actually attempts
-# (I think? There may be others...)
-TEXTUAL_CHANNEL = discord.TextChannel | discord.Thread 
 
 class GameAbstractor:
 	"""Per-channel coordinator for lobby state and game routing.
