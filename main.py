@@ -1,5 +1,12 @@
 # https://discord.com/oauth2/authorize?client_id=1457229259243257947&permissions=361582569472&integration_type=0&scope=bot+applications.commands
 
+"""Bot entry point.
+
+Loads environment variables, creates the Discord bot client, registers
+cogs, and starts the event loop.  On ready, creates a GameAbstractor
+for each previously configured channel and posts a fresh lobby embed.
+"""
+
 import discord, os, logging, data, asyncio, traceback
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -23,6 +30,7 @@ bot.abstractors = []
 
 @bot.event
 async def on_ready():
+	"""Initialize game abstractors and logging after the bot connects."""
 	log_webhook_url = os.getenv("LOG_WEBHOOK_URL")
 	if log_webhook_url:
 		log_webhook = discord.Webhook.from_url(log_webhook_url, client=bot)
@@ -44,6 +52,7 @@ async def on_ready():
 
 @bot.event
 async def setup_hook():
+	"""Register cogs and sync slash commands on bot startup."""
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 	await bot.add_cog(GamesCog(bot))
@@ -53,6 +62,10 @@ async def setup_hook():
 
 @bot.event
 async def on_message(message: discord.Message):
+	"""Route incoming messages to game abstractors.
+	
+	Also implements a debugging hook.
+	"""
 	if message.author == bot.user:
 		return
 
