@@ -10,6 +10,8 @@ class Vigilante(KillRole):
 	async def handle_button_click(self, game, player, interaction, action_view=None):
 		if not self.can_act(player):
 			await interaction.response.send_message("You have already used your shot!", ephemeral=True)
+			if action_view:
+				action_view.pending_humans.discard(interaction.user.id)
 			return
 		await super().handle_button_click(game, player, interaction, action_view)
 
