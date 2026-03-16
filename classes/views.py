@@ -1,3 +1,16 @@
+"""Discord UI views for the Mafia game.
+
+This module contains all discord.py View, Button, and Select subclasses
+used for player interaction.
+
+Classes are organized by function:
+- **Lobby views**: ConfirmView, StartGameView, JoinGameView
+- **Settings views**: SettingsView, EnabledRolesSelect, ModelSelect,
+  MafiaUp, MafiaDisplay, TownUp, TownDisplay, NeutralDisplay, DefaultButton
+- **In-game views**: VoteView, VoteSelect, SelectView,
+  SpecialActionsView, SpecialActionButton
+"""
+
 import discord, time, logging, data, asyncio, json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
@@ -13,6 +26,13 @@ logger = logging.getLogger(__name__)
 ABSTAIN_LABEL = "Abstain"
 
 class ConfirmView(discord.ui.View):
+	"""A simple Yes/No confirmation dialog.
+
+	Args:
+		yes: Async callback invoked when Yes is clicked.
+		no: Async callback invoked when No is clicked.
+	"""
+
 	def __init__(self, yes, no):
 		self.yes = yes
 		self.no = no
@@ -27,6 +47,13 @@ class ConfirmView(discord.ui.View):
 		await self.no(interaction)
 
 class StartGameView(discord.ui.View):
+	"""Initial lobby view with a single 'Play' button.
+
+	When a player clicks Play, this view registers them as the game owner,
+	loads AI models from models.json, creates AI players, and transitions
+	to JoinGameView (the lobby with Join/Leave, Start, and Settings).
+	"""
+
 	def __init__(self, abstractor):
 		self.abstractor: "GameAbstractor" = abstractor
 		super().__init__(timeout=None)
@@ -62,6 +89,16 @@ class StartGameView(discord.ui.View):
 		await interaction.response.edit_message(embed=embed, view=view)
 
 class JoinGameView(discord.ui.View):
+	"""Lobby waiting room with Join/Leave, Start Game, and Settings buttons.
+
+	Created when a player clicks Play in StartGameView.  Displays the player
+	list, a countdown timer, and buttons for interaction.  The game owner
+	can start immediately or wait for the timer.
+
+	This view creates a MafiaScheduler instance which manages the actual
+	game launch via a scheduled job.
+	"""
+
 	def __init__(self, abstractor, message, start_at):
 		from classes.scheduler import MafiaSheduler
 
@@ -75,6 +112,17 @@ class JoinGameView(discord.ui.View):
 		super().__init__(timeout=1000)
 
 	def generate_embed(self, show_starting_soon=True):
+		"""Build the lobby embed showing the player list and countdown.
+
+		Also deduplicates player display names: if two players share the
+		same base name, appends " (1)", " (2)", etc.
+
+		Args:
+			show_starting_soon: If True, includes the countdown field.
+
+		Returns:
+			A discord.Embed ready to send or edit into the lobby message.
+		"""
 		embed: discord.Embed = discord.Embed(
 			title="AI Plays Mafia",
 			description="The series by Turing Games, now as a Discord bot!",
@@ -110,6 +158,13 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Join/Leave", style=discord.ButtonStyle.blurple)
 	async def join_game(self, interaction: discord.Interaction, _):
+		"""Handles Join/Leave button clicks.
+
+		If the game is already running, sends an error message.
+		If the user is already a player, prompts for confirmation to leave.
+		If the user is not a player, adds them to the game.
+		If the user is the game owner and leaves, cancels the game.
+		"""
 		if self.running or (self.abstractor.game and self.abstractor.game.running):
 			await interaction.response.send_message("The game's already running!", ephemeral=True)
 			return
@@ -147,6 +202,12 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(label="Start Game", style=discord.ButtonStyle.green)
 	async def start(self, interaction: discord.Interaction, _):
+		"""Handles Start Game button clicks.
+
+		If the game is already running, sends an error message.
+		If the user is not the game owner, sends an error message.
+		If the user is the game owner, starts the game.
+		"""
 		if self.running or (self.abstractor.game and self.abstractor.game.running):
 			await interaction.response.send_message("The game's already running!", ephemeral=True)
 			return
@@ -159,6 +220,11 @@ class JoinGameView(discord.ui.View):
 
 	@discord.ui.button(emoji=discord.PartialEmoji(name="settings", id=1457586025105850470), style=discord.ButtonStyle.gray)
 	async def settings(self, interaction: discord.Interaction, _):
+		"""Handles Settings button clicks.
+
+		If the user is not the game owner, sends an error message.
+		If the user is the game owner, opens the settings menu.
+		"""
 		if interaction.user != self.abstractor.owner:
 			await interaction.response.send_message("You need to be the owner of this game to change the settings.", ephemeral=True)
 			return
@@ -180,6 +246,15 @@ class JoinGameView(discord.ui.View):
 		view.message = await interaction.original_response()
 
 class SettingsView(discord.ui.View):
+	"""Ephemeral settings panel for game configuration.
+
+	Displays controls for:
+	- Mafia/Town count adjustment (MafiaUp, TownUp buttons + display buttons)
+	- Enabled special roles (EnabledRolesSelect multi-select)
+	- Active AI models (ModelSelect multi-select)
+	- Reset to defaults (DefaultButton)
+	"""
+
 	def __init__(self, game):
 		self.game = game
 		self.config = game.config
@@ -212,6 +287,16 @@ class SettingsView(discord.ui.View):
 				self.config[f"role_{role.name}"] = enabled
 
 	async def render(self, interaction: discord.Interaction=None):
+		"""Recalculate all settings UI state and update the message.
+
+		Ensures town + mafia = total players, enforces mafia <= town,
+		rebuilds the emoji bars, syncs select menu defaults, and edits
+		the settings message.
+
+		Args:
+			interaction: If provided, responds to this interaction.
+				Otherwise, edits the stored self.message directly.
+		"""
 		def get(id):
 			return discord.utils.get(self.children, custom_id=id)
 
@@ -294,6 +379,8 @@ class SettingsView(discord.ui.View):
 				logger.exception("Failed to update lobby message")
 
 class EnabledRolesSelect(discord.ui.Select):
+	"""Multi-select dropdown for toggling special roles (Doctor, Sheriff, etc.)."""
+
 	def __init__(self):
 		options = []
 		for role in ALL_ROLES:
@@ -314,6 +401,10 @@ class EnabledRolesSelect(discord.ui.Select):
 		)
 
 	async def callback(self, interaction: discord.Interaction):
+		"""Handle role selection changes.
+
+		Updates the config and re-renders the settings view.
+		"""
 		view: SettingsView = self.view  # type: ignore
 		selected = set(self.values)
 		for role in ALL_ROLES:
@@ -322,6 +413,12 @@ class EnabledRolesSelect(discord.ui.Select):
 		await view.render(interaction)
 
 class ModelSelect(discord.ui.Select):
+	"""Multi-select dropdown for choosing which AI models participate.
+
+	Populated from models.json.  When the selection changes, AI players
+	in the lobby are synced to match.
+	"""
+
 	def __init__(self):
 		try:
 			with open("models.json") as f:
@@ -358,6 +455,10 @@ class ModelSelect(discord.ui.Select):
 		)
 
 	async def callback(self, interaction: discord.Interaction):
+		"""Handle model selection changes.
+
+		Updates the player list and re-renders the settings view.
+		"""
 		view: SettingsView = self.view  # type: ignore
 		view.config["models"] = self.values
 
@@ -371,6 +472,8 @@ class ModelSelect(discord.ui.Select):
 		await view.render(interaction)
 
 class MafiaUp(discord.ui.Button):
+	"""Button to increment the mafia player count by one."""
+
 	def __init__(self):
 		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="mafia_up", row=1)
 
@@ -383,10 +486,14 @@ class MafiaUp(discord.ui.Button):
 		await view.render(interaction)
 
 class MafiaDisplay(discord.ui.Button):
+	"""Disabled display button showing the mafia emoji bar and count."""
+
 	def __init__(self):
 		super().__init__(label="🔪 (1)", style=discord.ButtonStyle.gray, custom_id="mafia_display", disabled=True, row=1)
 
 class TownUp(discord.ui.Button):
+	"""Button to increment the town player count by one."""
+
 	def __init__(self):
 		super().__init__(label="+", style=discord.ButtonStyle.green, custom_id="town_up", row=2)
 
@@ -403,18 +510,33 @@ class TownUp(discord.ui.Button):
 		await view.render(interaction)
 
 class TownDisplay(discord.ui.Button):
+	"""Disabled display button showing the town emoji bar and count."""
+
 	def __init__(self):
 		super().__init__(label="🏡 (1)", style=discord.ButtonStyle.gray, custom_id="town_display", disabled=True, row=2)
 
 class NeutralDisplay(discord.ui.Button):
+	"""Disabled display button for neutral roles (dynamically added/removed)."""
+
 	def __init__(self):
 		super().__init__(label="\u200b", style=discord.ButtonStyle.gray, custom_id="neutral_display", disabled=True, row=0)
 
 class DefaultButton(discord.ui.Button):
+	"""Button to reset all settings to their defaults.
+
+	Resets role toggles (Doctor + Sheriff enabled), recalculates mafia/town
+	split (~1/3 mafia), reloads all models from models.json, and syncs
+	the lobby player list.
+	"""
+
 	def __init__(self):
 		super().__init__(label="Default", style=discord.ButtonStyle.blurple, custom_id="default", row=0)
 
 	async def callback(self, interaction: discord.Interaction):
+		"""Handle default settings reset.
+
+		Resets role toggles, counts, and models, then re-renders the view.
+		"""
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
 
@@ -451,7 +573,23 @@ class DefaultButton(discord.ui.Button):
 		await view.render(interaction)
 
 class VoteSelect(discord.ui.Select):
+	"""Select menu for human players to cast a vote.
+
+	Each interaction records the vote in VoteView.votes, reformats the
+	tally, and updates the poll message.  Disables the select when all
+	human votes are in.
+	"""
+
 	def __init__(self, players, placeholder, emoji, allow_abstain: bool = False):
+		"""Initialize a VoteSelect.
+
+		Args:
+			players: List of player names to vote for.
+			placeholder: Placeholder text for the select menu.
+			emoji: Emoji to use for the select options. All of them get the
+			  same emoji.
+			allow_abstain: Whether to allow players to abstain from voting.
+		"""
 		options = [
 			discord.SelectOption(label=player, emoji=emoji)
 			for player in players
@@ -468,6 +606,10 @@ class VoteSelect(discord.ui.Select):
 		)
 
 	async def callback(self, interaction: discord.Interaction):
+		"""Handle vote selection.
+
+		Records the vote, updates the tally, and re-renders the view.
+		"""
 		view: VoteView = self.view  # type: ignore
 
 		if interaction.user.id not in view.allowed_voters:
@@ -503,6 +645,16 @@ class VoteSelect(discord.ui.Select):
 		await interaction.response.edit_message(content=content, view=view)
 
 class VoteView(discord.ui.View):
+	"""View containing a VoteSelect for human voting.
+
+	Created by TurnManager.run_vote().  Holds shared state between the
+	UI select and the voting manager:
+		votes: dict of voter_id -> chosen_name (shared with run_vote).
+		allowed_voters: set of Discord user IDs who may vote.
+		required_votes: how many human votes to wait for.
+		base_message: the message text above the tally.
+	"""
+
 	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False, voter_names: dict[int, str] = None):
 		super().__init__(timeout=None)
 		self.allow_abstain = allow_abstain
@@ -515,6 +667,13 @@ class VoteView(discord.ui.View):
 		self.voter_names = voter_names or {}
 
 class SelectView(discord.ui.View):
+	"""Generic single-select view used by role night actions.
+
+	Args:
+		candidates: List of SelectOption items to choose from.
+		callback: Async function called when a selection is made.
+	"""
+
 	def __init__(self, candidates: list, callback: Callable):
 		super().__init__(timeout=None)
 		self.dropdown = discord.ui.Select(options=candidates)
@@ -522,6 +681,18 @@ class SelectView(discord.ui.View):
 		self.add_item(self.dropdown)
 
 class SpecialActionsView(discord.ui.View):
+	"""Night actions panel showing one button per special role.
+
+	Displayed during the night phase.  Each alive player with a special
+	role sees a button for their action (e.g. Doctor: Save, Sheriff:
+	Investigate).  Tracks which humans have acted and enforces a 3-minute
+	timeout; unacted players receive a failure penalty.
+
+	Attributes:
+		acted_players: Set of user IDs who have completed their action.
+		pending_humans: Set of user IDs still expected to act.
+	"""
+
 	def __init__(self, alive_players: list[Player]):
 		super().__init__(timeout=None)
 		self.players = alive_players
@@ -542,6 +713,12 @@ class SpecialActionsView(discord.ui.View):
 		return discord.utils.get(self.children, custom_id=id)
 
 	async def wait_for_humans(self):
+		"""Block until all pending humans have acted or the 3-minute timeout.
+
+		Players who don't act in time receive a failure penalty via
+		handle_player_failure.  Players who do act get their failure
+		counter reset to 0.
+		"""
 		start_time = asyncio.get_event_loop().time()
 		timeout = 180.0  # 3 minutes
 		while self.pending_humans:
@@ -564,7 +741,12 @@ class SpecialActionsView(discord.ui.View):
 					self.game.turns.player_failures[player.user] = 0
 
 	async def handle_ai_special_action(self, player: Player):
-		"""Handle AI special action based on role."""
+		"""Delegate an AI player's night action to their role's AI handler.
+
+		Calls player.role.night_action_ai(), which uses the TurnManager
+		to get an LLM completion and apply the result (e.g. kill, save,
+		investigate).  Errors are logged but do not propagate.
+		"""
 		if not self.game:
 			return
 
@@ -578,6 +760,14 @@ class SpecialActionsView(discord.ui.View):
 				logger.exception("Error getting AI %s action: %s", player.role.name, e)
 
 class SpecialActionButton(discord.ui.Button):
+	"""A night action button for a specific role (e.g. 'Save', 'Investigate').
+
+	Limits interaction to players who actually hold a relevant role. 
+	Delegates to role.handle_button_click() for the actual action and UI.
+	Checks that the player is not listed as having already acted, but does not
+	set this state itself.
+	"""
+
 	def __init__(self, role: Role):
 		button_info = role.get_button_info()
 		super().__init__(
@@ -589,6 +779,7 @@ class SpecialActionButton(discord.ui.Button):
 		self.role = role
 
 	async def callback(self, interaction: discord.Interaction):
+		"""Route clicks to the interacting player's role."""
 		view: SpecialActionsView = self.view  # type: ignore
 		if interaction.user.id not in [p.user.id for p in view.players if p.role == self.role]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
