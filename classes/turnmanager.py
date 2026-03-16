@@ -13,9 +13,7 @@ state of the game.  It orchestrates:
   enforce turn-taking for human players equivalent to AI players.
 """
 
-from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 from classes.player import Player, AIAbstraction
-from classes.views import VoteView
 import discord, random, asyncio, logging, data, json, re
 from openai import AsyncOpenAI
 
@@ -59,7 +57,7 @@ class TurnManager:
 		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
 		return content.strip()
 
-	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: AsyncOpenAI = None):
+	def __init__(self, participants: list[Player], channel: discord.TextChannel | discord.Thread, bot: discord.Client, client: AsyncOpenAI | None = None):
 		"""Initialize the turn manager for a new game.
 
 		Loads the channel's webhook URL from data.json (if configured during
@@ -80,7 +78,7 @@ class TurnManager:
 			Reads models.json to get the discussion_analyser model name.
 		"""
 		self.participants = participants
-		self.channel = channel
+		self.channel: discord.TextChannel | discord.Thread = channel
 		self.client = client or AsyncOpenAI()
 		config = data.load()
 		self.bot = bot
@@ -105,7 +103,7 @@ class TurnManager:
 		with open("models.json") as f:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
-	async def handle_player_failure(self, player: Player, message: discord.Message = None):
+	async def handle_player_failure(self, player: Player, message: discord.Message | None = None):
 		"""Record a player's failure to respond and apply escalating penalties.
 
 		First failure: sends a warning to the channel (human players only;
@@ -183,6 +181,7 @@ class TurnManager:
 			Dict mapping each AIAbstraction to a list containing one system
 			message.  Human players are excluded.
 		"""
+		from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 		context = {}
 		role_counts = {}
 		player_list = "\n  - ".join([p.name for p in participants])
@@ -197,7 +196,7 @@ class TurnManager:
 						"content": f"""Your name is {p.user.name}. You are playing a social-deduction game of Mafia.
 Your win condition and role is printed below. Achieve it by any means necessary, including deception if you are Mafia.
 
-You are {p.role.describe()}
+You are {p.role_or_die.describe()}
 
 Players:
 {player_list}
@@ -217,7 +216,7 @@ CRITICAL FORMAT RULES
 				]
 		return context
 
-	def set_channel(self, channel: discord.abc.Messageable):
+	def set_channel(self, channel: discord.TextChannel | discord.Thread):
 		"""Switch the channel this TurnManager sends messages to."""
 		self.channel = channel
 
@@ -232,7 +231,7 @@ CRITICAL FORMAT RULES
 		"""
 		self.context = context
 
-	def broadcast(self, text, exclude: Player = None):
+	def broadcast(self, text: str, exclude: Player | None = None):
 		"""Append a 'user' message to every AI player's context.
 
 		This is how AI players 'hear' what happens in the game: announcements,
@@ -357,7 +356,7 @@ CRITICAL FORMAT RULES
 			Updates AI contexts via broadcast().
 			May modkill players who fail to respond.
 		"""
-		player: Player
+		player: Player | None = None
 		spoken = set()
 		speech_counts = {}
 		# list of (Player, priority_level, turn_added)
@@ -430,7 +429,9 @@ CRITICAL FORMAT RULES
 				timeout_at = int(__import__("time").time() + 180)
 				status_msg = await self.channel.send(f"> {player.user.mention}, it's your turn to speak! Ends <t:{timeout_at}:R>.")
 				if isinstance(self.channel, discord.Thread):
-					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+					channel = self.bot.get_channel(self.channel.parent_id)
+					assert isinstance(channel, discord.TextChannel)
+					await channel.set_permissions(
 						player.user,
 						send_messages_in_threads=True
 					)
@@ -457,7 +458,9 @@ CRITICAL FORMAT RULES
 					spoken.add(player)
 					speech_counts[player] = speech_counts.get(player, 0) + 1
 					if isinstance(self.channel, discord.Thread):
-						await self.bot.get_channel(self.channel.parent_id).set_permissions(
+						channel = self.bot.get_channel(self.channel.parent_id)
+						assert isinstance(channel, discord.TextChannel)
+						await channel.set_permissions(
 							player.user,
 							send_messages_in_threads=None
 						)
@@ -474,7 +477,9 @@ CRITICAL FORMAT RULES
 				self.required_author = -1
 
 				if isinstance(self.channel, discord.Thread):
-					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+					channel = self.bot.get_channel(self.channel.parent_id)
+					assert isinstance(channel, discord.TextChannel)
+					await channel.set_permissions(
 						player.user,
 						send_messages_in_threads=None
 					)
@@ -643,7 +648,9 @@ Message: '{text}'"""}
 		except Exception as exc:
 			logger.error("OpenAI completion failed for model %s during speaker analysis: %s", self.DISCUSSION_ANALYSER, exc)
 			return []
-		raw = response.choices[0].message.content.strip()
+		choice = response.choices[0].message.content
+		assert isinstance(choice, str)
+		raw = choice.strip()
 
 		alive_participants = [p for p in self.participants if p.alive]
 		if not alive_participants:
@@ -699,6 +706,7 @@ Message: '{text}'"""}
 			Updates AI contexts with vote prompts and responses.
 			Tracks player failures for humans who don't vote in time.
 		"""
+		from classes.views import VoteView
 		votes: dict[int, str] = {}
 
 		voter_names = {}
@@ -747,6 +755,7 @@ Message: '{text}'"""}
 				options_block
 			])
 
+			assert isinstance(ai_player.user, AIAbstraction)
 			self.context.setdefault(ai_player.user, []).append({
 				"role": "user",
 				"content": prompt
@@ -867,6 +876,7 @@ Message: '{text}'"""}
 			If no response is received, this calls `self.handle_player_failure`,
 			which may modkill the player.
 		"""
+		assert isinstance(ai_player.user, AIAbstraction)
 		messages = self.context.setdefault(ai_player.user, [])
 		messages.append({"role": "user", "content": prompt})
 

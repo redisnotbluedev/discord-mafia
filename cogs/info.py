@@ -26,7 +26,9 @@ class InfoCog(commands.Cog):
 		If the user is not an admin, the bot replies with an error message
 		instead of sending the message to the game channel.
 		"""
-		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(","):
+		admin_users = os.getenv("ADMIN_USERS")
+		assert admin_users is not None
+		if str(interaction.user.id) not in admin_users.split(","):
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Admins", ephemeral=True)
 			return
 		await asyncio.gather(*[interaction.response.send_message("Sent message!", ephemeral=True), channel.send(text)])

@@ -4,13 +4,22 @@ Contains MafiaSheduler which manages the pre-game lobby countdown, role
 distribution, Discord permission setup, and the overall game lifecycle.
 """
 
-from classes.game import MafiaGame
+from typing import TypedDict
+
 from classes.roles import Alignment, TOWN, MAFIA
 from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
 
 logger = logging.getLogger(__name__)
+
+class MafiaSchedulerConfig(TypedDict):
+	mafia: int
+	town: int
+	role_Doctor: bool
+	role_Sheriff: bool
+	role_Vigilante: bool
+	role_Jester: bool
 
 class MafiaSheduler:
 	"""Orchestrates game setup, role assignment, and the game lifecycle.
@@ -23,7 +32,7 @@ class MafiaSheduler:
 	- Post-game cleanup (role removal, permission restoration, thread locking)
 	"""
 
-	def __init__(self, abstractor):
+	def __init__(self, abstractor, lobby: JoinGameView, message: discord.Message):
 		"""Initialize the scheduler with default role distribution.
 
 		Sets up the initial mafia/town split (~1/3 mafia) and creates
@@ -32,18 +41,19 @@ class MafiaSheduler:
 
 		Args:
 			abstractor: The GameAbstractor for this channel.
+			lobby: The Lobby for this channel.
+			message: A Discord message from JoinGameView (I'm not clear on where _this_ comes from)
 		"""
+		from classes.game import MafiaGame
 		self.abstractor = abstractor
-		self.lobby: JoinGameView = None
-		self.message: discord.Message = None
-		self.start_job: asyncio.Task = None
+		self.lobby: JoinGameView = lobby
+		self.message: discord.Message = message
+		self.start_job: asyncio.Task | None = None
 		self.attempts = 0
-		self.game = MafiaGame(abstractor, self)
-		self.abstractor.game = self.game
 		total_players = len(self.abstractor.players)
 		mafia = max(1, total_players // 3)
 		town = max(mafia + 1, total_players - mafia)
-		self.config = {
+		self.config: MafiaSchedulerConfig = {
 			"mafia": mafia,
 			"town": town,
 			"role_Doctor": True,
@@ -51,9 +61,10 @@ class MafiaSheduler:
 			"role_Vigilante": False,
 			"role_Jester": False,
 		}
-		self.game.config = self.config
+		self.game = MafiaGame(abstractor, self, self.config)
+		self.abstractor.game = self.game
 
-	def schedule(self, start_at: int):
+	def schedule(self, start_at: int | float):
 		"""Schedule the game to start at a given Unix timestamp.
 
 		Creates an asyncio task that sleeps until start_at, then calls
@@ -102,20 +113,26 @@ class MafiaSheduler:
 			weren't enough players (< 5) to start.
 		"""
 		if len(self.abstractor.players) < 5: return False
-		mafia_chat = None
+		mafia_chat: discord.Thread | None = None
+		player_role: discord.Role | None = None
 		original_overwrites = None
+
+		config = data.load()
+		maybe_channel = self.message.channel
+		assert isinstance(maybe_channel, discord.TextChannel)  # PYREX NOTE: TEXTUAL_CHANNEL is not specific enough; Thread doesn't have overwrites_for
+		channel: discord.TextChannel = maybe_channel
+		guild = self.message.guild
+		assert guild is not None
+
 		try:
 			self.game.config = self.config
 			await self.message.edit(view=None, embed=self.lobby.generate_embed(show_starting_soon=False))
-
-			config = data.load()
-			channel = self.message.channel
-			guild = self.message.guild
 
 			await channel.send("Starting game...")
 
 			self.setup_roles()
 			player_role = guild.get_role(config["guilds"][str(guild.id)]["player_role"])
+			assert player_role is not None
 
 			original_overwrites = channel.overwrites_for(guild.default_role)
 
@@ -125,11 +142,13 @@ class MafiaSheduler:
 				guild.me,
 				overwrite=discord.PermissionOverwrite(
 					view_channel=True,
+					manage_channels=True,
+					manage_permissions=True,
 					send_messages=True,
 					create_public_threads=True,
 					create_private_threads=True,
 					manage_threads=True,
-					send_messages_in_threads=True
+					send_messages_in_threads=True,
 				)
 			)
 
@@ -159,7 +178,7 @@ class MafiaSheduler:
 					# hmmmm
 					logger.warning(f"User is of type {type(user)}?!?!?!?!?!??!?! What is this?!?!?!??!?!?!")
 
-			mafia_chat: discord.Thread = await channel.create_thread(name="Mafia Private Chat", invitable=False)
+			mafia_chat = await channel.create_thread(name="Mafia Private Chat", invitable=False)
 			self.game.mafia_chat = mafia_chat
 			self.game.channel = channel
 
@@ -210,6 +229,7 @@ class MafiaSheduler:
 			for player in self.game.players:
 				user = player.user
 				if isinstance(user, discord.Member):
+					assert player_role is not None
 					tasks.append(user.remove_roles(player_role))
 
 			if original_overwrites is not None:

@@ -1,10 +1,5 @@
 {
 	"venvPath": ".",
-	"venv": ".venv",
-	"typeCheckingMode": "basic",
-	"reportArgumentType": "none",
-	"reportAttributeAccessIssue": "none",
-	"reportCallIssue": "none",
-	"reportOptionalMemberAccess": "none",
-	"reportGeneralTypeIssues": "none"
+	"venv": "venv",
+	"typeCheckingMode": "standard",
 }

@@ -1,12 +1,14 @@
 import discord, time, logging, data, asyncio, json
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, cast
 from classes.roles import Role, Alignment, ALL_ROLES
 from classes.player import Player, create_ai_players, AIAbstraction
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
+	from classes.game import MafiaGame
 	from classes.scheduler import MafiaSheduler
+	from classes.turnmanager import TurnManager
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,12 @@ class StartGameView(discord.ui.View):
 		if self.abstractor.running:
 			return
 
-		self.abstractor.players[interaction.user.id] = Player(interaction.user)
+		# PYREX NOTE: This function has a somewhat dualistic interpretation of user
+		# Player requires user to be a discord.User
+		# Abstractor requires user to be a discord.Member
+		# They have... similar APIs? So for now I'll cast unsafely
+		user = interaction.user
+		self.abstractor.players[interaction.user.id] = Player(cast(discord.Member, user))
 		try:
 			with open("models.json") as f:
 				m_data = json.load(f)
@@ -51,11 +58,15 @@ class StartGameView(discord.ui.View):
 		self.abstractor.running = True
 		data.update_game_status(self.abstractor.bot)
 		self.abstractor.last_lobby_id = None
-		self.abstractor.owner = interaction.user
+		self.abstractor.owner = cast(discord.User, user)
 		self.abstractor.save_config()
 
 		# discord.py doesn't say if this expires so just to make sure...
-		message = await self.abstractor.bot.get_channel(interaction.message.channel.id).fetch_message(interaction.message.id)
+		interaction_message = interaction.message
+		assert interaction_message is not None
+		interaction_message_channel = self.abstractor.bot.get_channel(interaction_message.channel.id)
+		assert isinstance(interaction_message_channel, (discord.TextChannel | discord.Thread))
+		message = await interaction_message_channel.fetch_message(interaction_message.id)
 		view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
 		embed = view.generate_embed()
 
@@ -67,9 +78,7 @@ class JoinGameView(discord.ui.View):
 
 		self.abstractor: "GameAbstractor" = abstractor
 		self.start_at = int(start_at)
-		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor)
-		self.game.message = message
-		self.game.lobby = self
+		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor, self, message)
 		self.running = False
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
@@ -119,13 +128,16 @@ class JoinGameView(discord.ui.View):
 				del self.abstractor.players[interaction.user.id]
 
 				if interaction.user == self.abstractor.owner:
+					assert interaction.message is not None  # PYREX NOTE: Seems defeasible.
 					await interaction.message.delete()
+					assert self.game.start_job is not None
 					self.game.start_job.cancel()
 					self.abstractor.running = False
 					data.update_game_status(self.abstractor.bot)
 					await self.abstractor.on_message(True)
 				else:
 					embed = self.generate_embed()
+					assert interaction.message is not None  # PYREX NOTE: Seems defeasible.
 					await interaction.message.edit(embed=embed)
 
 			async def no(i: discord.Interaction):
@@ -141,7 +153,8 @@ class JoinGameView(discord.ui.View):
 			)
 		else:
 			self.abstractor.interactions[interaction.user.id] = interaction
-			self.abstractor.players[interaction.user.id] = Player(interaction.user)
+			# PYREX NOTE: Noting that other parts of the codebase require this to be a discord.User --
+			self.abstractor.players[interaction.user.id] = Player(cast(discord.Member, interaction.user))
 			embed = self.generate_embed()
 			await interaction.response.edit_message(embed=embed)
 
@@ -151,6 +164,7 @@ class JoinGameView(discord.ui.View):
 			await interaction.response.send_message("The game's already running!", ephemeral=True)
 			return
 		if interaction.user == self.abstractor.owner:
+			assert self.game.start_job is not None
 			self.game.start_job.cancel()
 			self.game.schedule(time.time())
 			await interaction.response.edit_message()
@@ -167,7 +181,10 @@ class JoinGameView(discord.ui.View):
 		await view.render()
 
 		commands = await self.abstractor.bot.tree.fetch_commands()
-		get_command = lambda name: discord.utils.get(commands, name=name).mention
+		def get_command(name: str):
+			command = discord.utils.get(commands, name=name)
+			assert command is not None
+			return command.mention
 
 		await interaction.response.send_message(
 			embed=discord.Embed(title="Settings", description="Change the configuration of this game.").add_field(name="Extra Commands", value=f"""
@@ -183,18 +200,30 @@ class SettingsView(discord.ui.View):
 	def __init__(self, game):
 		self.game = game
 		self.config = game.config
-		self.message = None
+		self.message: None | discord.InteractionMessage = None
 		super().__init__(timeout=None)
 
 		# Add mafia and town controls
-		self.add_item(DefaultButton())
-		self.add_item(MafiaUp())
-		self.add_item(MafiaDisplay())
-		self.add_item(TownUp())
-		self.add_item(TownDisplay())
+		self._default_button = DefaultButton()
+		self.add_item(self._default_button)
 
-		self.add_item(EnabledRolesSelect())
-		self.add_item(ModelSelect())
+		self._mafia_up = MafiaUp()
+		self.add_item(self._mafia_up)
+
+		self._mafia_display = MafiaDisplay()
+		self.add_item(self._mafia_display)
+
+		self._town_up = TownUp()
+		self.add_item(self._town_up)
+
+		self._town_display = TownDisplay()
+		self.add_item(self._town_display)
+
+		self._enabled_roles_select = EnabledRolesSelect()
+		self.add_item(self._enabled_roles_select)
+
+		self._model_select = ModelSelect()
+		self.add_item(self._model_select)
 
 		# Initialize models if not set
 		if "models" not in self.config:
@@ -211,10 +240,7 @@ class SettingsView(discord.ui.View):
 				enabled = self.config.get(f"role_{role.name}", role.name in ["Doctor", "Sheriff"])  # Default Doctor and Sheriff enabled
 				self.config[f"role_{role.name}"] = enabled
 
-	async def render(self, interaction: discord.Interaction=None):
-		def get(id):
-			return discord.utils.get(self.children, custom_id=id)
-
+	async def render(self, interaction: discord.Interaction | None=None):
 		total_players = len(self.game.abstractor.players)
 
 		# Auto-adjust if total players changed
@@ -243,15 +269,15 @@ class SettingsView(discord.ui.View):
 		enabled_special_mafia = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.MAFIA and role.is_special()]
 		mafia_regular = max(mafia - len(enabled_special_mafia), 0)
 		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_mafia)
-		get("mafia_display").label = f"{mafia_bar} ({mafia})"
-		get("mafia_up").disabled = mafia >= town
+		self._mafia_display.label = f"{mafia_bar} ({mafia})"
+		self._mafia_up.disabled = mafia >= town
 
 		# Town bar - show enabled special town roles
 		enabled_special_town = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.TOWN and role.is_special()]
 		town_regular = max(town - len(enabled_special_town), 0)
 		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
-		get("town_display").label = f"{town_bar} ({town})"
-		get("town_up").disabled = town >= total_players - 1
+		self._town_display.label = f"{town_bar} ({town})"
+		self._town_up.disabled = town >= total_players - 1
 
 		# Neutral bar - show enabled neutral roles
 		enabled_neutral = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.NEUTRAL]
@@ -262,19 +288,21 @@ class SettingsView(discord.ui.View):
 				nd = NeutralDisplay()
 				self.add_item(nd)
 				neutral_display = nd
+
+			assert isinstance(neutral_display, NeutralDisplay)
 			neutral_display.label = f"Neutral: {neutral_bar} ({len(enabled_neutral)})"
 		else:
 			if neutral_display:
 				self.children.remove(neutral_display)
 
 		# Update select defaults
-		select = get("enabled_roles")
+		select = self._enabled_roles_select
 		if select and isinstance(select, discord.ui.Select):
 			for option in select.options:
 				option.default = self.config.get(f"role_{option.value}", False)
 
 		# Update model select defaults
-		model_select = get("selected_models")
+		model_select = self._model_select
 		if model_select and isinstance(model_select, discord.ui.Select):
 			selected_models = self.config.get("models", [])
 			for option in model_select.options:
@@ -503,7 +531,7 @@ class VoteSelect(discord.ui.Select):
 		await interaction.response.edit_message(content=content, view=view)
 
 class VoteView(discord.ui.View):
-	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False, voter_names: dict[int, str] = None):
+	def __init__(self, players: list[str], placeholder="Vote on a player.", emoji="🗳️", allow_abstain: bool = False, voter_names: dict[int, str] | None = None):
 		super().__init__(timeout=None)
 		self.allow_abstain = allow_abstain
 		self.add_item(VoteSelect(players, placeholder, emoji, allow_abstain=allow_abstain))
@@ -522,21 +550,21 @@ class SelectView(discord.ui.View):
 		self.add_item(self.dropdown)
 
 class SpecialActionsView(discord.ui.View):
-	def __init__(self, alive_players: list[Player]):
+	def __init__(self, alive_players: list[Player], turn_manager: "TurnManager", game: "MafiaGame"):
 		super().__init__(timeout=None)
 		self.players = alive_players
-		self.turn_manager = None  # Will be set by game.py for broadcasting
-		self.game = None  # Will be set by game.py
+		self.turn_manager = turn_manager
+		self.game = game
 		self.acted_players = set()
 		self.pending_humans = set()
 
 		added_roles = set()
 		for player in alive_players:
-			if player.role.is_special() and player.role.name not in added_roles:
-				self.add_item(SpecialActionButton(player.role))
-				added_roles.add(player.role.name)
+			if player.role_or_die.is_special() and player.role_or_die.name not in added_roles:
+				self.add_item(SpecialActionButton(player.role_or_die))
+				added_roles.add(player.role_or_die.name)
 
-		self.pending_humans = {p.user.id for p in alive_players if p.role.is_special() and isinstance(p.user, discord.Member) and p.role.can_act(p)}
+		self.pending_humans = {p.user.id for p in alive_players if p.role_or_die.is_special() and isinstance(p.user, discord.Member) and p.role_or_die.can_act(p)}
 
 	def get(self, id):
 		return discord.utils.get(self.children, custom_id=id)
@@ -569,13 +597,13 @@ class SpecialActionsView(discord.ui.View):
 			return
 
 		try:
-			await player.role.night_action_ai(self.game, player)
+			await player.role_or_die.night_action_ai(self.game, player)
 		except Exception as e:
 			model = getattr(player.user, "model", None)
 			if model:
-				logger.exception("Error getting AI %s action (model=%s): %s", player.role.name, model, e)
+				logger.exception("Error getting AI %s action (model=%s): %s", player.role_or_die.name, model, e)
 			else:
-				logger.exception("Error getting AI %s action: %s", player.role.name, e)
+				logger.exception("Error getting AI %s action: %s", player.role_or_die.name, e)
 
 class SpecialActionButton(discord.ui.Button):
 	def __init__(self, role: Role):
@@ -589,7 +617,8 @@ class SpecialActionButton(discord.ui.Button):
 		self.role = role
 
 	async def callback(self, interaction: discord.Interaction):
-		view: SpecialActionsView = self.view  # type: ignore
+		view = self.view 
+		assert isinstance(view, SpecialActionsView)
 		if interaction.user.id not in [p.user.id for p in view.players if p.role == self.role]:
 			await interaction.response.send_message("Not for you.", ephemeral=True)
 			return

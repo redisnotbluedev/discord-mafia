@@ -4,6 +4,7 @@ from discord.ext import commands
 from discord import app_commands
 import discord, json, os
 from classes.player import AIAbstraction
+from main import BotWithAbstractors
 
 class GamesCog(commands.Cog):
 	"""Slash commands for managing active game lobbies.
@@ -12,8 +13,8 @@ class GamesCog(commands.Cog):
 	10 Llama 4 players), and /stop (end the current game after this round).
 	"""
 
-	def __init__(self, bot: commands.Bot):
-		self.bot: commands.Bot = bot
+	def __init__(self, bot: BotWithAbstractors):
+		self.bot: BotWithAbstractors = bot
 
 	@app_commands.command(name="kick", description="Kick a player from this game.")
 	async def kick(self, interaction: discord.Interaction, player: discord.User):
@@ -27,7 +28,9 @@ class GamesCog(commands.Cog):
 			await interaction.response.send_message("You can't kick yourself.", ephemeral=True)
 			return
 
-		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
+		channel = interaction.channel
+		assert channel is not None
+		abstractor = next((a for a in self.bot.abstractors if a.channel == channel.id), None)
 		if abstractor:
 			if abstractor.owner == interaction.user:
 				if player.id in abstractor.players:
@@ -56,7 +59,9 @@ class GamesCog(commands.Cog):
 
 		If it initializes a new game, it does not start that game.
 		"""
-		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
+		channel = interaction.channel
+		assert channel is not None
+		abstractor = next((a for a in self.bot.abstractors if a.channel == channel.id), None)
 		if not abstractor or not abstractor.running:
 			await interaction.response.send_message("There's no lobby active in this channel. Send a message to create one.", ephemeral=True)
 			return
@@ -119,14 +124,21 @@ class GamesCog(commands.Cog):
 		in the current channel, the bot replies with an error message instead
 		of stopping the game.
 		"""
-		abstractor = next((a for a in self.bot.abstractors if a.channel == interaction.channel.id), None)
+		channel = interaction.channel
+		assert channel is not None
+		abstractor = next((a for a in self.bot.abstractors if a.channel == channel.id), None)
 		if not abstractor or not abstractor.running:
 			await interaction.response.send_message("There's no lobby active in this channel. Send a message to create one.", ephemeral=True)
 			return
 
-		if str(interaction.user.id) not in os.getenv("ADMIN_USERS").split(",") + [abstractor.owner.id]:
+		admin_users = os.getenv("ADMIN_USERS")
+		assert admin_users is not None
+		assert abstractor.owner is not None
+
+		if str(interaction.user.id) not in admin_users.split(",") + [abstractor.owner.id]:
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Owner, Admins", ephemeral=True)
 			return
 
+		assert abstractor.game is not None
 		abstractor.game.running = False
 		await interaction.response.send_message("The game will finish after this round.", ephemeral=True)
