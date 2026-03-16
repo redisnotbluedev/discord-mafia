@@ -315,7 +315,7 @@ class SettingsView(discord.ui.View):
 				enabled = self.config.get(f"role_{role.name}", role.name in ["Doctor", "Sheriff"])  # Default Doctor and Sheriff enabled
 				self.config[f"role_{role.name}"] = enabled
 
-	async def render(self, interaction: discord.Interaction=None):
+	async def render(self, interaction: discord.Interaction | None=None):
 		"""Recalculate all settings UI state and update the message.
 
 		Ensures town + mafia = total players, enforces mafia <= town,

@@ -9,7 +9,7 @@ not in the Role instances themselves.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING, Literal, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, TypedDict 
 
 import discord
 
@@ -191,7 +191,7 @@ class SelectRole(Role):
 
 		# PYREX NOTE: It's not clear, but the previous data types in this code
 		# imply that this is probably the implicit cast that was meant
-		data = cast(SelectMessageComponentInteractionData, interaction.data)
+		data: SelectMessageComponentInteractionData = interaction.data  # type: ignore
 		selection = data['values'][0]
 		if selection == "abstain":
 			await interaction.response.edit_message(content=f"You chose to abstain.", view=None)
@@ -313,7 +313,7 @@ class InvestigateRole(SelectRole):
 		specifically binds to `SelectRole.on_selected` via a lambda.
 		"""
 		# PYREX NOTE: This is, again, the type implied by the use site!
-		data = cast(SelectMessageComponentInteractionData, interaction.data)
+		data: SelectMessageComponentInteractionData = interaction.data  # type: ignore
 		selection = data['values'][0]
 		user = options[int(selection)]
 		await self.handle_selection(game, player, user)
