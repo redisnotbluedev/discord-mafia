@@ -19,6 +19,48 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+# --== Helper functions ==--
+
+def extract_choice(content: str, options: list[str]) -> str | None:
+	"""Find the first option in the list that is in the content.
+
+	Used to parse AI vote responses, which may contain extra text around
+	the chosen option.  Matching is case-insensitive. If no option is
+	matched, returns None.
+
+	Options are checked strictly in the order they appear in `options`,
+	regardless of where they may be found in `content`. Therefore, an
+	option can be "shadowed" if one of its substrings is present in the
+	list at an earlier point.
+
+	Args:
+		content: Text to search for an option in. Typically an AI response.
+		options: Valid option names (e.g. player names or 'Abstain').
+
+	Returns:
+		The first matching option name (original casing), or None if
+		no option was found in the content.
+	"""
+	if not content:
+		return None
+	# Copy sorted in longest-first order
+	opt_copy = sorted(options, key=lambda op:-len(op))
+	best = None
+	best_start = 0
+	content_folded = content.casefold()
+	for opt in opt_copy:
+		idx = content_folded.rfind(opt.casefold(), best_start)
+		if idx != -1:
+			if (best is not None) and (len(best) - len(opt) >= idx - best_start):
+				# The new (shorter) match is inside our best match.
+				# Ignore it.
+				continue
+			best = opt
+			best_start = idx
+	return best
+
+# --== TurnManager ==--
+
 class TurnManager:
 	"""Manages turn-taking, AI completions, and voting for a single game.
 
@@ -139,33 +181,6 @@ class TurnManager:
 			msg = f"**{player.name}** failed to respond. If this happens again, they will be removed from the game."
 			await self.channel.send(msg)
 			self.broadcast(msg)
-
-	def extract_choice(self, content: str, options: list[str]) -> str | None:
-		"""Find the first option in the list that is in the content.
-
-		Used to parse AI vote responses, which may contain extra text around
-		the chosen option.  Matching is case-insensitive. If no option is
-		matched, returns None.
-
-		Options are checked strictly in the order they appear in `options`,
-		regardless of where they may be found in `content`. Therefore, an
-		option can be "shadowed" if one of its substrings is present in the
-		list at an earlier point.
-
-		Args:
-			content: Text to search for an option in. Typically an AI response.
-			options: Valid option names (e.g. player names or 'Abstain').
-
-		Returns:
-			The first matching option name (original casing), or None if
-			no option was found in the content.
-		"""
-		if not content:
-			return None
-		for opt in options:
-			if opt.lower() in content.lower():
-				return opt
-		return None
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
 		"""Build initial OpenAI message histories for all AI players.
@@ -770,7 +785,7 @@ Message: '{text}'"""}
 					timeout=min(timeout_s, 60.0)
 				)
 				content = self._clean_ai_content(response.choices[0].message.content or "")
-				choice = self.extract_choice(content, candidate_names)
+				choice = extract_choice(content, candidate_names)
 
 				if not choice:
 					choice = random.choice(candidate_names)
