@@ -181,7 +181,7 @@ class TurnManager:
 			Dict mapping each AIAbstraction to a list containing one system
 			message.  Human players are excluded.
 		"""
-		from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
+		from classes.roles import ALL_ROLES
 		context = {}
 		role_counts = {}
 		player_list = "\n  - ".join([p.name for p in participants])
@@ -201,12 +201,7 @@ You are {p.role_or_die.describe()}
 Players:
 {player_list}
 
-There are {[len(participants)]} players:
-  - {role_counts.get(TOWN, 0)} town
-  - {role_counts.get(MAFIA, 0)} Mafia
-  - {role_counts.get(DOCTOR, 0)} doctor
-  - {role_counts.get(SHERIFF, 0)} sheriff
-  - {role_counts.get(VIGILANTE, 0)} vigilante
+There are {[len(participants)]} players: {"\n".join(f"  - {role_counts.get(role, 0)} {role.name.lower()}" for role in ALL_ROLES)}
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
@@ -226,7 +221,7 @@ CRITICAL FORMAT RULES
 
 	def set_context(self, context: dict[AIAbstraction, list]):
 		"""Replace the AI context histories.
-		
+
 		As of 2026-03-15, this was unused.
 		"""
 		self.context = context
@@ -249,7 +244,7 @@ CRITICAL FORMAT RULES
 
 	def get_context(self):
 		"""Return the full AI context dict.
-		
+
 		As of 2026-03-15, this was unused.
 		"""
 		return self.context

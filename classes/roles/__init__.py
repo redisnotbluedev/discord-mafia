@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 	# not a public interface, because discord.py is a great library
 	#
 	# However -- the relevant type is st ill part of the public interface
-	# So, I still think we should import this because I think we deeply want 
+	# So, I still think we should import this because I think we deeply want
 	# an explicit compile failure if they (for some ungodly reason) change this
 	#
 	# (https://github.com/Rapptz/discord.py/issues/9653#issuecomment-1822374218)
@@ -42,7 +42,7 @@ NEUTRAL = Alignment.NEUTRAL
 
 class ButtonInfo(TypedDict):
 	label: str
-	emoji: str 
+	emoji: str
 
 
 class Role:
@@ -114,7 +114,7 @@ class Role:
 
 	def can_act(self, player: "Player") -> bool:
 		"""Return whether this player can use their special action, if any.
-		
+
 		Used to identify whether a player has skipped their turn
 		because they had no action available. A player who repeatedly
 		skips for *no* good reason will eventually be modkilled.
@@ -209,7 +209,7 @@ class SelectRole(Role):
 
 	async def handle_selection(self, game: "MafiaGame", player: "Player", user: "Player") -> None:
 		"""Apply the role's effect to the chosen target.  Override in subclasses.
-		
+
 		Common path between on_selected and night_action_ai.
 		"""
 		pass
@@ -304,7 +304,7 @@ class InvestigateRole(SelectRole):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
 	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
-	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]") -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]") -> None:  # type: ignore[reportIncompatibleMethodOverride] # <- Sorry if this breaks anyone's type checking, I'm not using Pyright
 		"""Handle the human player's target selection from the select menu.
 
 		The prototype of this function is incompatible with
