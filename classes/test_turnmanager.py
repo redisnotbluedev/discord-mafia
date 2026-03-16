@@ -34,6 +34,8 @@ class TestExtractChoice(unittest.TestCase):
         self.assertEqual(extract_choice("Bananana", options), "Nanana")
         self.assertEqual(extract_choice("Banananan", options), "Anan")
         self.assertEqual(extract_choice("Banananabananbana", options), "Ana")
+        self.assertEqual(extract_choice("Banananabananbanan", options), "Anan")
+        self.assertEqual(extract_choice("Banananabananbanana", options), "Banana")
 
 if __name__ == "__main__":
     unittest.main()
