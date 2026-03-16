@@ -8,10 +8,8 @@ export PYTHONPATH=$PYTHONPATH:$here
 
 echo "Finding and running Python unit tests..."
 
-# Use python3's unittest discovery.
-# -s . : Start discovery from the current directory.
-# -p "*_test.py" : Pattern for test files.
-python3 -m unittest discover -s $here
+# Use pytest for test discovery and execution.
+pytest $here
 
 exit_code=$?
 
