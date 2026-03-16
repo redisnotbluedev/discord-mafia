@@ -22,24 +22,27 @@ logger = logging.getLogger(__name__)
 # --== Helper functions ==--
 
 def extract_choice(content: str, options: list[str]) -> str | None:
-	"""Find the first option in the list that is in the content.
+	"""Find the option in the list that is closest to the end of content.
 
 	Used to parse AI vote responses, which may contain extra text around
 	the chosen option.  Matching is case-insensitive. If no option is
 	matched, returns None.
 
-	Options are checked strictly in the order they appear in `options`,
-	regardless of where they may be found in `content`. Therefore, an
-	option can be "shadowed" if one of its substrings is present in the
-	list at an earlier point.
+	Assumes that in an unexpectedly wordy response, it should take the
+	furthest-forward option as the intended choice. People verbosely
+	dithering on about a decision usually put their conclusion last, so
+	this seems like an okay heuristic.
+
+	If some options are substrings of other options, this method avoids
+	matching an option that is better explained by a longer option.
 
 	Args:
 		content: Text to search for an option in. Typically an AI response.
 		options: Valid option names (e.g. player names or 'Abstain').
 
 	Returns:
-		The first matching option name (original casing), or None if
-		no option was found in the content.
+		The matching option name furthest forward in the string (original
+		casing), or None if no option was found in the content.
 	"""
 	if not content:
 		return None

@@ -19,5 +19,21 @@ class TestExtractChoice(unittest.TestCase):
         self.assertEqual(extract_choice("I am voting for Johnette", options), "Johnette")
         self.assertEqual(extract_choice("john owes me fifty bucks its him", options), "John")
 
+        # Check late overlaps
+        options = ["John", "Bob", "John Bob"]
+        self.assertEqual(extract_choice("John Bob", options), "John Bob")
+        self.assertEqual(extract_choice("I am voting for John", options), "John")
+        self.assertEqual(extract_choice("john owes me fifty bucks its him", options), "John")
+
+        # Weird partial overlap cases
+        options = ["Banana", "Nanana", "Nan", "Anan"]
+        self.assertEqual(extract_choice("Banana", options), "Banana")
+        self.assertEqual(extract_choice("Nanana", options), "Nanana")
+        self.assertEqual(extract_choice("Nan", options), "Nan")
+        self.assertEqual(extract_choice("Anan", options), "Anan")
+        self.assertEqual(extract_choice("Bananana", options), "Nanana")
+        self.assertEqual(extract_choice("Banananan", options), "Anan")
+        self.assertEqual(extract_choice("Banananabananbana", options), "Ana")
+
 if __name__ == "__main__":
     unittest.main()
