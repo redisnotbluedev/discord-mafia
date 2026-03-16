@@ -26,11 +26,13 @@ class TestExtractChoice(unittest.TestCase):
         self.assertEqual(extract_choice("john owes me fifty bucks its him", options), "John")
 
         # Weird partial overlap cases
-        options = ["Banana", "Nanana", "Nan", "Anan"]
+        options = ["Banana", "Nanana", "Nan", "Anan", "Ana"]
         self.assertEqual(extract_choice("Banana", options), "Banana")
         self.assertEqual(extract_choice("Nanana", options), "Nanana")
         self.assertEqual(extract_choice("Nan", options), "Nan")
         self.assertEqual(extract_choice("Anan", options), "Anan")
+        self.assertEqual(extract_choice("Ana", options), "Ana")
+        self.assertEqual(extract_choice("An", options), None)
         self.assertEqual(extract_choice("Bananana", options), "Nanana")
         self.assertEqual(extract_choice("Banananan", options), "Anan")
         self.assertEqual(extract_choice("Banananabananbana", options), "Ana")
