@@ -1,21 +1,84 @@
-from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
+"""Turn management for Mafia game discussions and votes.
+
+This module contains TurnManager, the central type for advancing the
+state of the game.  It orchestrates:
+
+- **Discussion rounds**: speaker ordering with an LLM-driven priority queue
+  that analyses each message to decide who should respond next.
+- **Voting**: parallel AI + human voting via Discord select menus, with
+  timeouts and automatic failure tracking (modkill after two failures).
+- **AI context**: maintains per-AI-player chat history and sends completions
+  via the OpenAI SDK.
+- **Human turns**: grants and revokes Discord send-message permissions to
+  enforce turn-taking for human players equivalent to AI players.
+"""
+
 from classes.player import Player, AIAbstraction
-from classes.views import VoteView
 import discord, random, asyncio, logging, data, json, re
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
 class TurnManager:
+	"""Manages turn-taking, AI completions, and voting for a single game.
+
+	A TurnManager is created once per game by MafiaGame.run().  The game
+	switches its channel and participant list between phases (e.g. main
+	channel for day discussion, mafia thread for night kills) via
+	set_channel() and set_participants().
+
+	Key state:
+		context: Per-AI-player OpenAI message history (system prompt +
+			conversation).  Keyed by AIAbstraction instance, values are
+			lists of message dicts.
+		player_failures: Failure count per player.  Two failures = modkill.
+		webhook: If configured, AI messages are sent via webhook (allowing
+			custom name/avatar).  Otherwise they fall back to plain bold text.
+		required_author: Discord user ID of the human whose turn it
+			currently is, or -1 if no human turn is active.  Used by
+			on_message() to filter incoming messages.
+	"""
 	def _clean_ai_content(self, content: str) -> str:
+		"""Strip chain-of-thought <think> content from AI responses.
+
+		Some models (notably DeepSeek R1) wrap internal reasoning in
+		<think>...</think> tags.  This strips those blocks so only the
+		public-facing text remains.
+
+		Args:
+			content: Raw completion text from the AI model.
+
+		Returns:
+			Cleaned text with think blocks removed and whitespace trimmed,
+			or an empty string if content was falsy.
+		"""
 		if not content:
 			return ""
 		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
 		return content.strip()
 
-	def __init__(self, participants: list[Player], channel: discord.abc.Messageable, bot: discord.Client, client: AsyncOpenAI = None):
+	def __init__(self, participants: list[Player], channel: discord.TextChannel | discord.Thread, bot: discord.Client, client: AsyncOpenAI | None = None):
+		"""Initialize the turn manager for a new game.
+
+		Loads the channel's webhook URL from data.json (if configured during
+		/setup) and builds initial AI context (system prompts) for every AI
+		participant.
+
+		Args:
+			participants: All players in the game (human and AI).
+			channel: The Discord channel to send messages in.
+			bot: The Discord bot client, used for webhook construction and
+				channel permission management.
+			client: OpenAI-compatible async client.  Defaults to a new
+				AsyncOpenAI() instance using OPENAI_API_KEY / OPENAI_BASE_URL
+				from the environment.
+
+		Side effects:
+			Reads data.json (via data.load()) to look up the webhook URL.
+			Reads models.json to get the discussion_analyser model name.
+		"""
 		self.participants = participants
-		self.channel = channel
+		self.channel: discord.TextChannel | discord.Thread = channel
 		self.client = client or AsyncOpenAI()
 		config = data.load()
 		self.bot = bot
@@ -40,7 +103,23 @@ class TurnManager:
 		with open("models.json") as f:
 			self.DISCUSSION_ANALYSER = json.load(f)["discussion_analyser"]
 
-	async def handle_player_failure(self, player: Player, message: discord.Message = None):
+	async def handle_player_failure(self, player: Player, message: discord.Message | None = None):
+		"""Record a player's failure to respond and apply escalating penalties.
+
+		First failure: sends a warning to the channel (human players only;
+		AI failures are silent).  Second consecutive failure: the player is
+		modkilled (marked dead with death_reason='modkill').
+
+		Args:
+			player: The player who failed to respond.
+			message: Optional Discord message to delete (e.g. the 'it's your
+				turn' prompt).  Deletion errors are silently swallowed.
+
+		Side effects:
+			Increments player_failures[player.user].
+			May set player.alive = False and player.death_reason.
+			Broadcasts the failure/modkill message to all AI contexts.
+		"""
 		user = player.user
 		self.player_failures[user] = self.player_failures.get(user, 0) + 1
 
@@ -62,6 +141,25 @@ class TurnManager:
 			self.broadcast(msg)
 
 	def extract_choice(self, content: str, options: list[str]) -> str | None:
+		"""Find the first option in the list that is in the content.
+
+		Used to parse AI vote responses, which may contain extra text around
+		the chosen option.  Matching is case-insensitive. If no option is
+		matched, returns None.
+
+		Options are checked strictly in the order they appear in `options`,
+		regardless of where they may be found in `content`. Therefore, an
+		option can be "shadowed" if one of its substrings is present in the
+		list at an earlier point.
+
+		Args:
+			content: Text to search for an option in. Typically an AI response.
+			options: Valid option names (e.g. player names or 'Abstain').
+
+		Returns:
+			The first matching option name (original casing), or None if
+			no option was found in the content.
+		"""
 		if not content:
 			return None
 		for opt in options:
@@ -70,6 +168,20 @@ class TurnManager:
 		return None
 
 	def _initialize_ai_context(self, participants: list[Player]) -> dict[AIAbstraction, list]:
+		"""Build initial OpenAI message histories for all AI players.
+
+		Creates a system prompt for each AI participant containing a brief
+		rules blurb, their role, the player list, role distribution counts,
+		and behavioral rules.
+
+		Args:
+			participants: All players in the game.
+
+		Returns:
+			Dict mapping each AIAbstraction to a list containing one system
+			message.  Human players are excluded.
+		"""
+		from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE
 		context = {}
 		role_counts = {}
 		player_list = "\n  - ".join([p.name for p in participants])
@@ -84,7 +196,7 @@ class TurnManager:
 						"content": f"""Your name is {p.user.name}. You are playing a social-deduction game of Mafia.
 Your win condition and role is printed below. Achieve it by any means necessary, including deception if you are Mafia.
 
-You are {p.role.describe()}
+You are {p.role_or_die.describe()}
 
 Players:
 {player_list}
@@ -104,24 +216,59 @@ CRITICAL FORMAT RULES
 				]
 		return context
 
-	def set_channel(self, channel: discord.abc.Messageable):
+	def set_channel(self, channel: discord.TextChannel | discord.Thread):
+		"""Switch the channel this TurnManager sends messages to."""
 		self.channel = channel
 
 	def set_participants(self, participants: list[Player]):
+		"""Replace the active participant list (e.g. when switching phases)."""
 		self.participants = participants
 
 	def set_context(self, context: dict[AIAbstraction, list]):
+		"""Replace the AI context histories.
+		
+		As of 2026-03-15, this was unused.
+		"""
 		self.context = context
 
-	def broadcast(self, text, exclude: Player = None):
+	def broadcast(self, text: str, exclude: Player | None = None):
+		"""Append a 'user' message to every AI player's context.
+
+		This is how AI players 'hear' what happens in the game: announcements,
+		other players' speech, vote results, etc.  The text is not sent to
+		Discord; it only updates the in-memory context used for completions.
+
+		Args:
+			text: The message content to add.
+			exclude: A player to skip (typically the speaker, so they don't
+				'hear' their own message as if someone else said it).
+		"""
 		for player in self.participants:
 			if player != exclude and isinstance(player.user, AIAbstraction):
 				self.context.setdefault(player.user, []).append({"role": "user", "content": text})
 
 	def get_context(self):
+		"""Return the full AI context dict.
+		
+		As of 2026-03-15, this was unused.
+		"""
 		return self.context
 
 	def _candidate_by_name(self, candidates: list[Player], name: str) -> Player | None:
+		"""Find a player by name using progressively looser matching.
+
+		Tries three strategies in order:
+			1. Exact match (case-insensitive)
+			2. Word-boundary match (e.g. 'Qwen' matches 'Qwen 3')
+			3. Substring containment (e.g. 'hat' matches 'ChatGPT 4o')
+
+		Args:
+			candidates: Players to search through.
+			name: The name to look for.
+
+		Returns:
+			The first matching Player, or None if no match was found.
+		"""
 		name = (name or "").strip().lower()
 		if not name:
 			return None
@@ -144,6 +291,19 @@ CRITICAL FORMAT RULES
 		return None
 
 	def _format_vote_details(self, votes: dict[int, str], candidates: list[Player], voter_names: dict[int, str], allow_abstain: bool = False) -> str:
+		"""Format the current vote tally as a natural language string.
+
+		Args:
+			votes: Mapping of voter ID (user ID or name hash) to chosen name.
+			candidates: The players being voted on.
+			voter_names: Mapping of voter ID to display name.
+			allow_abstain: If True, includes 'Abstain' votes in the output.
+
+		Returns:
+			A newline-separated string like
+			'- PlayerName: Voter1, Voter2 (2)', or 'No votes yet.'
+			if no votes have been cast.
+		"""
 		from collections import defaultdict
 		vote_details = defaultdict(list)
 		for vid, choice in votes.items():
@@ -165,7 +325,38 @@ CRITICAL FORMAT RULES
 		return "\n".join(lines)
 
 	async def run_round(self, analyse=False, rounds=None):
-		player: Player
+		"""Run a discussion round where players take turns speaking.
+
+		This is the core discussion loop, used for both day discussion (with
+		LLM-driven speaker analysis) and mafia night chat (simple round-robin).
+
+		Speaker selection varies by mode:
+			analyse=False (night/mafia chat): simple round-robin through alive
+				participants, shuffled at the start.
+			analyse=True (day discussion): uses an LLM-based priority queue.
+				After each speech, get_next_speaker() identifies mentioned
+				players and assigns priority levels (COUNTERCLAIM > ACCUSED >
+				ASKED > ROLE).  Players who haven't spoken yet get priority,
+				and a monopoly penalty prevents any player from dominating.
+
+		For human players, their send-message permission is temporarily
+		granted, they get a 3-minute timeout, and permission is revoked
+		afterward.  For AI players, a completion is requested via the
+		OpenAI SDK.
+
+		Args:
+			analyse: If True, use LLM-based speaker ordering (day discussion).
+				If False, use simple round-robin (mafia night chat).
+			rounds: Number of speaking turns.  Defaults to
+				int(alive_participants * 1.5).
+
+		Side effects:
+			Sends messages to Discord (speech, turn prompts).
+			Grants/revokes channel permissions for human players.
+			Updates AI contexts via broadcast().
+			May modkill players who fail to respond.
+		"""
+		player: Player | None = None
 		spoken = set()
 		speech_counts = {}
 		# list of (Player, priority_level, turn_added)
@@ -238,7 +429,9 @@ CRITICAL FORMAT RULES
 				timeout_at = int(__import__("time").time() + 180)
 				status_msg = await self.channel.send(f"> {player.user.mention}, it's your turn to speak! Ends <t:{timeout_at}:R>.")
 				if isinstance(self.channel, discord.Thread):
-					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+					channel = self.bot.get_channel(self.channel.parent_id)
+					assert isinstance(channel, discord.TextChannel)
+					await channel.set_permissions(
 						player.user,
 						send_messages_in_threads=True
 					)
@@ -250,6 +443,12 @@ CRITICAL FORMAT RULES
 
 				self.required_author = player.user.id
 				try:
+					# message_queue is defined in __init__ and populated in
+					# on_message. required_author filters which messages
+					# on_message will accept. If multiple messages somehow come
+					# in before message_queue returns, this will just grab the
+					# first one, and a subsequent message may be ascribed as
+					# the _next_ player's message, which could be awkward.
 					msg = await asyncio.wait_for(self.message_queue.get(), timeout=180.0)
 					text = msg.content or ""
 					self.player_failures[player.user] = 0
@@ -259,7 +458,9 @@ CRITICAL FORMAT RULES
 					spoken.add(player)
 					speech_counts[player] = speech_counts.get(player, 0) + 1
 					if isinstance(self.channel, discord.Thread):
-						await self.bot.get_channel(self.channel.parent_id).set_permissions(
+						channel = self.bot.get_channel(self.channel.parent_id)
+						assert isinstance(channel, discord.TextChannel)
+						await channel.set_permissions(
 							player.user,
 							send_messages_in_threads=None
 						)
@@ -276,7 +477,9 @@ CRITICAL FORMAT RULES
 				self.required_author = -1
 
 				if isinstance(self.channel, discord.Thread):
-					await self.bot.get_channel(self.channel.parent_id).set_permissions(
+					channel = self.bot.get_channel(self.channel.parent_id)
+					assert isinstance(channel, discord.TextChannel)
+					await channel.set_permissions(
 						player.user,
 						send_messages_in_threads=None
 					)
@@ -362,6 +565,30 @@ CRITICAL FORMAT RULES
 			_ += 1
 
 	async def get_next_speaker(self, text: str, speaker: Player) -> list[tuple[Player, int]]:
+		"""Use an LLM to identify which players were mentioned in a message.
+
+		Despite the method name, this does not make any final determination of
+		who speaks next.
+
+		Sends the message text and list of alive players to the discussion
+		analyser model, which returns a structured list of mentioned players
+		and their priority levels.
+
+		Priority levels (lower = more urgent):
+			0 = COUNTERCLAIM (someone needs to counter a role claim)
+			1 = ACCUSED (directly accused of being mafia)
+			2 = ASKED (target of a question)
+			3 = ROLE (mentioned in relation to a role)
+			4 = CASUAL (mentioned in passing)
+
+		Args:
+			text: The message that was just spoken.
+			speaker: The player who spoke (excluded from results).
+
+		Returns:
+			List of (Player, priority_level) tuples, sorted by priority.
+			Empty list if the LLM returns NONE or an error occurs.
+		"""
 		try:
 			response = await self.client.chat.completions.create(
 				messages=[
@@ -421,7 +648,9 @@ Message: '{text}'"""}
 		except Exception as exc:
 			logger.error("OpenAI completion failed for model %s during speaker analysis: %s", self.DISCUSSION_ANALYSER, exc)
 			return []
-		raw = response.choices[0].message.content.strip()
+		choice = response.choices[0].message.content
+		assert isinstance(choice, str)
+		raw = choice.strip()
 
 		alive_participants = [p for p in self.participants if p.alive]
 		if not alive_participants:
@@ -448,6 +677,36 @@ Message: '{text}'"""}
 		return next_players
 
 	async def run_vote(self, candidates: list[Player], message, placeholder="Vote for a player...", emoji="🗳️", timeout_s=120.0, break_ties_random=False, allow_abstain=False, require_majority=False):
+		"""Run a vote where all players (human + AI) vote in parallel.
+
+		Human players vote via a Discord select menu (VoteView); AI players
+		vote via LLM completions.  The vote tally is live-updated in a
+		single Discord message as votes come in.
+
+		Args:
+			candidates: Players who can be voted for.
+			message: Text displayed above the vote (e.g. 'Who should be eliminated?').
+			placeholder: Placeholder text in the select menu.
+			emoji: Emoji shown on the select menu.
+			timeout_s: Seconds before voting closes.  AI votes are also
+				capped at min(timeout_s, 60) to avoid blocking.
+			break_ties_random: If True, randomly pick among tied winners.
+			allow_abstain: If True, adds an 'Abstain' option.  If abstain
+				votes tie or beat all other options, returns None.
+			require_majority: If True, the winner must have >50%% of total
+				participants to win.  Otherwise returns None.
+
+		Returns:
+			The Player who won the vote, or None if there was a tie (and
+			break_ties_random is False), no votes, abstention won, or the
+			majority threshold was not met.
+
+		Side effects:
+			Sends and edits a Discord message with the live vote tally.
+			Updates AI contexts with vote prompts and responses.
+			Tracks player failures for humans who don't vote in time.
+		"""
+		from classes.views import VoteView
 		votes: dict[int, str] = {}
 
 		voter_names = {}
@@ -496,6 +755,7 @@ Message: '{text}'"""}
 				options_block
 			])
 
+			assert isinstance(ai_player.user, AIAbstraction)
 			self.context.setdefault(ai_player.user, []).append({
 				"role": "user",
 				"content": prompt
@@ -597,7 +857,26 @@ Message: '{text}'"""}
 		return self._candidate_by_name(candidates, winners[0])
 
 	async def create_ai_completion(self, ai_player: Player, prompt: str) -> str:
-		"""Create a completion for an AI player and update their context."""
+		"""Send a prompt to an AI player's model and return the response.
+
+		Appends the prompt as a 'user' message to the player's context,
+		requests a completion, and appends the response as an 'assistant'
+		message.  Used for night actions (e.g. 'Who do you want to kill?').
+
+		Args:
+			ai_player: The AI player to prompt.
+			prompt: The prompt text (e.g. a night action question).
+
+		Returns:
+			The cleaned response text, or an empty string if the completion
+			failed or returned nothing (in which case handle_player_failure
+			is called).
+
+		Side effects:
+			If no response is received, this calls `self.handle_player_failure`,
+			which may modkill the player.
+		"""
+		assert isinstance(ai_player.user, AIAbstraction)
 		messages = self.context.setdefault(ai_player.user, [])
 		messages.append({"role": "user", "content": prompt})
 
@@ -621,6 +900,13 @@ Message: '{text}'"""}
 		return content
 
 	async def on_message(self, message: discord.Message):
+		"""Route an incoming Discord message to the queue consumed by run_round.
+
+		Called by the bot's on_message handler.  If the message author
+		matches required_author (set during a human turn in run_round),
+		the message is placed on the queue for run_round to consume.
+		Otherwise the message is silently ignored.
+		"""
 		logger.debug(f"Got message '{message.content}' from {message.author.id}, required author is {self.required_author}.")
 		if message.author.id == self.required_author and message.content:
 			await self.message_queue.put(message)

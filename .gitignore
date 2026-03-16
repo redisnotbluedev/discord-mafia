@@ -9,3 +9,5 @@ venv/*
 .python-version
 
 .local/*
+
+games_ongoing.txt

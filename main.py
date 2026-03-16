@@ -12,9 +12,6 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from classes.abstractor import GameAbstractor
-from cogs.moderation import ModerationCog
-from cogs.info import InfoCog
-from cogs.games import GamesCog
 from logging_utils import WebhookLoggingHandler
 
 load_dotenv()
@@ -23,7 +20,13 @@ config = data.load()
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="", intents=intents)
+
+class BotWithAbstractors(commands.Bot):
+	def __init__(self):
+		super().__init__(command_prefix="", intents=intents)
+		self.abstractors: list[GameAbstractor] = []
+
+bot = BotWithAbstractors()
 logger = logging.getLogger(__name__)
 
 bot.abstractors = []
@@ -53,6 +56,10 @@ async def on_ready():
 @bot.event
 async def setup_hook():
 	"""Register cogs and sync slash commands on bot startup."""
+	from cogs.moderation import ModerationCog
+	from cogs.info import InfoCog
+	from cogs.games import GamesCog
+
 	await bot.add_cog(ModerationCog(bot))
 	await bot.add_cog(InfoCog(bot))
 	await bot.add_cog(GamesCog(bot))
@@ -91,4 +98,5 @@ async def on_message(message: discord.Message):
 
 if __name__ == "__main__":
 	TOKEN = os.getenv("TOKEN")
+	assert TOKEN is not None
 	bot.run(TOKEN, root_logger=True)

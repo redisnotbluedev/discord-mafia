@@ -197,8 +197,39 @@ docker volume rm mafia-data
 
 ## 8. Set Up a Discord Channel
 
-Once the bot is running and invited to your server:
+Once the bot is running and invited to your server, do one last check of its permissions. If the channel is private, you'll likely need to set up some overrides.  (or a role) 
+
+Your ultimate goal is for the bot to manifest these privileges on the channel you are interested in:
+
+- View Channel
+- Manage Channel
+- Manage Permissions
+- Send Messages
+- Send Messages in Threads
+- Create Public Threads
+- Create Private Threads
+- Manage Threads
+
+## 9. Ask The Bot to Install Itself
 
 1. Use the `/setup` command in the channel where you want games to run
-2. The bot will create a webhook and a "Mafia Player" role automatically
+2. The bot will create a "Mafia Player" role automatically
 3. Send any message in the channel to trigger the lobby embed
+
+The exact effects of Setup appear to be:
+
+- The bot edits its channel overrides (in various ways that should be noops but probably aren't)
+- The bot creates the Mafia Player role, which is used for players who are currently in a game of mafia.
+- The bot waits for a message to be sent -- when it is, it blocks off the channel and creates a view advertising the game
+
+## 10. Start a Game
+
+The bot defers some setup steps until game start, at which time:
+
+- It explicitly blocks everyone except a selected player from posting in the channel.
+- It replaces its channel permission overrides to match the above.
+- It creates a webhook which it will use to talk to Discord.
+- It creates Mafia Private Chat for the game.
+- It adds every player to the Mafia Player role.
+
+In theory, players should stop being Mafia Players when the game ends. (In practice, it's unclear that this works.)

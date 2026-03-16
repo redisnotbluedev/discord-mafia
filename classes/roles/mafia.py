@@ -12,7 +12,7 @@ class Mafia(KillRole):
 		super().__init__("Mafia", Alignment.MAFIA, 'a **Mafia**.\n> Your goal is to eliminate all members of the Town. Work with your fellow Mafia members to choose a target each night and avoid suspicion during the day.', 'Can kill one player each night with their team.', skippable=skippable)
 		self.emoji = "🔪"
 
-	def is_special(self):
+	def is_special(self) -> bool:
 		return False
 
 MAFIA = Mafia()

@@ -5,8 +5,8 @@ condition checks, and coordination between discussion, voting,
 and special actions.
 """
 
-from classes.roles import MAFIA, Alignment
 from classes.player import Player, AIAbstraction
+from classes.scheduler import MafiaSchedulerConfig
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import AsyncOpenAI
@@ -34,7 +34,7 @@ class MafiaGame():
 		turns: TurnManager instance (created on first run).
 	"""
 
-	def __init__(self, abstractor, scheduler):
+	def __init__(self, abstractor, scheduler, config: MafiaSchedulerConfig):
 		"""Initialize a new game.
 
 		Args:
@@ -45,12 +45,12 @@ class MafiaGame():
 		self.players = []
 		self.day_number = 0
 		self.night_actions = {}
-		self.config = {}
-		self.channel: discord.Channel = None   # todo
-		self.mafia_chat: discord.Thread = None # todo
+		self.config = config
+		self.channel: discord.TextChannel | None = None   # todo
+		self.mafia_chat: discord.Thread | None = None # todo
 		self.running = False
 
-		self.turns: TurnManager = None
+		self.turns: TurnManager | None = None
 		self.bot: discord.Client = abstractor.bot
 		self.generator: AsyncOpenAI = AsyncOpenAI()
 		self.scheduler = scheduler
@@ -71,6 +71,7 @@ class MafiaGame():
 			game is still going.  Returns 'No one' if the game isn't
 			running at all.
 		"""
+		from classes.roles import Alignment
 		if not self.running:
 			return "No one"
 
@@ -80,7 +81,7 @@ class MafiaGame():
 			if player.role.win_condition(player, self.players):
 				return player.role.name
 
-		mafia_alive = sum(1 for p in players_alive if p.role.alignment == Alignment.MAFIA)
+		mafia_alive = sum(1 for p in players_alive if p.role_or_die.alignment == Alignment.MAFIA)
 		town_alive = len(players_alive) - mafia_alive
 
 		if mafia_alive == 0:
@@ -99,6 +100,7 @@ class MafiaGame():
 		Returns:
 			The name of the winning faction/role (str).
 		"""
+		assert self.channel is not None
 		self.running = True
 		self.turns = TurnManager(
 			self.players,
@@ -138,20 +140,21 @@ class MafiaGame():
 			Modifies player alive/death_reason state.
 			Clears self.night_actions after resolution.
 		"""
+		assert self.channel is not None
 		await self.channel.send(f"**Night {self.day_number} falls...**")
 		alive_players = self.get_alive_players()
 
-		special_players = [p for p in alive_players if p.role.is_special()]
+		special_players = [p for p in alive_players if p.role_or_die.is_special()]
 
-		roles = list(set(p.role.name for p in special_players))
+		roles = list(set(p.role_or_die.name for p in special_players))
 
 		tasks = [self.mafia_choose_target()]
 
-		actions_view = SpecialActionsView(alive_players)
-		actions_view.turn_manager = self.turns
-		actions_view.game = self
+		assert self.turns is not None
+		actions_view = SpecialActionsView(alive_players, self.turns, self)
 
 		timeout_at = int(time.time() + 180)
+		assert self.mafia_chat is not None
 		message = f"## Night Actions\nMafia, talk in {self.mafia_chat.jump_url}."
 		if roles:
 			message += f"\n{(lambda vals: f"{", ".join(vals[:-1])} and {vals[-1]}" if len(vals) > 1 else vals[0])(roles)}, click the button(s) below to do your night actions."
@@ -211,11 +214,17 @@ class MafiaGame():
 			# voting_phase also sets this.
 			victim.alive = False
 			message = f"{victim.name} was eliminated! They were {victim.role}."
+			assert self.channel is not None
 			await self.channel.send(f"> {message}")
+
+			assert self.turns is not None
 			self.turns.broadcast(message)
 		else:
 			message = "No one was eliminated."
+			assert self.channel is not None
 			await self.channel.send(message)
+
+			assert self.turns is not None
 			self.turns.broadcast(message)
 
 	async def mafia_choose_target(self):
@@ -229,9 +238,12 @@ class MafiaGame():
 			Sets self.night_actions['mafia_kill'] to the chosen target.
 			Restores TurnManager to the main channel and full player list.
 		"""
+		from classes.roles import MAFIA
 		alive = self.get_alive_players()
 		mafia = [p for p in alive if p.role == MAFIA]
 
+		assert self.mafia_chat is not None
+		assert self.turns is not None
 		self.turns.set_channel(self.mafia_chat)
 		self.turns.set_participants(mafia)
 
@@ -254,12 +266,14 @@ class MafiaGame():
 			kill = random.choice(targets)
 
 		self.night_actions["mafia_kill"] = kill
+		assert self.channel is not None
 		self.turns.set_channel(self.channel)
 		self.turns.set_participants(alive)
 
 	async def discussion_phase(self):
 		"""Set up a TurnManager if needed and use it to run the discussion."""
 
+		assert self.channel is not None
 		alive = self.get_alive_players()
 		if not self.turns:
 			self.turns = TurnManager(
@@ -287,6 +301,7 @@ class MafiaGame():
 		Returns:
 			The eliminated Player, or None if the vote was inconclusive.
 		"""
+		assert self.turns is not None
 		alive = self.get_alive_players()
 		self.turns.set_participants(alive)
 
