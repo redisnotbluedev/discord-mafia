@@ -1,0 +1,6 @@
+services:
+  discordmafia:
+    build: .
+    
+    container_name: discord-mafia
+    restart: unless-stopped
