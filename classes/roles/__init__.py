@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Literal, TypedDict
 
 import discord
 
+from classes.turnmanager import extract_choice
+
 
 if TYPE_CHECKING:
 	from classes.game import MafiaGame
@@ -237,7 +239,7 @@ class SelectRole(Role):
 		if self.skippable and 'abstain' in choice_text.lower():
 			return
 
-		chosen_name = game.turns.extract_choice(choice_text, opt_names)
+		chosen_name = extract_choice(choice_text, opt_names)
 		chosen = None
 		if chosen_name:
 			chosen = next((p for p in options if p.name == chosen_name), None)
