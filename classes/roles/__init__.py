@@ -306,14 +306,8 @@ class InvestigateRole(SelectRole):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
 	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
-	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]") -> None:  # type: ignore[reportIncompatibleMethodOverride] # <- Sorry if this breaks anyone's type checking, I'm not using Pyright
-		"""Handle the human player's target selection from the select menu.
-
-		The prototype of this function is incompatible with
-		`SelectRole.on_selected` -- the `action_view` parameter is missing.
-		This function is not reached, however, because `handle_button_click`
-		specifically binds to `SelectRole.on_selected` via a lambda.
-		"""
+	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]", action_view: "SpecialActionsView | None"=None) -> None:
+		"""Handle the human player's target selection from the select menu."""
 		# PYREX NOTE: This is, again, the type implied by the use site!
 		data: SelectMessageComponentInteractionData = interaction.data  # type: ignore
 		selection = data['values'][0]
