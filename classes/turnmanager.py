@@ -454,14 +454,11 @@ CRITICAL FORMAT RULES
 						send_messages=True
 					)
 
+				while not self.message_queue.empty():
+					self.message_queue.get_nowait()
+
 				self.required_author = player.user.id
 				try:
-					# message_queue is defined in __init__ and populated in
-					# on_message. required_author filters which messages
-					# on_message will accept. If multiple messages somehow come
-					# in before message_queue returns, this will just grab the
-					# first one, and a subsequent message may be ascribed as
-					# the _next_ player's message, which could be awkward.
 					msg = await asyncio.wait_for(self.message_queue.get(), timeout=180.0)
 					text = msg.content or ""
 					self.player_failures[player.user] = 0
