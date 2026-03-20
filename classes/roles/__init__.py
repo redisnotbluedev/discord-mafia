@@ -288,13 +288,7 @@ class KillRole(SelectRole):
 		game.night_actions.setdefault("kills", []).append(user)
 
 class InvestigateRole(SelectRole):
-	"""Role that can investigate a player's alignment (Sheriff).
-
-	Note: on_selected() has a different signature from SelectRole.on_selected()
-	(missing action_view parameter), but this method is never actually called
-	because handle_button_click() binds the callback to SelectRole.on_selected
-	via the lambda.
-	"""
+	"""Role that can investigate a player's alignment (Sheriff)."""
 
 	def __init__(self, name: str, alignment: Alignment, description: str, short_description: str):
 		super().__init__(name, alignment, description, short_description, "🕵️", "investigate", skippable=False)
@@ -305,16 +299,8 @@ class InvestigateRole(SelectRole):
 	def get_options(self, game: "MafiaGame", player: "Player"):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
-	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
-	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]") -> None:  # type: ignore[reportIncompatibleMethodOverride] # <- Sorry if this breaks anyone's type checking, I'm not using Pyright
-		"""Handle the human player's target selection from the select menu.
-
-		The prototype of this function is incompatible with
-		`SelectRole.on_selected` -- the `action_view` parameter is missing.
-		This function is not reached, however, because `handle_button_click`
-		specifically binds to `SelectRole.on_selected` via a lambda.
-		"""
-		# PYREX NOTE: This is, again, the type implied by the use site!
+	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]", action_view: "SpecialActionsView | None"=None) -> None:
+		"""Handle the human player's target selection from the select menu."""
 		data: SelectMessageComponentInteractionData = interaction.data  # type: ignore
 		selection = data['values'][0]
 		user = options[int(selection)]
