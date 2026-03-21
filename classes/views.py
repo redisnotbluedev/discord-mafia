@@ -103,28 +103,20 @@ class StartGameView(discord.ui.View):
 			# Race condition: on_message deleted the lobby message while we
 			# were processing the Play click. Send a fresh lobby message instead.
 			logger.warning("Lobby message deleted during Play click (race with on_message refresh), sending new message")
-			try:
-				new_msg = await interaction_message_channel.send(
-					embed=discord.Embed(
-						title="AI Plays Mafia",
-						description="Setting up...",
-						color=discord.Color.green(),
-					)
+			new_msg = await interaction_message_channel.send(
+				embed=discord.Embed(
+					title="AI Plays Mafia",
+					description="Setting up...",
+					color=discord.Color.green(),
 				)
-				view = JoinGameView(self.abstractor, new_msg, time.time() + 60 * 5)
-				embed = view.generate_embed()
-				await new_msg.edit(embed=embed, view=view)
-				try:
-					await interaction.response.send_message("Game lobby created!", ephemeral=True, delete_after=5)
-				except (discord.InteractionResponded, discord.NotFound, discord.HTTPException):
-					pass
-			except discord.HTTPException:
-				logger.exception("Failed to send fallback lobby message, resetting game state")
-				self.abstractor.running = False
-				self.abstractor.owner = None
-				self.abstractor.players.clear()
-				data.update_game_status(self.abstractor.bot)
-				await self.abstractor.on_message(True)
+			)
+			view = JoinGameView(self.abstractor, new_msg, time.time() + 60 * 5)
+			embed = view.generate_embed()
+			await new_msg.edit(embed=embed, view=view)
+			try:
+				await interaction.response.send_message("Game lobby created!", ephemeral=True, delete_after=5)
+			except (discord.InteractionResponded, discord.NotFound, discord.HTTPException):
+				pass
 
 class JoinGameView(discord.ui.View):
 	"""Lobby waiting room with Join/Leave, Start Game, and Settings buttons.
