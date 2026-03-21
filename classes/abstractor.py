@@ -125,6 +125,15 @@ class GameAbstractor:
 			self._delete_last_lobby()
 		)
 
+		if self.running:
+			# Race condition: "Play" was clicked during the gather await.
+			# The new lobby message is orphaned — delete it.
+			try:
+				await new_msg[0].delete()
+			except (discord.NotFound, discord.HTTPException, discord.Forbidden):
+				pass
+			return
+
 		self.last_lobby_id = new_msg[0].id
 		self.save_config()
 

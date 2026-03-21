@@ -93,11 +93,30 @@ class StartGameView(discord.ui.View):
 		assert interaction_message is not None
 		interaction_message_channel = self.abstractor.bot.get_channel(interaction_message.channel.id)
 		assert isinstance(interaction_message_channel, (discord.TextChannel | discord.Thread))
-		message = await interaction_message_channel.fetch_message(interaction_message.id)
-		view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
-		embed = view.generate_embed()
 
-		await interaction.response.edit_message(embed=embed, view=view)
+		try:
+			message = await interaction_message_channel.fetch_message(interaction_message.id)
+			view = JoinGameView(self.abstractor, message, time.time() + 60 * 5)
+			embed = view.generate_embed()
+			await interaction.response.edit_message(embed=embed, view=view)
+		except discord.NotFound:
+			# Race condition: on_message deleted the lobby message while we
+			# were processing the Play click. Send a fresh lobby message instead.
+			logger.warning("Lobby message deleted during Play click (race with on_message refresh), sending new message")
+			new_msg = await interaction_message_channel.send(
+				embed=discord.Embed(
+					title="AI Plays Mafia",
+					description="Setting up...",
+					color=discord.Color.green(),
+				)
+			)
+			view = JoinGameView(self.abstractor, new_msg, time.time() + 60 * 5)
+			embed = view.generate_embed()
+			await new_msg.edit(embed=embed, view=view)
+			try:
+				await interaction.response.send_message("Game lobby created!", ephemeral=True, delete_after=5)
+			except (discord.InteractionResponded, discord.NotFound, discord.HTTPException):
+				pass
 
 class JoinGameView(discord.ui.View):
 	"""Lobby waiting room with Join/Leave, Start Game, and Settings buttons.
