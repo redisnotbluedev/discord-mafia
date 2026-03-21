@@ -89,19 +89,14 @@ class TestOnMessage:
             await abstractor.on_message(mock_message)
         mock_channel.send.assert_called_once()
 
-    async def test_race_condition_deletes_orphan(self, abstractor, mock_channel):
+    async def test_stores_last_lobby_id_from_sent_message(self, abstractor, mock_channel):
         sent_msg = MagicMock(spec=discord.Message)
-        sent_msg.delete = AsyncMock()
-
-        async def _send_and_set_running(*args, **kwargs):
-            abstractor.running = True
-            return sent_msg
-
-        mock_channel.send = _send_and_set_running
+        sent_msg.id = 321
+        mock_channel.send = AsyncMock(return_value=sent_msg)
         abstractor.bot.get_channel.return_value = mock_channel
         with patch("classes.views.StartGameView"):
             await abstractor.on_message(True)
-        sent_msg.delete.assert_awaited_once()
+        assert abstractor.last_lobby_id == 321
 
 
 class TestDeleteLastLobby:
