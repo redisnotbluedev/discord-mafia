@@ -40,6 +40,11 @@ def test_mafia_name():
     assert MAFIA.name == "Mafia"
 
 
+def test_mafia_collective_kill_not_human_special_action(mock_player):
+    assert MAFIA.is_special() is False
+    assert MAFIA.can_act(mock_player) is True
+
+
 @pytest.mark.asyncio
 async def test_mafia_handle_selection(mock_game, mock_player):
     target = MagicMock()

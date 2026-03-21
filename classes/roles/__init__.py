@@ -308,11 +308,19 @@ class InvestigateRole(SelectRole):
 	# PYREX NOTE: As AdamNorberg points out, this type is wrong for the prototype. Ignoring for now!
 	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]", action_view: "SpecialActionsView | None"=None) -> None:
 		"""Handle the human player's target selection from the select menu."""
+		if action_view and interaction.user.id in action_view.acted_players:
+			await interaction.response.edit_message(content="You have already performed your action!", view=None)
+			return
+
 		# PYREX NOTE: This is, again, the type implied by the use site!
 		data: SelectMessageComponentInteractionData = interaction.data  # type: ignore
 		selection = data['values'][0]
 		user = options[int(selection)]
 		await self.handle_selection(game, player, user)
+
+		if action_view:
+			action_view.acted_players.add(interaction.user.id)
+			action_view.pending_humans.discard(interaction.user.id)
 
 		# PYREX NOTE: Tacit assumption made by the existing code pre-typechecking
 		assert user.role is not None, "role was unexpectedly None"

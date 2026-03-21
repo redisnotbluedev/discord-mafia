@@ -35,3 +35,8 @@ def test_town_name():
 def test_town_can_act(mock_player):
     result = TOWN.can_act(mock_player)
     assert result is True
+
+
+def test_town_has_no_special_action_button(mock_player):
+    assert TOWN.is_special() is False
+    assert TOWN.can_act(mock_player) is True

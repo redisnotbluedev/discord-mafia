@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from classes.roles import DOCTOR
 
 
@@ -93,3 +93,24 @@ def test_doctor_is_special():
 
 def test_doctor_night_action_type():
     assert DOCTOR.night_action_type() == "save"
+
+
+@pytest.mark.asyncio
+async def test_doctor_blocks_repeat_action_when_already_acted(mock_game, mock_player):
+    target = MagicMock()
+    target.name = "Alice"
+    interaction = MagicMock()
+    interaction.data = {"values": ["0"]}
+    interaction.user.id = 123
+    interaction.response.edit_message = AsyncMock()
+    action_view = MagicMock()
+    action_view.acted_players = {123}
+    action_view.pending_humans = {123}
+
+    await DOCTOR.on_selected(mock_game, mock_player, interaction, [target], action_view)
+
+    interaction.response.edit_message.assert_awaited_once_with(
+        content="You have already performed your action!",
+        view=None,
+    )
+    assert "saves" not in mock_game.night_actions

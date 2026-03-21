@@ -49,3 +49,8 @@ def test_jester_name():
 
 def test_jester_emoji():
     assert JESTER.emoji == "🤡"
+
+
+def test_jester_has_no_special_action_button(mock_player):
+    assert JESTER.is_special() is False
+    assert JESTER.can_act(mock_player) is True

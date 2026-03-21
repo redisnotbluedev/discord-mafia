@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from classes.roles import SHERIFF, Alignment
 
 
@@ -54,3 +54,45 @@ def test_sheriff_get_options_excludes_self(mock_game, mock_player):
 
 def test_sheriff_name():
     assert SHERIFF.name == "Sheriff"
+
+
+@pytest.mark.asyncio
+async def test_sheriff_on_selected_marks_player_acted_and_clears_pending(mock_game, mock_player):
+    suspect = MagicMock()
+    suspect.name = "Alice"
+    suspect.role = MagicMock(alignment=Alignment.MAFIA)
+    interaction = MagicMock()
+    interaction.data = {"values": ["0"]}
+    interaction.user.id = 123
+    interaction.response.edit_message = AsyncMock()
+    action_view = MagicMock()
+    action_view.acted_players = set()
+    action_view.pending_humans = {123}
+
+    await SHERIFF.on_selected(mock_game, mock_player, interaction, [suspect], action_view)
+
+    assert 123 in action_view.acted_players
+    assert 123 not in action_view.pending_humans
+
+
+@pytest.mark.asyncio
+async def test_sheriff_on_selected_blocks_repeat_action_when_already_acted(mock_game, mock_player):
+    suspect = MagicMock()
+    suspect.name = "Alice"
+    suspect.role = MagicMock(alignment=Alignment.MAFIA)
+    interaction = MagicMock()
+    interaction.data = {"values": ["0"]}
+    interaction.user.id = 123
+    interaction.response.edit_message = AsyncMock()
+    action_view = MagicMock()
+    action_view.acted_players = {123}
+    action_view.pending_humans = {123}
+
+    await SHERIFF.on_selected(mock_game, mock_player, interaction, [suspect], action_view)
+
+    interaction.response.edit_message.assert_awaited_once_with(
+        content="You have already performed your action!",
+        view=None,
+    )
+    assert 123 in action_view.acted_players
+    assert 123 in action_view.pending_humans
