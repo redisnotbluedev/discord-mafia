@@ -72,6 +72,72 @@ class TestKickCommand:
         assert 888 not in abstractor.players
 
 
+class TestLlama10Command:
+    async def test_no_lobby_active(self, mock_bot, mock_interaction):
+        cog = _make_cog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        await cog.llama10.callback(cog, mock_interaction)
+        msg = mock_interaction.response.send_message.call_args[0][0]
+        assert "no lobby" in msg.lower()
+
+    async def test_not_owner_rejected(self, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.running = True
+        abstractor.owner = owner
+        mock_bot.abstractors = [abstractor]
+
+        cog = GamesCog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = MagicMock(spec=discord.User)
+        await cog.llama10.callback(cog, mock_interaction)
+        assert mock_interaction.response.send_message.call_args.kwargs.get("ephemeral") is True
+
+    @patch("builtins.open", side_effect=Exception("file not found"))
+    async def test_handles_models_json_failure(self, mock_open, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.running = True
+        abstractor.owner = owner
+        abstractor.players = {1: MagicMock()}
+        mock_bot.abstractors = [abstractor]
+
+        cog = GamesCog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = owner
+        await cog.llama10.callback(cog, mock_interaction)
+        msg = mock_interaction.response.send_message.call_args[0][0]
+        assert "Failed" in msg
+
+    @patch("builtins.open", MagicMock(return_value=MagicMock(
+        __enter__=MagicMock(return_value=MagicMock()),
+        __exit__=MagicMock(return_value=False)
+    )))
+    @patch("json.load", return_value={"models": [{"model": "llama-4-maverick", "name": "Llama", "avatar": "llama.png"}], "avatar_template": "https://cdn.example.com/{}"})
+    async def test_creates_10_llama_players(self, mock_json, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.running = True
+        abstractor.owner = owner
+        abstractor.players = {}
+        abstractor.game = MagicMock()
+        abstractor.game.scheduler = None
+        mock_bot.abstractors = [abstractor]
+
+        cog = GamesCog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = owner
+        await cog.llama10.callback(cog, mock_interaction)
+        assert len(abstractor.players) == 10
+
+
 class TestStopCommand:
     @patch.dict("os.environ", {"ADMIN_USERS": "111"})
     async def test_no_active_game(self, mock_bot, mock_interaction):
