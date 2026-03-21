@@ -8,8 +8,8 @@ export PYTHONPATH=$PYTHONPATH:$here
 
 echo "Finding and running Python unit tests..."
 
-# Use pytest for test discovery and execution.
-pytest $here
+# Use pytest for test discovery and execution with coverage reporting.
+pytest "$here/tests" --cov=classes --cov=cogs --cov=data --cov=logging_utils --cov-report=term-missing "$@"
 
 exit_code=$?
 

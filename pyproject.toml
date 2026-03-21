@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["classes", "cogs", "data", "logging_utils"]
+omit = ["classes/test_turnmanager.py"]
+
+[tool.coverage.report]
+show_missing = true
