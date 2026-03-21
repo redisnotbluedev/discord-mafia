@@ -41,7 +41,6 @@ class TestWebhookLoggingHandlerInit:
         assert formatted == "test message"
 
 
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
 class TestWebhookLoggingHandlerEmit:
     def test_emit_filters_discord_webhook_logger(self):
         webhook = MagicMock(spec=Webhook)
@@ -94,7 +93,11 @@ class TestWebhookLoggingHandlerEmit:
             msg="test message", args=(), exc_info=None
         )
         
-        with patch("asyncio.create_task", side_effect=RuntimeError("No event loop")):
+        def _raise_and_close(coro):
+            coro.close()
+            raise RuntimeError("No event loop")
+
+        with patch("asyncio.create_task", side_effect=_raise_and_close):
             with patch("builtins.print") as mock_print:
                 handler.emit(record)
                 mock_print.assert_called_once()

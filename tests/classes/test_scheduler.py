@@ -252,7 +252,15 @@ class TestStartGame:
 class TestSchedule:
     async def test_schedule_stores_task_reference(self):
         s = _make_scheduler(5)
-        with patch("asyncio.create_task", return_value=MagicMock()) as mock_create_task:
+        captured = {}
+        created_task = MagicMock()
+
+        def _capture_task(coro):
+            captured["coro"] = coro
+            return created_task
+
+        with patch("asyncio.create_task", side_effect=_capture_task) as mock_create_task:
             s.schedule(time.time() + 100)
         mock_create_task.assert_called_once()
-        assert s.start_job is mock_create_task.return_value
+        assert s.start_job is created_task
+        captured["coro"].close()
