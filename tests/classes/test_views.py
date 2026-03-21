@@ -1,6 +1,6 @@
 # pyright: reportMissingImports=false
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import discord
 import pytest
@@ -10,6 +10,9 @@ from classes.roles import Role
 from classes.views import (
     ABSTAIN_LABEL,
     ConfirmView,
+    JoinGameView,
+    SettingsView,
+    StartGameView,
     SpecialActionButton,
     SpecialActionsView,
     VoteSelect,
@@ -235,3 +238,176 @@ async def test_special_action_button_callback_calls_role_handler_for_valid_playe
     await button.callback(interaction)
 
     doctor.handle_button_click.assert_awaited_once_with(game, player, interaction, action_view=view)
+
+
+def make_abstractor(owner_id: int = 1, owner_name: str = "Owner") -> tuple[MagicMock, MagicMock]:
+    owner = make_member(owner_id, owner_name)
+    owner_player = Player(owner)
+
+    abstractor = MagicMock()
+    abstractor.running = False
+    abstractor.players = {owner_id: owner_player}
+    abstractor.interactions = {}
+    abstractor.bot = MagicMock()
+    abstractor.bot.get_channel = MagicMock()
+    abstractor.owner = owner
+    abstractor.last_lobby_id = None
+    abstractor.save_config = MagicMock()
+    abstractor.on_message = AsyncMock()
+    abstractor.game = None
+
+    return abstractor, owner
+
+
+@pytest.mark.asyncio
+async def test_start_game_view_start_game_reads_models_and_creates_ai_players():
+    abstractor, owner = make_abstractor()
+
+    interaction = make_interaction(owner.id)
+    interaction.user = owner
+    interaction.message = MagicMock(spec=discord.Message)
+    interaction.message.id = 123
+    interaction.message.channel = MagicMock(spec=discord.TextChannel)
+    interaction.message.channel.id = 888
+
+    lobby_message = MagicMock(spec=discord.Message)
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.fetch_message = AsyncMock(return_value=lobby_message)
+    abstractor.bot.get_channel.return_value = channel
+
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule = MagicMock()
+    fake_scheduler.start_job = MagicMock()
+
+    ai_one = AIAbstraction("gpt-a", "AI One").player
+    ai_two = AIAbstraction("gpt-b", "AI Two").player
+    models_data = {"models": [{"model": "gpt-a"}, {"model": "gpt-b"}]}
+
+    with patch("builtins.open", mock_open(read_data="{}")), patch(
+        "json.load", return_value=models_data
+    ), patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler), patch(
+        "classes.views.create_ai_players", return_value=[ai_one, ai_two]
+    ) as create_ai_players_mock, patch("data.update_game_status") as update_status_mock:
+        view = StartGameView(abstractor)
+        await view.start_game.callback(interaction)
+
+    assert abstractor.running is True
+    assert abstractor.owner is owner
+    assert owner.id in abstractor.players
+    assert hash(ai_one.name) in abstractor.players
+    assert hash(ai_two.name) in abstractor.players
+    create_ai_players_mock.assert_called_once_with(["gpt-a", "gpt-b"])
+    update_status_mock.assert_called_once()
+    interaction.response.edit_message.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_join_game_view_join_game_adds_player_and_embed_is_embed():
+    abstractor, owner = make_abstractor()
+
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule = MagicMock()
+    fake_scheduler.start_job = MagicMock()
+
+    message = MagicMock(spec=discord.Message)
+    with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
+        view = JoinGameView(abstractor, message, start_at=999999.0)
+
+    joining_user = make_member(2, "Bob")
+    interaction = make_interaction(2)
+    interaction.user = joining_user
+
+    await view.join_game.callback(interaction)
+
+    assert owner.id in abstractor.players
+    assert joining_user.id in abstractor.players
+    assert isinstance(view.generate_embed(), discord.Embed)
+    interaction.response.edit_message.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_join_game_view_start_starts_game_for_owner():
+    abstractor, owner = make_abstractor()
+
+    fake_scheduler = MagicMock()
+    fake_scheduler.schedule = MagicMock()
+    fake_scheduler.start_job = MagicMock()
+    fake_scheduler.start_job.cancel = MagicMock()
+
+    message = MagicMock(spec=discord.Message)
+    with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
+        view = JoinGameView(abstractor, message, start_at=999999.0)
+
+    interaction = make_interaction(owner.id)
+    interaction.user = owner
+
+    with patch("time.time", return_value=12345.0):
+        await view.start.callback(interaction)
+
+    fake_scheduler.start_job.cancel.assert_called_once()
+    fake_scheduler.schedule.assert_any_call(12345.0)
+    interaction.response.edit_message.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_settings_view_render_updates_controls_and_lobby_message():
+    abstractor, _owner = make_abstractor()
+    abstractor.players[2] = Player(make_member(2, "Bob"))
+    abstractor.players[3] = Player(make_member(3, "Carl"))
+    abstractor.players[4] = Player(make_member(4, "Dana"))
+    abstractor.players[5] = Player(make_member(5, "Eve"))
+
+    game = MagicMock()
+    game.abstractor = abstractor
+    game.config = {"mafia": 2, "town": 2, "role_Doctor": True, "role_Sheriff": True}
+    game.message = MagicMock(spec=discord.Message)
+    game.message.edit = AsyncMock()
+    game.lobby = MagicMock()
+    game.lobby.generate_embed.return_value = discord.Embed(title="Lobby")
+
+    models_data = {"models": [{"name": "Model A", "model": "gpt-a"}]}
+    with patch("builtins.open", mock_open(read_data="{}")), patch("json.load", return_value=models_data):
+        view = SettingsView(game)
+
+    await view.render()
+
+    assert view._mafia_display.label is not None
+    assert view._town_display.label is not None
+    assert view._mafia_display.label.endswith("(2)")
+    assert view._town_display.label.endswith("(3)")
+    game.message.edit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_vote_select_callback_rejects_unauthorized_voter():
+    view = VoteView(["Alice", "Bob"], allow_abstain=True, voter_names={1: "Alice"})
+    view.allowed_voters = {1}
+    view.required_votes = 1
+    view.base_message = "Vote now"
+    select = next(item for item in view.children if isinstance(item, VoteSelect))
+    select._values = ["Alice"]
+
+    interaction = make_interaction(999)
+    await select.callback(interaction)
+
+    assert view.votes == {}
+    interaction.response.send_message.assert_awaited_once_with(
+        "You're not a participant in this game.", ephemeral=True
+    )
+
+
+@pytest.mark.asyncio
+async def test_vote_select_callback_registers_vote_and_disables_when_complete():
+    view = VoteView(["Alice", "Bob"], allow_abstain=False, voter_names={1: "VoterOne"})
+    view.allowed_voters = {1}
+    view.required_votes = 1
+    view.base_message = "Vote now"
+    select = next(item for item in view.children if isinstance(item, VoteSelect))
+    select._values = ["Alice"]
+
+    interaction = make_interaction(1)
+    await select.callback(interaction)
+
+    assert view.votes == {1: "Alice"}
+    assert select.disabled is True
+    interaction.response.edit_message.assert_awaited_once()

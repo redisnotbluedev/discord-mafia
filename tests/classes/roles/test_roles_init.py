@@ -1,5 +1,5 @@
-import pytest
-from unittest.mock import MagicMock
+import pytest  # type: ignore[reportMissingImports]
+from unittest.mock import AsyncMock, MagicMock
 
 from classes.roles import (
     Alignment, Role, SelectRole, SaveRole, KillRole, InvestigateRole,
@@ -120,6 +120,22 @@ class TestRoleMethods:
         r = Role("R", Alignment.TOWN, "desc", "short")
         assert r.win_condition(MagicMock(), [MagicMock()]) is False
 
+    def test_get_prompt_uses_role_name(self):
+        r = Role("R", Alignment.TOWN, "desc", "short")
+        assert r.get_prompt() == "## R\nWhat do you want to do?"
+
+    async def test_handle_button_click_noop(self):
+        r = Role("R", Alignment.TOWN, "desc", "short")
+        await r.handle_button_click(MagicMock(), MagicMock(), MagicMock())
+
+    async def test_on_night_end_noop(self):
+        r = Role("R", Alignment.TOWN, "desc", "short")
+        await r.on_night_end(MagicMock(), MagicMock())
+
+    async def test_night_action_ai_noop(self):
+        r = Role("R", Alignment.TOWN, "desc", "short")
+        await r.night_action_ai(MagicMock(), MagicMock())
+
 
 class TestSelectRole:
     def test_is_special_returns_true(self):
@@ -161,6 +177,138 @@ class TestSelectRole:
         options = r.get_options(game, make_player("Self"))
         assert alive_p in options
         assert dead_p not in options
+
+    def test_get_button_info_uses_role_name_and_emoji(self):
+        r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "act")
+        assert r.get_button_info() == {"label": "SR", "emoji": "🎯"}
+
+    def test_get_prompt_uses_action_label(self):
+        r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "investigate")
+        assert r.get_prompt() == "## SR\nWho do you want to investigate?"
+
+    async def test_handle_button_click_builds_select_view_and_sends_ephemeral(self, monkeypatch):
+        import classes.views as views_module
+
+        built = {}
+
+        class FakeSelectView:
+            def __init__(self, options, callback):
+                built["options"] = options
+                built["callback"] = callback
+
+        monkeypatch.setattr(views_module, "SelectView", FakeSelectView)
+
+        p1 = make_player("Alice", alive=True)
+        p2 = make_player("Bob", alive=True)
+        game = make_game([p1, p2])
+        player = make_player("Doctor", alive=True)
+        interaction = MagicMock()
+        interaction.response.send_message = AsyncMock()
+        action_view = MagicMock()
+
+        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True)
+        await r.handle_button_click(game, player, interaction, action_view)
+
+        assert [opt.label for opt in built["options"]] == ["Alice", "Bob", "Abstain"]
+        assert [opt.value for opt in built["options"]] == ["0", "1", "abstain"]
+        interaction.response.send_message.assert_awaited_once()
+        args, kwargs = interaction.response.send_message.await_args_list[0]
+        assert args[0] == "## Doc\nWho do you want to save?"
+        assert kwargs["ephemeral"] is True
+        assert isinstance(kwargs["view"], FakeSelectView)
+
+    async def test_on_selected_handles_selection_and_marks_player_acted(self):
+        game = make_game([])
+        player = make_player("Doctor")
+        target = make_player("Alice")
+        interaction = MagicMock()
+        interaction.data = {"values": ["0"]}
+        interaction.user.id = 111
+        interaction.response.edit_message = AsyncMock()
+        action_view = MagicMock()
+        action_view.acted_players = set()
+        action_view.pending_humans = {111}
+
+        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save")
+        r.handle_selection = AsyncMock()
+
+        await r.on_selected(game, player, interaction, [target], action_view)
+
+        r.handle_selection.assert_awaited_once_with(game, player, target)
+        interaction.response.edit_message.assert_awaited_once_with(
+            content="You chose to save Alice.",
+            view=None,
+        )
+        assert 111 in action_view.acted_players
+        assert 111 not in action_view.pending_humans
+
+    async def test_on_selected_abstain_marks_player_acted(self):
+        game = make_game([])
+        player = make_player("Doctor")
+        interaction = MagicMock()
+        interaction.data = {"values": ["abstain"]}
+        interaction.user.id = 111
+        interaction.response.edit_message = AsyncMock()
+        action_view = MagicMock()
+        action_view.acted_players = set()
+        action_view.pending_humans = {111}
+
+        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True)
+        r.handle_selection = AsyncMock()
+
+        await r.on_selected(game, player, interaction, [], action_view)
+
+        r.handle_selection.assert_not_called()
+        interaction.response.edit_message.assert_awaited_once_with(
+            content="You chose to abstain.",
+            view=None,
+        )
+        assert 111 in action_view.acted_players
+        assert 111 not in action_view.pending_humans
+
+    async def test_on_selected_when_already_acted_sends_warning(self):
+        game = make_game([])
+        player = make_player("Doctor")
+        target = make_player("Alice")
+        interaction = MagicMock()
+        interaction.data = {"values": ["0"]}
+        interaction.user.id = 111
+        interaction.response.edit_message = AsyncMock()
+        action_view = MagicMock()
+        action_view.acted_players = {111}
+        action_view.pending_humans = {111}
+
+        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save")
+        r.handle_selection = AsyncMock()
+
+        await r.on_selected(game, player, interaction, [target], action_view)
+
+        r.handle_selection.assert_not_called()
+        interaction.response.edit_message.assert_awaited_once_with(
+            content="You have already performed your action!",
+            view=None,
+        )
+
+    async def test_night_action_ai_uses_extract_choice_and_handles_selection(self, monkeypatch):
+        from classes import roles as roles_module
+
+        ai_player = make_player("Doctor")
+        target = make_player("Alice")
+        game = make_game([target])
+        game.turns = MagicMock()
+        game.turns.create_ai_completion = AsyncMock(return_value="I choose Alice")
+
+        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save")
+        r.get_options = MagicMock(return_value=[target])
+        r.handle_selection = AsyncMock()
+        extract_choice_mock = MagicMock(return_value="Alice")
+        monkeypatch.setattr(roles_module, "extract_choice", extract_choice_mock)
+
+        await r.night_action_ai(game, ai_player)
+
+        game.turns.create_ai_completion.assert_awaited_once()
+        extract_choice_mock.assert_called_once_with("I choose Alice", ["Alice"])
+        r.handle_selection.assert_awaited_once_with(game, ai_player, target)
 
 
 class TestSaveRole:
@@ -270,6 +418,45 @@ class TestInvestigateRole:
         options = r.get_options(game, self_player)
         assert alive in options
         assert dead not in options
+
+    async def test_on_selected_shows_alignment_in_response(self):
+        game = make_game([])
+        player = make_player("Sheriff")
+        suspect = make_player("Alice")
+        suspect.role = MagicMock(alignment=Alignment.MAFIA)
+        interaction = MagicMock()
+        interaction.data = {"values": ["0"]}
+        interaction.response.edit_message = AsyncMock()
+
+        r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
+        r.handle_selection = AsyncMock()
+
+        await r.on_selected(game, player, interaction, [suspect])
+
+        r.handle_selection.assert_awaited_once_with(game, player, suspect)
+        interaction.response.edit_message.assert_awaited_once_with(
+            content="You chose to investigate Alice. Alice is **MAFIA**!",
+            view=None,
+        )
+
+    async def test_handle_selection_sends_result_to_ai_player(self):
+        from classes.player import AIAbstraction
+
+        game = make_game([])
+        game.turns = MagicMock()
+        game.turns.create_ai_completion = AsyncMock()
+        player = make_player("Sheriff")
+        player.user = AIAbstraction("gpt-4o-mini", "Bot")
+        suspect = make_player("Alice")
+        suspect.role = MagicMock(alignment=Alignment.TOWN)
+
+        r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
+        await r.handle_selection(game, player, suspect)
+
+        game.turns.create_ai_completion.assert_awaited_once_with(
+            player,
+            "Alice is **TOWN**.",
+        )
 
 
 class TestAllRoles:

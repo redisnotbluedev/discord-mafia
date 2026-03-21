@@ -1,5 +1,8 @@
+# pyright: reportMissingImports=false
+
 import discord
 import pytest
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 from classes.player import AIAbstraction, Player
@@ -88,7 +91,10 @@ def test_set_participants_replaces_participant_list():
 def test_set_context_replaces_ai_context():
     ai_player = _ai_player("Bot")
     turn_manager = build_turn_manager(participants=[ai_player])
-    new_context = {ai_player.user: [{"role": "user", "content": "hello"}]}
+    ai_user = cast(AIAbstraction, ai_player.user)
+    new_context: dict[AIAbstraction, list[dict[str, str]]] = {
+        ai_user: [{"role": "user", "content": "hello"}]
+    }
 
     turn_manager.set_context(new_context)
 
@@ -100,25 +106,29 @@ def test_broadcast_appends_message_to_all_ai_contexts():
     ai_two = _ai_player("Bot Two")
     human = _human_player(1, "Alice")
     turn_manager = build_turn_manager(participants=[human, ai_one, ai_two])
+    ai_one_user = cast(AIAbstraction, ai_one.user)
+    ai_two_user = cast(AIAbstraction, ai_two.user)
 
     turn_manager.broadcast("Night falls")
 
-    assert turn_manager.context[ai_one.user][-1] == {"role": "user", "content": "Night falls"}
-    assert turn_manager.context[ai_two.user][-1] == {"role": "user", "content": "Night falls"}
+    assert turn_manager.context[ai_one_user][-1] == {"role": "user", "content": "Night falls"}
+    assert turn_manager.context[ai_two_user][-1] == {"role": "user", "content": "Night falls"}
 
 
 def test_broadcast_respects_exclude_player():
     ai_one = _ai_player("Bot One")
     ai_two = _ai_player("Bot Two")
     turn_manager = build_turn_manager(participants=[ai_one, ai_two])
+    ai_one_user = cast(AIAbstraction, ai_one.user)
+    ai_two_user = cast(AIAbstraction, ai_two.user)
 
-    before_len_one = len(turn_manager.context[ai_one.user])
-    before_len_two = len(turn_manager.context[ai_two.user])
+    before_len_one = len(turn_manager.context[ai_one_user])
+    before_len_two = len(turn_manager.context[ai_two_user])
 
     turn_manager.broadcast("Secret update", exclude=ai_two)
 
-    assert len(turn_manager.context[ai_one.user]) == before_len_one + 1
-    assert len(turn_manager.context[ai_two.user]) == before_len_two
+    assert len(turn_manager.context[ai_one_user]) == before_len_one + 1
+    assert len(turn_manager.context[ai_two_user]) == before_len_two
 
 
 def test_clean_ai_content_removes_think_blocks_and_markdown_inside_them():
@@ -154,6 +164,7 @@ def test_candidate_by_name_returns_none_when_missing():
 @pytest.mark.asyncio
 async def test_create_ai_completion_returns_clean_content_on_success():
     ai_player = _ai_player("Bot")
+    ai_user = cast(AIAbstraction, ai_player.user)
 
     response = MagicMock()
     response.choices = [MagicMock(message=MagicMock(content="<think>hidden</think>Hello world"))]
@@ -168,7 +179,7 @@ async def test_create_ai_completion_returns_clean_content_on_success():
     result = await turn_manager.create_ai_completion(ai_player, "Say hello")
 
     assert result == "Hello world"
-    assert turn_manager.context[ai_player.user][-1] == {
+    assert turn_manager.context[ai_user][-1] == {
         "role": "assistant",
         "content": "Hello world",
     }
@@ -259,3 +270,164 @@ def test_format_vote_details_returns_no_votes_yet_when_empty():
     )
 
     assert details == "No votes yet."
+
+
+@pytest.mark.asyncio
+async def test_initialize_ai_context_builds_system_prompts_for_ai_players_only():
+    human = _human_player(1, "Alice")
+    ai_one = _ai_player("Bot One")
+    ai_two = _ai_player("Bot Two")
+
+    turn_manager = build_turn_manager(participants=[human, ai_one, ai_two])
+    context = turn_manager._initialize_ai_context([human, ai_one, ai_two])
+
+    assert set(context.keys()) == {cast(AIAbstraction, ai_one.user), cast(AIAbstraction, ai_two.user)}
+    system_prompt = context[cast(AIAbstraction, ai_one.user)][0]["content"]
+    assert "Your name is Bot One" in system_prompt
+    assert "Players:" in system_prompt
+    assert "Alice" in system_prompt
+    assert "Bot Two" in system_prompt
+    assert "There are [3] players" in system_prompt
+
+
+@pytest.mark.asyncio
+async def test_get_next_speaker_parses_ai_mentions_and_excludes_speaker_and_dead_players():
+    speaker = _human_player(1, "Speaker")
+    asked = _human_player(2, "Asked")
+    casual = _human_player(3, "Casual")
+    dead = _human_player(4, "Ghost")
+    dead.alive = False
+
+    response = MagicMock()
+    response.choices = [
+        MagicMock(message=MagicMock(content="Asked:ASKED, Casual:CASUAL, Asked:ROLE, Speaker:ACCUSED, Ghost:ACCUSED"))
+    ]
+
+    client = MagicMock()
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=response)
+
+    turn_manager = build_turn_manager(participants=[speaker, asked, casual, dead], client=client)
+
+    next_players = await turn_manager.get_next_speaker("Asked, what do you think?", speaker)
+
+    assert next_players == [(asked, 2), (casual, 4)]
+
+
+@pytest.mark.asyncio
+async def test_run_round_cycles_human_and_ai_players():
+    human = _human_player(1, "Alice")
+    ai = _ai_player("Bot")
+
+    response = MagicMock()
+    response.choices = [MagicMock(message=MagicMock(content="<think>internal</think>AI speaks"))]
+
+    client = MagicMock()
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=response)
+
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 123
+    channel.set_permissions = AsyncMock()
+    status_msg = MagicMock(spec=discord.Message)
+    ai_status_msg = MagicMock(spec=discord.Message)
+    final_ai_msg = MagicMock(spec=discord.Message)
+    channel.send = AsyncMock(side_effect=[status_msg, ai_status_msg, final_ai_msg])
+
+    bot = MagicMock(spec=discord.Client)
+    turn_manager = build_turn_manager(participants=[human, ai], channel=channel, bot=bot, client=client)
+    turn_manager.broadcast = MagicMock()
+
+    human_message = MagicMock(spec=discord.Message)
+    human_message.content = "Human speaks"
+    turn_manager.message_queue.get = AsyncMock(return_value=human_message)
+
+    with patch("random.shuffle", side_effect=lambda seq: None):
+        await turn_manager.run_round(analyse=False, rounds=2)
+
+    assert turn_manager.required_author == -1
+    assert turn_manager.running is True
+    client.chat.completions.create.assert_awaited_once()
+    turn_manager.broadcast.assert_any_call("Alice: Human speaks", human)
+    turn_manager.broadcast.assert_any_call("Bot: AI speaks", ai)
+    assert any("it's your turn to speak" in call.args[0] for call in channel.send.await_args_list)
+    assert any("**Bot:** AI speaks" in call.args[0] for call in channel.send.await_args_list)
+
+
+@pytest.mark.asyncio
+async def test_run_vote_sets_up_vote_view_and_returns_none_for_tie():
+    from classes.views import VoteView
+
+    ai_one = _ai_player("AI One")
+    ai_two = _ai_player("AI Two")
+    alice = _human_player(10, "Alice")
+    bob = _human_player(20, "Bob")
+
+    first_vote = MagicMock()
+    first_vote.choices = [MagicMock(message=MagicMock(content="Alice"))]
+    second_vote = MagicMock()
+    second_vote.choices = [MagicMock(message=MagicMock(content="Bob"))]
+
+    client = MagicMock()
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(side_effect=[first_vote, second_vote])
+
+    poll = MagicMock(spec=discord.Message)
+    poll.edit = AsyncMock()
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 999
+    channel.send = AsyncMock(return_value=poll)
+
+    turn_manager = build_turn_manager(participants=[ai_one, ai_two], channel=channel, client=client)
+
+    winner = await turn_manager.run_vote(
+        candidates=[alice, bob],
+        message="Who should be eliminated?",
+        timeout_s=0.01,
+        break_ties_random=False,
+    )
+
+    assert winner is None
+    send_kwargs = channel.send.await_args.kwargs
+    assert isinstance(send_kwargs["view"], VoteView)
+    assert send_kwargs["view"].player_names == ["Alice", "Bob"]
+    assert send_kwargs["view"].required_votes == 0
+
+
+@pytest.mark.asyncio
+async def test_run_vote_breaks_ties_when_enabled():
+    ai_one = _ai_player("AI One")
+    ai_two = _ai_player("AI Two")
+    alice = _human_player(10, "Alice")
+    bob = _human_player(20, "Bob")
+
+    first_vote = MagicMock()
+    first_vote.choices = [MagicMock(message=MagicMock(content="Alice"))]
+    second_vote = MagicMock()
+    second_vote.choices = [MagicMock(message=MagicMock(content="Bob"))]
+
+    client = MagicMock()
+    client.chat = MagicMock()
+    client.chat.completions = MagicMock()
+    client.chat.completions.create = AsyncMock(side_effect=[first_vote, second_vote])
+
+    poll = MagicMock(spec=discord.Message)
+    poll.edit = AsyncMock()
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 1000
+    channel.send = AsyncMock(return_value=poll)
+
+    turn_manager = build_turn_manager(participants=[ai_one, ai_two], channel=channel, client=client)
+
+    with patch("random.choice", return_value="Alice"):
+        winner = await turn_manager.run_vote(
+            candidates=[alice, bob],
+            message="Who should be eliminated?",
+            timeout_s=0.01,
+            break_ties_random=True,
+        )
+
+    assert winner is alice
