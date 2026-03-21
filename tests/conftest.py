@@ -1,24 +1,8 @@
-import sys
-import types
 from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 import discord
 from discord.ext import commands
-
-mock_main = types.ModuleType("main")
-
-class _MockBot(commands.Bot):
-    def __init__(self, *a, **kw):
-        pass
-
-_MockBot.abstractors = []
-mock_main.BotWithAbstractors = _MockBot
-mock_main.bot = MagicMock(spec=commands.Bot)
-mock_main.bot.abstractors = []
-mock_main.config = {}
-sys.modules.setdefault("main", mock_main)
-
 
 @pytest.fixture
 def mock_bot():
@@ -105,7 +89,10 @@ def mock_openai_client():
 
 
 @pytest.fixture(autouse=True)
-def _patch_data():
+def _patch_data(request):
+    if request.node.get_closest_marker("no_patch_data"):
+        yield
+        return
     with patch("data.load", return_value={}), \
          patch("data.save"), \
          patch("data.update_game_status"):

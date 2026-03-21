@@ -1,12 +1,22 @@
+import importlib
+import sys
+import types
 from unittest.mock import MagicMock, AsyncMock, patch
 import discord
 from discord.ext import commands
 
-from cogs.games import GamesCog
-
 
 def _make_cog(bot):
-    bot.abstractors = []
+    mock_main = types.ModuleType("main")
+
+    class _MockBot(commands.Bot):
+        def __init__(self, *args, **kwargs):
+            pass
+
+    mock_main.BotWithAbstractors = _MockBot
+    sys.modules["main"] = mock_main
+    sys.modules.pop("cogs.games", None)
+    GamesCog = importlib.import_module("cogs.games").GamesCog
     return GamesCog(bot)
 
 
@@ -40,7 +50,7 @@ class TestKickCommand:
         abstractor.owner = MagicMock(spec=discord.User)
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = MagicMock(spec=discord.User)
@@ -60,7 +70,7 @@ class TestKickCommand:
         abstractor.game.scheduler = None
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = owner
@@ -89,7 +99,7 @@ class TestLlama10Command:
         abstractor.owner = owner
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = MagicMock(spec=discord.User)
@@ -106,7 +116,7 @@ class TestLlama10Command:
         abstractor.players = {1: MagicMock()}
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = owner
@@ -130,7 +140,7 @@ class TestLlama10Command:
         abstractor.game.scheduler = None
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = owner
@@ -150,7 +160,7 @@ class TestStopCommand:
     @patch.dict("os.environ", {"ADMIN_USERS": "111"})
     async def test_admin_can_stop_game(self, mock_bot, mock_interaction):
         owner = MagicMock(spec=discord.User)
-        owner.id = "222"
+        owner.id = 222
         abstractor = MagicMock()
         abstractor.channel = 123
         abstractor.running = True
@@ -159,11 +169,31 @@ class TestStopCommand:
         abstractor.game.running = True
         mock_bot.abstractors = [abstractor]
 
-        cog = GamesCog(mock_bot)
+        cog = _make_cog(mock_bot)
         mock_interaction.channel = MagicMock()
         mock_interaction.channel.id = 123
         mock_interaction.user = MagicMock(spec=discord.User)
         mock_interaction.user.id = 111
+
+        await cog.stop.callback(cog, mock_interaction)
+        assert abstractor.game.running is False
+
+    @patch.dict("os.environ", {"ADMIN_USERS": ""})
+    async def test_owner_can_stop_own_game(self, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        owner.id = 222
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.running = True
+        abstractor.owner = owner
+        abstractor.game = MagicMock()
+        abstractor.game.running = True
+        mock_bot.abstractors = [abstractor]
+
+        cog = _make_cog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = owner
 
         await cog.stop.callback(cog, mock_interaction)
         assert abstractor.game.running is False

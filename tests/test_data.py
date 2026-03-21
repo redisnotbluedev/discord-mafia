@@ -1,19 +1,9 @@
 import json
 import pytest
 from unittest.mock import patch, mock_open, MagicMock
-import sys
-import importlib
 
 
-@pytest.fixture(autouse=True)
-def _reload_data_module():
-    original_data = sys.modules.get('data')
-    if 'data' in sys.modules:
-        del sys.modules['data']
-    import data as fresh_data
-    yield fresh_data
-    if original_data:
-        sys.modules['data'] = original_data
+pytestmark = pytest.mark.no_patch_data
 
 
 def test_save_writes_json_to_file():

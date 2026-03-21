@@ -2,13 +2,15 @@
 asyncio_mode = "auto"
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "no_patch_data: disable tests/conftest.py autouse data patch for tests that exercise the real data module",
+]
 filterwarnings = [
     "ignore::pytest.PytestUnraisableExceptionWarning",
 ]
 
 [tool.coverage.run]
 source = ["classes", "cogs", "data", "logging_utils"]
-omit = ["classes/test_turnmanager.py"]
 
 [tool.coverage.report]
 show_missing = true

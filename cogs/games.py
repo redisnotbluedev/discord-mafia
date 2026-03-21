@@ -135,7 +135,7 @@ class GamesCog(commands.Cog):
 		assert admin_users is not None
 		assert abstractor.owner is not None
 
-		if str(interaction.user.id) not in admin_users.split(",") + [abstractor.owner.id]:
+		if str(interaction.user.id) not in admin_users.split(",") + [str(abstractor.owner.id)]:
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Owner, Admins", ephemeral=True)
 			return
 
