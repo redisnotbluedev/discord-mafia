@@ -130,7 +130,7 @@ class GameAbstractor:
 			# The new lobby message is orphaned — delete it.
 			try:
 				await new_msg[0].delete()
-			except (discord.NotFound, discord.HTTPException):
+			except (discord.NotFound, discord.HTTPException, discord.Forbidden):
 				pass
 			return
 
