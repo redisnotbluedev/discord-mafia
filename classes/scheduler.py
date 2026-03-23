@@ -292,7 +292,7 @@ class MafiaSheduler:
                 error = traceback.format_exc()
                 try:
                     await self.message.channel.send(
-                        f"An error occured while restoring channel permissions:\n```python\n{error}\n```\n-# If this error continues, please contact a developer."
+                        f"An error occurred while restoring channel permissions:\n```python\n{error}\n```\n-# If this error continues, please contact a developer."
                     )
                 except (discord.errors.HTTPException, RuntimeError):
                     logger.error(f"Failed to send permissions error message: {error}")
