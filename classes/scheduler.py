@@ -274,16 +274,21 @@ class MafiaSheduler:
             # We try to set an explicit allow for the common messaging permissions,
             # but fall back to restoring the original overwrites if that fails.
             try:
+                # Merge desired messaging permissions into the existing @everyone overwrite
+                current_overwrite = channel.overwrites_for(guild.default_role)
+                if not isinstance(current_overwrite, discord.PermissionOverwrite):
+                    current_overwrite = discord.PermissionOverwrite()
+
+                current_overwrite.send_messages = True
+                current_overwrite.send_messages_in_threads = True
+                current_overwrite.create_public_threads = True
+                current_overwrite.add_reactions = True
+                current_overwrite.use_application_commands = True
+
                 tasks.append(
                     channel.set_permissions(
                         guild.default_role,
-                        overwrite=discord.PermissionOverwrite(
-                            send_messages=True,
-                            send_messages_in_threads=True,
-                            create_public_threads=True,
-                            add_reactions=True,
-                            use_application_commands=True,
-                        ),
+                        overwrite=current_overwrite,
                     )
                 )
             except Exception as exc:
