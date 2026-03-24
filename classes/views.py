@@ -14,8 +14,8 @@ Classes are organized by function:
 import discord, time, logging, data, asyncio, json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, cast
-from classes.roles import Role, Alignment, ALL_ROLES, get_role
 from classes.player import Player, create_ai_players, AIAbstraction
+from classes.roles import Role, ALL_ROLES, get_enabled_role_groups
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
@@ -370,24 +370,21 @@ class SettingsView(discord.ui.View):
 			self.config["mafia"] = mafia
 
 		# Extract enabled roles from config once
-		enabled_roles = [r for k, v in self.config.items() if v is True and (r := get_role(k)) is not None]
+		enabled_neutral, enabled_special_town, enabled_special_mafia = get_enabled_role_groups(self.config)
 
 		# Mafia bar - show enabled special mafia roles
-		enabled_special_mafia = [role for role in enabled_roles if role.alignment == Alignment.MAFIA and role.is_special()]
 		mafia_regular = max(mafia - len(enabled_special_mafia), 0)
 		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_mafia)
 		self._mafia_display.label = f"{mafia_bar} ({mafia})"
 		self._mafia_up.disabled = mafia >= town
 
 		# Town bar - show enabled special town roles
-		enabled_special_town = [role for role in enabled_roles if role.alignment == Alignment.TOWN and role.is_special()]
 		town_regular = max(town - len(enabled_special_town), 0)
 		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
 		self._town_display.label = f"{town_bar} ({town})"
 		self._town_up.disabled = town >= total_players - 1
 
 		# Neutral bar - show enabled neutral roles
-		enabled_neutral = [role for role in enabled_roles if role.alignment == Alignment.NEUTRAL]
 		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_neutral)
 		neutral_display = discord.utils.get(self.children, custom_id="neutral_display")
 		if enabled_neutral:

@@ -72,8 +72,6 @@ class Role:
 	def __str__(self) -> str:
 		return self.name
 
-
-
 	def describe(self) -> str:
 		"""Return the full role description text."""
 		return self.description
@@ -320,7 +318,7 @@ from .jester import Jester, JESTER
 
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
 
-def get_role(name: str) -> "Role | None":
+def get_role(name: str) -> Role | None:
 	"""Look up a role by name, case-insensitive.
 	
 	Accepts but does not require a 'role_' prefix.
@@ -334,4 +332,24 @@ def get_role(name: str) -> "Role | None":
 			return r
 	return None
 
-__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role']
+def get_enabled_role_groups(
+	config: dict[str, bool | int | list[str]],
+) -> tuple[list["Role"], list["Role"], list["Role"]]:
+	"""Filter the config for enabled roles and group them by category.
+
+	Returns: (neutral_roles, special_town_roles, special_mafia_roles)
+	"""
+	enabled_roles = [
+		r for k, v in config.items() if v is True and (r := get_role(str(k))) is not None
+	]
+
+	neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
+	special_town_roles = [
+		r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN
+	]
+	special_mafia_roles = [
+		r for r in enabled_roles if r.is_special() and r.alignment == Alignment.MAFIA
+	]
+	return neutral_roles, special_town_roles, special_mafia_roles
+
+__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role', 'get_enabled_role_groups']

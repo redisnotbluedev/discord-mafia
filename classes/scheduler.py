@@ -15,7 +15,7 @@ import discord
 
 import data
 from classes.player import AIAbstraction, Player
-from classes.roles import MAFIA, TOWN, ALL_ROLES, Alignment, get_role
+from classes.roles import MAFIA, TOWN, ALL_ROLES, Alignment, get_role, get_enabled_role_groups
 from classes.views import JoinGameView
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,6 @@ class MafiaSchedulerConfig(TypedDict):
     role_Sheriff: bool
     role_Vigilante: bool
     role_Jester: bool
-
 
 class MafiaSheduler:
     """Orchestrates game setup, role assignment, and the game lifecycle.
@@ -341,14 +340,7 @@ class MafiaSheduler:
 
         players_rolled = 0
 
-        enabled_roles = [
-            r for k, v in self.config.items() if v is True and (r := get_role(k)) is not None
-        ]
-
-        neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
-        special_town_roles = [
-            r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN
-        ]
+        neutral_roles, special_town_roles, _ = get_enabled_role_groups(self.config)
 
         assigned_special = len(neutral_roles) + len(special_town_roles)
         available_for_town = max(0, total_players - mafia - assigned_special)
