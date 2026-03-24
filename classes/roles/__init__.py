@@ -9,8 +9,7 @@ not in the Role instances themselves.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING, Literal, TypedDict 
-
+from typing import TYPE_CHECKING, Literal, TypedDict, NamedTuple
 import discord
 
 from classes.turnmanager import extract_choice
@@ -332,12 +331,17 @@ def get_role(name: str) -> Role | None:
 			return r
 	return None
 
+class GroupedRoles(NamedTuple):
+	neutral: list["Role"]
+	town: list["Role"]
+	mafia: list["Role"]
+
 def get_enabled_role_groups(
-	config: dict[str, bool | int | list[str]],
-) -> tuple[list["Role"], list["Role"], list["Role"]]:
+	config: "MafiaSchedulerConfig",
+) -> GroupedRoles:
 	"""Filter the config for enabled roles and group them by category.
 
-	Returns: (neutral_roles, special_town_roles, special_mafia_roles)
+	Returns: A GroupedRoles object containing (neutral, town, mafia) role lists.
 	"""
 	enabled_roles = [
 		r for k, v in config.items() if v is True and (r := get_role(str(k))) is not None
@@ -350,6 +354,6 @@ def get_enabled_role_groups(
 	special_mafia_roles = [
 		r for r in enabled_roles if r.is_special() and r.alignment == Alignment.MAFIA
 	]
-	return neutral_roles, special_town_roles, special_mafia_roles
+	return GroupedRoles(neutral_roles, special_town_roles, special_mafia_roles)
 
-__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role', 'get_enabled_role_groups']
+__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role', 'get_enabled_role_groups', 'GroupedRoles']

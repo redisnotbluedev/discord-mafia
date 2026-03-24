@@ -14,15 +14,15 @@ def test_get_enabled_role_groups_basic():
         "town": 5,
     }
     
-    neutral, special_town, special_mafia = get_enabled_role_groups(config)
+    roles = get_enabled_role_groups(config)
     
-    assert JESTER in neutral
-    assert DOCTOR in special_town
-    assert SHERIFF in special_town
-    assert VIGILANTE not in special_town
-    assert len(neutral) == 1
-    assert len(special_town) == 2
-    assert len(special_mafia) == 0
+    assert JESTER in roles.neutral
+    assert DOCTOR in roles.town
+    assert SHERIFF in roles.town
+    assert VIGILANTE not in roles.town
+    assert len(roles.neutral) == 1
+    assert len(roles.town) == 2
+    assert len(roles.mafia) == 0
 
 def test_get_enabled_role_groups_none_enabled():
     """Test that empty lists are returned when no special roles are enabled."""
@@ -33,10 +33,10 @@ def test_get_enabled_role_groups_none_enabled():
         "town": 4,
     }
     
-    neutral, special_town, _ = get_enabled_role_groups(config)
+    roles = get_enabled_role_groups(config)
     
-    assert len(neutral) == 0
-    assert len(special_town) == 0
+    assert len(roles.neutral) == 0
+    assert len(roles.town) == 0
 
 def test_get_enabled_role_groups_case_insensitivity():
     """Test that the grouping logic respects the case-insensitivity of get_role."""
@@ -45,10 +45,10 @@ def test_get_enabled_role_groups_case_insensitivity():
         "jester": True,
     }
     
-    neutral, special_town, _ = get_enabled_role_groups(config)
+    roles = get_enabled_role_groups(config)
     
-    assert JESTER in neutral
-    assert DOCTOR in special_town
+    assert JESTER in roles.neutral
+    assert DOCTOR in roles.town
 
 def test_get_enabled_role_groups_ignores_non_boolean_values():
     """Test that numeric or list values in config are ignored (they aren't roles)."""
@@ -58,8 +58,8 @@ def test_get_enabled_role_groups_ignores_non_boolean_values():
         "models": ["gpt-4o"],
     }
     
-    neutral, special_town, _ = get_enabled_role_groups(config)
+    roles = get_enabled_role_groups(config)
     
-    assert DOCTOR in special_town
-    assert len(special_town) == 1
-    assert len(neutral) == 0
+    assert DOCTOR in roles.town
+    assert len(roles.town) == 1
+    assert len(roles.neutral) == 0

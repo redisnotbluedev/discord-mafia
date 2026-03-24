@@ -340,13 +340,13 @@ class MafiaSheduler:
 
         players_rolled = 0
 
-        neutral_roles, special_town_roles, _ = get_enabled_role_groups(self.config)
+        roles = get_enabled_role_groups(self.config)
 
-        assigned_special = len(neutral_roles) + len(special_town_roles)
+        assigned_special = len(roles.neutral) + len(roles.town)
         available_for_town = max(0, total_players - mafia - assigned_special)
-        town_count = min(town - len(special_town_roles), available_for_town)
+        town_count = min(town - len(roles.town), available_for_town)
 
-        for role in neutral_roles:
+        for role in roles.neutral:
             if players_rolled >= total_players:
                 break
             user = players[players_rolled]
@@ -355,7 +355,7 @@ class MafiaSheduler:
             self.game.players.append(player)
             players_rolled += 1
 
-        for role in special_town_roles:
+        for role in roles.town:
             if players_rolled >= total_players:
                 break
             user = players[players_rolled]

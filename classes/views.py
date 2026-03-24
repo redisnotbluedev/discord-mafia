@@ -370,24 +370,24 @@ class SettingsView(discord.ui.View):
 			self.config["mafia"] = mafia
 
 		# Extract enabled roles from config once
-		enabled_neutral, enabled_special_town, enabled_special_mafia = get_enabled_role_groups(self.config)
+		enabled_roles = get_enabled_role_groups(self.config)
 
 		# Mafia bar - show enabled special mafia roles
-		mafia_regular = max(mafia - len(enabled_special_mafia), 0)
-		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_mafia)
+		mafia_regular = max(mafia - len(enabled_roles.mafia), 0)
+		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_roles.mafia)
 		self._mafia_display.label = f"{mafia_bar} ({mafia})"
 		self._mafia_up.disabled = mafia >= town
 
 		# Town bar - show enabled special town roles
-		town_regular = max(town - len(enabled_special_town), 0)
-		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
+		town_regular = max(town - len(enabled_roles.town), 0)
+		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_roles.town)
 		self._town_display.label = f"{town_bar} ({town})"
 		self._town_up.disabled = town >= total_players - 1
 
 		# Neutral bar - show enabled neutral roles
-		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_neutral)
+		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_roles.neutral)
 		neutral_display = discord.utils.get(self.children, custom_id="neutral_display")
-		if enabled_neutral:
+		if enabled_roles.neutral:
 			if not neutral_display:
 				nd = NeutralDisplay()
 				self.add_item(nd)
