@@ -72,15 +72,7 @@ class Role:
 	def __str__(self) -> str:
 		return self.name
 
-	def __eq__(self, other: object) -> bool:
-		"""Compares roles by name."""
-		if isinstance(other, Role):
-			return self.name == other.name
-		return False
 
-	def __hash__(self) -> int:
-		"""Returns the hash of the role name."""
-		return hash(self.name)
 
 	def describe(self) -> str:
 		"""Return the full role description text."""
@@ -328,4 +320,18 @@ from .jester import Jester, JESTER
 
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
 
-__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES']
+def get_role(name: str) -> "Role | None":
+	"""Look up a role by name, case-insensitive.
+	
+	Accepts but does not require a 'role_' prefix.
+	"""
+	name = name.lower()
+	if name.startswith("role_"):
+		name = name[5:]
+	
+	for r in ALL_ROLES:
+		if r.name.lower() == name:
+			return r
+	return None
+
+__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role']

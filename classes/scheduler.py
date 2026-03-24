@@ -6,7 +6,7 @@ distribution, Discord permission setup, and the overall game lifecycle.
 
 from typing import TypedDict
 
-from classes.roles import Alignment, TOWN, MAFIA
+from classes.roles import Alignment, TOWN, MAFIA, ALL_ROLES, get_role
 from classes.player import Player, AIAbstraction
 from classes.views import JoinGameView
 import asyncio, time, discord, random, data, logging, traceback
@@ -257,7 +257,7 @@ class MafiaSheduler:
 			The `self.game.players` list is *not* cleared before the new
 			players are appended.
 		"""
-		from classes.roles import ALL_ROLES
+
 		total_players = len(self.abstractor.players)
 		mafia = self.config.get("mafia", max(1, total_players // 3))
 		town = self.config.get("town", max(mafia + 1, total_players - mafia))
@@ -274,7 +274,7 @@ class MafiaSheduler:
 
 		players_rolled = 0
 
-		enabled_roles = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False)]
+		enabled_roles = [r for k, v in self.config.items() if v is True and (r := get_role(k)) is not None]
 
 		neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
 		special_town_roles = [r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN]
