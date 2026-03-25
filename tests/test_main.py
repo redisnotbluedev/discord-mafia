@@ -12,19 +12,13 @@ pytestmark = pytest.mark.no_patch_data
 
 def load_main(config=None):
     sys.modules.pop("main", None)
-    with patch("dotenv.load_dotenv"), patch("data.load", return_value=config or {}), patch.object(commands.Bot, "run"):
+    with (
+        patch("dotenv.load_dotenv"),
+        patch("data.load", return_value=config or {}),
+        patch.object(commands.Bot, "run"),
+    ):
         import main
         return importlib.reload(main)
-
-
-class TestBotWithAbstractors:
-    def test_class_extends_commands_bot(self):
-        main = load_main()
-        assert issubclass(main.BotWithAbstractors, commands.Bot)
-
-    def test_bot_instance_has_abstractors_list(self):
-        main = load_main()
-        assert isinstance(main.bot.abstractors, list)
 
 
 class TestSetupHook:

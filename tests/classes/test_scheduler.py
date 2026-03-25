@@ -1,12 +1,15 @@
 import time
 from unittest.mock import MagicMock, AsyncMock, patch
+from typing import cast
 
 import pytest
 import discord
 
+from classes.abstractor import GameAbstractor
 from classes.player import Player, AIAbstraction
 from classes.scheduler import MafiaSheduler, MafiaSchedulerConfig
 from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, JESTER
+import tests.testutils as testutils
 
 
 def _make_ai_stub(name, uid):
@@ -15,49 +18,15 @@ def _make_ai_stub(name, uid):
 
 
 def _make_abstractor(player_count):
-    abstractor = MagicMock()
+    with patch("data.load", return_value={}):
+        abstractor = GameAbstractor(channel=123456, bot=testutils.new_mock_bot())
     abstractor.players = {i: _make_ai_stub(f"Player{i}", i) for i in range(player_count)}
     abstractor.interactions = {}
     abstractor.running = False
     abstractor.reset = MagicMock()
     abstractor.on_message = AsyncMock()
-    abstractor.bot = MagicMock()
     abstractor.game = None
     return abstractor
-
-
-def _make_channel():
-    channel = MagicMock(spec=discord.TextChannel)
-    channel.id = 123456
-    channel.send = AsyncMock()
-    channel.set_permissions = AsyncMock()
-    mock_thread = MagicMock(spec=discord.Thread)
-    mock_thread.send = AsyncMock()
-    mock_thread.edit = AsyncMock()
-    mock_thread.add_user = AsyncMock()
-    channel.create_thread = AsyncMock(return_value=mock_thread)
-    channel.overwrites_for = MagicMock(
-        return_value=MagicMock(is_empty=MagicMock(return_value=False))
-    )
-    return channel
-
-
-def _make_guild():
-    guild = MagicMock()
-    guild.id = 777
-    guild.default_role = MagicMock()
-    guild.me = MagicMock()
-    guild.get_role = MagicMock(return_value=MagicMock())
-    return guild
-
-
-def _make_message():
-    msg = MagicMock()
-    msg.channel = _make_channel()
-    msg.guild = _make_guild()
-    msg.delete = AsyncMock()
-    msg.edit = AsyncMock()
-    return msg
 
 
 def _make_mock_game():
@@ -71,7 +40,10 @@ def _make_scheduler(player_count=6):
     abstractor = _make_abstractor(player_count)
     lobby = MagicMock()
     lobby.generate_embed = MagicMock(return_value=MagicMock())
-    message = _make_message()
+    message = testutils.new_mock_message()
+    message.channel = testutils.new_mock_text_channel()
+    message.channel.create_thread = AsyncMock(return_value=testutils.new_mock_thread())
+    message.guild = testutils.new_mock_guild()
     with patch("classes.game.MafiaGame") as MockGame:
         mock_game = _make_mock_game()
         MockGame.return_value = mock_game
@@ -104,7 +76,10 @@ class TestMafiaShedulerInit:
         abstractor = _make_abstractor(6)
         lobby = MagicMock()
         lobby.generate_embed = MagicMock(return_value=MagicMock())
-        message = _make_message()
+        message = testutils.new_mock_message()
+        message.channel = testutils.new_mock_text_channel()
+        message.channel.create_thread = AsyncMock(return_value=testutils.new_mock_thread())
+        message.guild = testutils.new_mock_guild()
         with patch("classes.game.MafiaGame") as MockGame:
             mock_game = _make_mock_game()
             MockGame.return_value = mock_game
@@ -206,7 +181,7 @@ class TestStartGame:
 
     async def test_start_game_calls_set_permissions(self):
         s = _make_scheduler(5)
-        channel = s.message.channel
+        channel = cast(MagicMock, s.message.channel)
         guild_data = {"guilds": {"777": {"player_role": 42}}}
         with patch("data.load", return_value=guild_data):
             await s.start_game()
@@ -214,7 +189,7 @@ class TestStartGame:
 
     async def test_start_game_creates_mafia_thread(self):
         s = _make_scheduler(5)
-        channel = s.message.channel
+        channel = cast(MagicMock, s.message.channel)
         guild_data = {"guilds": {"777": {"player_role": 42}}}
         with patch("data.load", return_value=guild_data):
             await s.start_game()
@@ -224,7 +199,7 @@ class TestStartGame:
 
     async def test_start_game_locks_mafia_thread_in_finally(self):
         s = _make_scheduler(5)
-        channel = s.message.channel
+        channel = cast(MagicMock, s.message.channel)
         guild_data = {"guilds": {"777": {"player_role": 42}}}
         with patch("data.load", return_value=guild_data):
             await s.start_game()
@@ -233,8 +208,8 @@ class TestStartGame:
 
     async def test_start_game_set_permissions_locks_everyone(self):
         s = _make_scheduler(5)
-        channel = s.message.channel
-        guild = s.message.guild
+        channel = cast(MagicMock, s.message.channel)
+        guild = cast(MagicMock, s.message.guild)
         guild_data = {"guilds": {"777": {"player_role": 42}}}
         with patch("data.load", return_value=guild_data):
             await s.start_game()

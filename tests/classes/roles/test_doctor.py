@@ -76,6 +76,14 @@ def test_doctor_night_action_type():
     assert DOCTOR.night_action_type() == "save"
 
 
+def test_doctor_name():
+    assert DOCTOR.name == "Doctor"
+
+
+def test_doctor_emoji():
+    assert DOCTOR.emoji == "🧑‍⚕️"
+
+
 @pytest.mark.asyncio
 async def test_doctor_blocks_repeat_action_when_called_twice():
     target = testutils.new_test_player("Alice")

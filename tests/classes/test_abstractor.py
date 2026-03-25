@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 import discord
 
 from classes.abstractor import GameAbstractor
+import tests.testutils as testutils
 
 CHANNEL_ID = 123456
 
@@ -45,10 +46,10 @@ class TestInit:
 
 class TestReset:
     def test_clears_all_state(self, abstractor, mock_user):
-        abstractor.players[mock_user.id] = MagicMock()
+        abstractor.players[mock_user.id] = testutils.new_test_player(id=mock_user.id)
         abstractor.owner = mock_user
-        abstractor.interactions[mock_user.id] = MagicMock()
-        abstractor.game = MagicMock()
+        abstractor.interactions[mock_user.id] = testutils.new_mock_interaction(user_id=mock_user.id)
+        abstractor.game = testutils.new_mock_game()
         abstractor.reset()
         assert abstractor.players == {}
         assert abstractor.owner is None
@@ -57,14 +58,20 @@ class TestReset:
 
 
 class TestOnMessage:
-    async def test_true_triggers_lobby(self, abstractor, mock_channel):
+    async def test_true_triggers_lobby(self, abstractor, mock_channel, monkeypatch):
         abstractor.bot.get_channel.return_value = mock_channel
-        with patch("classes.views.StartGameView"):
-            await abstractor.on_message(True)
+        import classes.views as views_module
+
+        class FakeStartGameView:
+            def __init__(self, abstractor):
+                self.abstractor = abstractor
+
+        monkeypatch.setattr(views_module, "StartGameView", FakeStartGameView)
+        await abstractor.on_message(True)
         mock_channel.send.assert_called_once()
 
     async def test_running_routes_to_game(self, abstractor, mock_message):
-        mock_turns = MagicMock()
+        mock_turns = testutils.new_mock_turn_manager()
         mock_turns.on_message = AsyncMock()
         mock_game = MagicMock()
         mock_game.turns = mock_turns
@@ -75,21 +82,33 @@ class TestOnMessage:
         await abstractor.on_message(mock_message)
         mock_turns.on_message.assert_awaited_once_with(mock_message)
 
-    async def test_not_running_posts_lobby(self, abstractor, mock_channel, mock_message):
+    async def test_not_running_posts_lobby(self, abstractor, mock_channel, mock_message, monkeypatch):
         abstractor.running = False
         mock_message.channel.id = CHANNEL_ID
         abstractor.bot.get_channel.return_value = mock_channel
-        with patch("classes.views.StartGameView"):
-            await abstractor.on_message(mock_message)
+        import classes.views as views_module
+
+        class FakeStartGameView:
+            def __init__(self, abstractor):
+                self.abstractor = abstractor
+
+        monkeypatch.setattr(views_module, "StartGameView", FakeStartGameView)
+        await abstractor.on_message(mock_message)
         mock_channel.send.assert_called_once()
 
-    async def test_stores_last_lobby_id_from_sent_message(self, abstractor, mock_channel):
+    async def test_stores_last_lobby_id_from_sent_message(self, abstractor, mock_channel, monkeypatch):
         sent_msg = MagicMock(spec=discord.Message)
         sent_msg.id = 321
         mock_channel.send = AsyncMock(return_value=sent_msg)
         abstractor.bot.get_channel.return_value = mock_channel
-        with patch("classes.views.StartGameView"):
-            await abstractor.on_message(True)
+        import classes.views as views_module
+
+        class FakeStartGameView:
+            def __init__(self, abstractor):
+                self.abstractor = abstractor
+
+        monkeypatch.setattr(views_module, "StartGameView", FakeStartGameView)
+        await abstractor.on_message(True)
         assert abstractor.last_lobby_id == 321
 
 
@@ -116,7 +135,10 @@ class TestDeleteLastLobby:
             side_effect=discord.NotFound(_http_response(404, "Not Found"), "not found")
         )
         abstractor.bot.get_channel.return_value = mock_channel
-        await abstractor._delete_last_lobby()
+        with patch("classes.abstractor.logger.warning") as warning:
+            await abstractor._delete_last_lobby()
+        mock_channel.fetch_message.assert_awaited_once_with(77)
+        warning.assert_called_once()
 
     async def test_handles_forbidden(self, abstractor, mock_channel):
         abstractor.last_lobby_id = 77
@@ -124,7 +146,10 @@ class TestDeleteLastLobby:
             side_effect=discord.Forbidden(_http_response(403, "Forbidden"), "forbidden")
         )
         abstractor.bot.get_channel.return_value = mock_channel
-        await abstractor._delete_last_lobby()
+        with patch("classes.abstractor.logger.warning") as warning:
+            await abstractor._delete_last_lobby()
+        mock_channel.fetch_message.assert_awaited_once_with(77)
+        warning.assert_called_once()
 
     async def test_handles_http_exception(self, abstractor, mock_channel):
         abstractor.last_lobby_id = 77
@@ -132,7 +157,10 @@ class TestDeleteLastLobby:
             side_effect=discord.HTTPException(_http_response(500, "Internal Server Error"), "error")
         )
         abstractor.bot.get_channel.return_value = mock_channel
-        await abstractor._delete_last_lobby()
+        with patch("classes.abstractor.logger.error") as error:
+            await abstractor._delete_last_lobby()
+        mock_channel.fetch_message.assert_awaited_once_with(77)
+        error.assert_called_once()
 
 
 class TestSaveConfig:

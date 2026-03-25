@@ -7,21 +7,17 @@ from classes.player import AIAbstraction, Player
 from classes.roles import TOWN
 from classes.turnmanager import TurnManager
 from classes.views import VoteView
+import tests.testutils as testutils
 
 
 def _human_player(user_id: int, name: str) -> Player:
-    user = MagicMock(spec=discord.Member)
-    user.id = user_id
-    user.name = name
-    player = Player(user)
-    player.role = TOWN
-    return player
+    return testutils.new_test_player(name, id=user_id, role=TOWN)
 
 
 def _ai_player(name: str = "AI One", model: str = "gpt-test") -> Player:
-    ai_user = AIAbstraction(model=model, name=name)
-    player = ai_user.player
-    player.role = TOWN
+    player = testutils.new_test_player(name, role=TOWN, is_ai=True)
+    assert isinstance(player.user, AIAbstraction)
+    player.user.model = model
     return player
 
 
@@ -29,7 +25,11 @@ def _ai_player(name: str = "AI One", model: str = "gpt-test") -> Player:
     "json.load",
     return_value={"discussion_analyser": "gpt-test", "webhook_url": "https://example.com"},
 )
-@patch("builtins.open", new_callable=mock_open, read_data='{"discussion_analyser": "gpt-test"}')
+@patch(
+    "builtins.open",
+    new_callable=mock_open,
+    read_data='{"discussion_analyser": "gpt-test", "webhook_url": "https://example.com"}',
+)
 def build_turn_manager(
     _mock_file,
     _mock_json_load,
@@ -344,9 +344,11 @@ async def test_run_round_cycles_human_and_ai_players():
 
     bot = MagicMock(spec=discord.Client)
     turn_manager = build_turn_manager(participants=[human, ai], channel=channel, bot=bot, client=client)
-    turn_manager.broadcast = MagicMock()
+    ai_user = cast(AIAbstraction, ai.user)
+    initial_context_len = len(turn_manager.context[ai_user])
 
     human_message = MagicMock(spec=discord.Message)
+    human_message.author = human.user
     human_message.content = "Human speaks"
     turn_manager.message_queue.get = AsyncMock(return_value=human_message)
 
@@ -356,8 +358,8 @@ async def test_run_round_cycles_human_and_ai_players():
     assert turn_manager.required_author == -1
     assert turn_manager.running is True
     client.chat.completions.create.assert_awaited_once()
-    turn_manager.broadcast.assert_any_call("Alice: Human speaks", human)
-    turn_manager.broadcast.assert_any_call("Bot: AI speaks", ai)
+    assert turn_manager.context[ai_user][initial_context_len] == {"role": "user", "content": "Alice: Human speaks"}
+    assert turn_manager.context[ai_user][initial_context_len + 1] == {"role": "assistant", "content": "AI speaks"}
     assert any("it's your turn to speak" in call.args[0] for call in channel.send.await_args_list)
     assert any("**Bot:** AI speaks" in call.args[0] for call in channel.send.await_args_list)
 

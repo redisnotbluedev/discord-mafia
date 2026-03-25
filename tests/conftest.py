@@ -8,35 +8,19 @@ import tests.testutils as testutils
 
 @pytest.fixture
 def mock_bot():
-    bot = MagicMock(spec=commands.Bot)
-    bot.abstractors = []
-    bot.user = MagicMock(spec=discord.User)
-    bot.user.id = 999
-    bot.get_channel = MagicMock(return_value=MagicMock(spec=discord.TextChannel))
-    bot.tree = MagicMock()
-    bot.tree.sync = AsyncMock(return_value=[])
-    bot.add_cog = AsyncMock()
-    return bot
+    return testutils.new_mock_bot()
 
 
 @pytest.fixture
 def mock_channel():
-    channel = MagicMock(spec=discord.TextChannel)
-    channel.id = 123456
-    channel.name = "test-channel"
+    channel = testutils.new_mock_text_channel()
     channel.send = AsyncMock(return_value=MagicMock(spec=discord.Message, id=900))
-    channel.fetch_message = AsyncMock()
-    channel.set_permissions = AsyncMock()
-    channel.create_thread = AsyncMock()
-    channel.create_webhook = AsyncMock()
     return channel
 
 
 @pytest.fixture
 def mock_user():
-    user = MagicMock(spec=discord.Member)
-    user.id = 111
-    user.name = "TestUser"
+    user = testutils.new_mock_member(111, "TestUser")
     user.display_name = "TestUser"
     user.mention = "<@111>"
     user.bot = False
@@ -45,37 +29,22 @@ def mock_user():
 
 @pytest.fixture
 def mock_guild():
-    guild = MagicMock(spec=discord.Guild)
-    guild.id = 777
-    guild.name = "TestGuild"
-    guild.channels = []
-    guild.roles = []
-    return guild
+    return testutils.new_mock_guild()
 
 
 @pytest.fixture
 def mock_message(mock_channel, mock_user):
-    msg = MagicMock(spec=discord.Message)
-    msg.id = 500
-    msg.content = "test message"
+    msg = testutils.new_mock_message()
     msg.author = mock_user
     msg.channel = mock_channel
-    msg.delete = AsyncMock()
-    msg.edit = AsyncMock()
     return msg
 
 
 @pytest.fixture
 def mock_interaction(mock_user, mock_channel):
-    interaction = MagicMock(spec=discord.Interaction)
+    interaction = testutils.new_mock_interaction(user_id=mock_user.id)
     interaction.user = mock_user
     interaction.channel = mock_channel
-    interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
-    interaction.response.edit_message = AsyncMock()
-    interaction.response.defer = AsyncMock()
-    interaction.followup = MagicMock()
-    interaction.followup.send = AsyncMock()
     return interaction
 
 
@@ -95,8 +64,9 @@ def _patch_data(request):
     if request.node.get_closest_marker("no_patch_data"):
         yield
         return
-    with patch("data.load", return_value={}), \
-         patch("data.save"), \
+    store = testutils.new_data_store()
+    with patch("data.load", side_effect=store["load"]), \
+         patch("data.save", side_effect=store["save"]), \
          patch("data.update_game_status"):
         yield
 

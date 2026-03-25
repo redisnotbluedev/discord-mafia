@@ -1,4 +1,5 @@
 import json
+import io
 import pytest
 from unittest.mock import patch, mock_open, MagicMock
 
@@ -6,28 +7,41 @@ from unittest.mock import patch, mock_open, MagicMock
 pytestmark = pytest.mark.no_patch_data
 
 
-def test_save_writes_json_to_file():
+class _WritableBuffer(io.StringIO):
+    def close(self):
+        pass
+
+
+def _capture_saved_payload(test_data):
     import data
-    test_data = {"key": "value", "nested": {"inner": 123}}
-    m = mock_open()
-    with patch("builtins.open", m):
+
+    writes = _WritableBuffer()
+
+    def fake_open(path, mode):
+        assert path == "data.json"
+        assert mode == "w"
+        writes.seek(0)
+        writes.truncate(0)
+        return writes
+
+    with patch("builtins.open", side_effect=fake_open):
         data.save(test_data)
-    
-    m.assert_called_once_with("data.json", "w")
+
+    writes.seek(0)
+    return json.loads(writes.getvalue())
+
+
+def test_save_writes_json_to_file():
+    test_data = {"key": "value", "nested": {"inner": 123}}
+    assert _capture_saved_payload(test_data) == test_data
 
 
 def test_save_empty_dict():
-    import data
     test_data = {}
-    m = mock_open()
-    with patch("builtins.open", m):
-        data.save(test_data)
-    
-    m.assert_called_once_with("data.json", "w")
+    assert _capture_saved_payload(test_data) == test_data
 
 
 def test_save_complex_nested_structure():
-    import data
     test_data = {
         "guilds": {
             "123": {"name": "Guild1", "channels": [1, 2, 3]},
@@ -35,11 +49,7 @@ def test_save_complex_nested_structure():
         },
         "users": ["user1", "user2"]
     }
-    m = mock_open()
-    with patch("builtins.open", m):
-        data.save(test_data)
-    
-    m.assert_called_once_with("data.json", "w")
+    assert _capture_saved_payload(test_data) == test_data
 
 
 def test_load_reads_json_from_file():
@@ -51,16 +61,6 @@ def test_load_reads_json_from_file():
     
     assert result == test_data
     m.assert_called_once_with("data.json", "r")
-
-
-def test_load_returns_empty_dict_on_file_not_found():
-    import data
-    m = mock_open()
-    m.side_effect = [FileNotFoundError(), MagicMock()]
-    with patch("builtins.open", m):
-        result = data.load()
-    
-    assert result == {}
 
 
 def test_load_returns_empty_dict_on_json_decode_error():
@@ -75,13 +75,23 @@ def test_load_returns_empty_dict_on_json_decode_error():
 
 def test_load_creates_empty_file_on_file_not_found():
     import data
-    m = mock_open()
-    m.side_effect = [FileNotFoundError(), MagicMock()]
-    with patch("builtins.open", m):
+    writes = _WritableBuffer()
+
+    def fake_open(path, mode):
+        assert path == "data.json"
+        if mode == "r":
+            raise FileNotFoundError()
+        assert mode == "w"
+        writes.seek(0)
+        writes.truncate(0)
+        return writes
+
+    with patch("builtins.open", side_effect=fake_open):
         result = data.load()
-    
+
     assert result == {}
-    assert m.call_count == 2
+    writes.seek(0)
+    assert writes.getvalue() == "{}"
 
 
 def test_load_returns_empty_dict_when_json_is_null():

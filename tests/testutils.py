@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
+from copy import deepcopy
 
 import discord
+from discord.ext import commands
 
 from classes.player import Player, AIAbstraction
 from classes.roles import TOWN, Role
@@ -57,13 +59,30 @@ def new_mock_client() -> MagicMock:
     return MagicMock(spec=discord.Client)
 
 
+def new_mock_bot() -> MagicMock:
+    bot = MagicMock(spec=commands.Bot)
+    bot.abstractors = []
+    bot.user = MagicMock(spec=discord.User)
+    bot.user.id = 999
+    bot.get_channel = MagicMock(return_value=new_mock_text_channel())
+    bot.tree = MagicMock()
+    bot.tree.sync = AsyncMock(return_value=[])
+    bot.add_cog = AsyncMock()
+    return bot
+
+
 def new_mock_text_channel() -> MagicMock:
     channel = MagicMock(spec=discord.TextChannel)
+    channel.id = 123456
+    channel.name = "test-channel"
     channel.send = AsyncMock()
     channel.fetch_message = AsyncMock()
     channel.set_permissions = AsyncMock()
     channel.create_thread = AsyncMock()
     channel.create_webhook = AsyncMock()
+    channel.overwrites_for = MagicMock(
+        return_value=MagicMock(is_empty=MagicMock(return_value=False))
+    )
     return channel
 
 
@@ -77,9 +96,23 @@ def new_mock_thread() -> MagicMock:
 
 def new_mock_message() -> MagicMock:
     message = MagicMock(spec=discord.Message)
+    message.id = 500
+    message.content = "test message"
     message.delete = AsyncMock()
     message.edit = AsyncMock()
     return message
+
+
+def new_mock_guild() -> MagicMock:
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 777
+    guild.name = "TestGuild"
+    guild.channels = []
+    guild.roles = []
+    guild.default_role = MagicMock()
+    guild.me = MagicMock()
+    guild.get_role = MagicMock(return_value=MagicMock())
+    return guild
 
 
 def new_mock_abstractor(*, owner_id: int = 1, owner_name: str = "Owner") -> MagicMock:
@@ -97,6 +130,18 @@ def new_mock_abstractor(*, owner_id: int = 1, owner_name: str = "Owner") -> Magi
     abstractor.on_message = AsyncMock()
     abstractor.game = None
     return abstractor
+
+
+def new_data_store(initial: dict | None = None) -> dict[str, object]:
+    state = {"value": deepcopy(initial or {})}
+
+    def load() -> dict:
+        return deepcopy(state["value"])
+
+    def save(data: dict) -> None:
+        state["value"] = deepcopy(data)
+
+    return {"state": state, "load": load, "save": save}
 
 
 def new_mock_game(*, players: list[Player] | None = None) -> MagicMock:

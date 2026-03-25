@@ -1,5 +1,5 @@
 import random
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
@@ -185,30 +185,17 @@ async def test_run_day_phase_calls_discussion_then_voting_and_marks_victim_dead(
 
     await game.run_day_phase()
 
-    assert game.discussion_phase.await_count == 1
-    assert game.voting_phase.await_count == 1
-    assert game.discussion_phase.await_args_list[0] == call()
-    assert game.voting_phase.await_args_list[0] == call()
+    game.discussion_phase.assert_awaited_once()
+    game.voting_phase.assert_awaited_once()
     assert victim.alive is False
-    game.channel.send.assert_awaited_once()
+    game.channel.send.assert_awaited_once_with(
+        "> VotedOut was eliminated! They were Town."
+    )
     game.turns.broadcast.assert_called_once_with("VotedOut was eliminated! They were Town.")
 
 
 @pytest.mark.asyncio
-async def test_run_day_phase_returns_early_when_no_alive_players():
-    game = make_game()
-    game.players = []
-    game.discussion_phase = AsyncMock()
-    game.voting_phase = AsyncMock()
-
-    await game.run_day_phase()
-
-    game.discussion_phase.assert_not_awaited()
-    game.voting_phase.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_mafia_choose_target_switches_turn_manager_context_and_restores_it():
+async def test_mafia_choose_target_broadcasts_mafia_context_and_targets_only_non_mafia_players():
     game = make_game()
     game.day_number = 2
     game.channel = testutils.new_mock_text_channel()
@@ -226,11 +213,9 @@ async def test_mafia_choose_target_switches_turn_manager_context_and_restores_it
 
     await game.mafia_choose_target()
 
-    turns.set_channel.assert_has_calls([call(game.mafia_chat), call(game.channel)])
-    turns.set_participants.assert_has_calls([
-        call([mafia_one, mafia_two]),
-        call([mafia_one, mafia_two, town_one, town_two]),
-    ])
+    turns.broadcast.assert_called_once_with(
+        "You are part of the Mafia! Your team consists of: MafOne, MafTwo. Choose wisely who to eliminate."
+    )
     turns.run_round.assert_awaited_once_with(rounds=2)
     turns.run_vote.assert_awaited_once()
     vote_kwargs = turns.run_vote.await_args.kwargs

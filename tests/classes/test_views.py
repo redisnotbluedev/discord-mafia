@@ -4,7 +4,7 @@ import discord
 import pytest
 
 from classes.player import AIAbstraction, Player
-from classes.roles import Role, DOCTOR, SHERIFF, TOWN, VIGILANTE
+from classes.roles import DOCTOR, MAFIA, SHERIFF, TOWN, VIGILANTE
 from classes.views import (
     ABSTAIN_LABEL,
     ConfirmView,
@@ -35,7 +35,7 @@ async def test_confirm_view_init_stores_callbacks():
 async def test_confirm_view_on_yes_calls_yes_callback():
     yes = AsyncMock()
     no = AsyncMock()
-    interaction = make_interaction(1)
+    interaction = testutils.new_mock_interaction(user_id=1)
     view = ConfirmView(yes, no)
 
     await view.on_yes.callback(interaction)
@@ -48,7 +48,7 @@ async def test_confirm_view_on_yes_calls_yes_callback():
 async def test_confirm_view_on_no_calls_no_callback():
     yes = AsyncMock()
     no = AsyncMock()
-    interaction = make_interaction(2)
+    interaction = testutils.new_mock_interaction(user_id=2)
     view = ConfirmView(yes, no)
 
     await view.on_no.callback(interaction)
@@ -98,13 +98,13 @@ async def test_vote_select_init_adds_abstain_option_when_enabled():
 
 @pytest.mark.asyncio
 async def test_special_actions_view_tracks_players_and_adds_unique_special_role_buttons():
-    p1 = Player(make_member(1, "Doc"))
+    p1 = Player(testutils.new_mock_member(1, "Doc"))
     p1.role = DOCTOR
-    p2 = Player(make_member(2, "Doc2"))
-    p2.role = DOCTOR
-    p3 = Player(make_member(3, "Sheriff"))
-    p3.role = SHERIFF
-    p4 = Player(make_member(4, "Town"))
+    p2 = Player(testutils.new_mock_member(2, "Sheriff"))
+    p2.role = SHERIFF
+    p3 = Player(testutils.new_mock_member(3, "Maf"))
+    p3.role = MAFIA
+    p4 = Player(testutils.new_mock_member(4, "Town"))
     p4.role = TOWN
 
     alive_players = [p1, p2, p3, p4]
@@ -121,14 +121,14 @@ async def test_special_actions_view_tracks_players_and_adds_unique_special_role_
 
 @pytest.mark.asyncio
 async def test_special_actions_view_pending_humans_only_special_humans_who_can_act():
-    p1 = Player(make_member(10, "Doc"))
+    p1 = Player(testutils.new_mock_member(10, "Doc"))
     p1.role = DOCTOR
 
-    p2 = Player(make_member(20, "Vig"))
+    p2 = Player(testutils.new_mock_member(20, "Vig"))
     p2.role = VIGILANTE
     p2.role_state["has_shot"] = True
 
-    p3 = Player(make_member(30, "Town"))
+    p3 = Player(testutils.new_mock_member(30, "Town"))
     p3.role = TOWN
 
     p4 = Player(AIAbstraction("gpt-test", "AI"))
@@ -141,9 +141,8 @@ async def test_special_actions_view_pending_humans_only_special_humans_who_can_a
 
 @pytest.mark.asyncio
 async def test_special_actions_view_get_returns_button_or_none():
-    doctor = make_role("Doctor", is_special=True)
-    p1 = Player(make_member(1, "Doc"))
-    p1.role = doctor
+    p1 = Player(testutils.new_mock_member(1, "Doc"))
+    p1.role = DOCTOR
     view = SpecialActionsView([p1], MagicMock(), MagicMock())
 
     assert view.get("action_Doctor") is not None
@@ -152,24 +151,21 @@ async def test_special_actions_view_get_returns_button_or_none():
 
 @pytest.mark.asyncio
 async def test_special_action_button_init_stores_role_and_custom_id():
-    doctor = make_role("Doctor", is_special=True)
+    button = SpecialActionButton(DOCTOR)
 
-    button = SpecialActionButton(doctor)
-
-    assert button.role is doctor
+    assert button.role is DOCTOR
     assert button.custom_id == "action_Doctor"
 
 
 @pytest.mark.asyncio
 async def test_special_action_button_callback_rejects_non_matching_player():
-    doctor = make_role("Doctor", is_special=True)
-    player = Player(make_member(1, "Doc"))
-    player.role = doctor
+    player = Player(testutils.new_mock_member(1, "Doc"))
+    player.role = DOCTOR
     view = SpecialActionsView([player], MagicMock(), MagicMock())
     button = view.get("action_Doctor")
     assert isinstance(button, SpecialActionButton)
 
-    interaction = make_interaction(99)
+    interaction = testutils.new_mock_interaction(user_id=99)
     await button.callback(interaction)
 
     interaction.response.send_message.assert_awaited_once_with("Not for you.", ephemeral=True)
@@ -177,15 +173,14 @@ async def test_special_action_button_callback_rejects_non_matching_player():
 
 @pytest.mark.asyncio
 async def test_special_action_button_callback_rejects_already_acted_player():
-    doctor = make_role("Doctor", is_special=True)
-    player = Player(make_member(1, "Doc"))
-    player.role = doctor
+    player = Player(testutils.new_mock_member(1, "Doc"))
+    player.role = DOCTOR
     view = SpecialActionsView([player], MagicMock(), MagicMock())
     view.acted_players.add(1)
     button = view.get("action_Doctor")
     assert isinstance(button, SpecialActionButton)
 
-    interaction = make_interaction(1)
+    interaction = testutils.new_mock_interaction(user_id=1)
     await button.callback(interaction)
 
     interaction.response.send_message.assert_awaited_once_with(
@@ -195,52 +190,34 @@ async def test_special_action_button_callback_rejects_already_acted_player():
 
 @pytest.mark.asyncio
 async def test_special_action_button_callback_calls_role_handler_for_valid_player():
-    doctor = make_role("Doctor", is_special=True)
-    player = Player(make_member(1, "Doc"))
-    player.role = doctor
+    player = Player(testutils.new_mock_member(1, "Doc"))
+    player.role = DOCTOR
     game = MagicMock()
     view = SpecialActionsView([player], MagicMock(), game)
     button = view.get("action_Doctor")
     assert isinstance(button, SpecialActionButton)
 
-    interaction = make_interaction(1)
-    await button.callback(interaction)
+    interaction = testutils.new_mock_interaction(user_id=1)
+    with patch.object(DOCTOR, "handle_button_click", new=AsyncMock()) as handle_button_click:
+        await button.callback(interaction)
 
-    doctor.handle_button_click.assert_awaited_once_with(game, player, interaction, action_view=view)
-
-
-def make_abstractor(owner_id: int = 1, owner_name: str = "Owner") -> tuple[MagicMock, MagicMock]:
-    owner = make_member(owner_id, owner_name)
-    owner_player = Player(owner)
-
-    abstractor = MagicMock()
-    abstractor.running = False
-    abstractor.players = {owner_id: owner_player}
-    abstractor.interactions = {}
-    abstractor.bot = MagicMock()
-    abstractor.bot.get_channel = MagicMock()
-    abstractor.owner = owner
-    abstractor.last_lobby_id = None
-    abstractor.save_config = MagicMock()
-    abstractor.on_message = AsyncMock()
-    abstractor.game = None
-
-    return abstractor, owner
+    handle_button_click.assert_awaited_once_with(game, player, interaction, action_view=view)
 
 
 @pytest.mark.asyncio
 async def test_start_game_view_start_game_reads_models_and_creates_ai_players():
-    abstractor, owner = make_abstractor()
+    abstractor = testutils.new_mock_abstractor()
+    owner = abstractor.owner
 
-    interaction = make_interaction(owner.id)
+    interaction = testutils.new_mock_interaction(user_id=owner.id)
     interaction.user = owner
-    interaction.message = MagicMock(spec=discord.Message)
+    interaction.message = testutils.new_mock_message()
     interaction.message.id = 123
-    interaction.message.channel = MagicMock(spec=discord.TextChannel)
+    interaction.message.channel = testutils.new_mock_text_channel()
     interaction.message.channel.id = 888
 
-    lobby_message = MagicMock(spec=discord.Message)
-    channel = MagicMock(spec=discord.TextChannel)
+    lobby_message = testutils.new_mock_message()
+    channel = testutils.new_mock_text_channel()
     channel.fetch_message = AsyncMock(return_value=lobby_message)
     abstractor.bot.get_channel.return_value = channel
 
@@ -271,43 +248,52 @@ async def test_start_game_view_start_game_reads_models_and_creates_ai_players():
 
 
 @pytest.mark.asyncio
-async def test_join_game_view_join_game_adds_player_and_embed_is_embed():
-    abstractor, owner = make_abstractor()
+async def test_join_game_view_adds_player_and_updates_lobby_embed():
+    abstractor = testutils.new_mock_abstractor()
+    owner = abstractor.owner
 
     fake_scheduler = MagicMock()
     fake_scheduler.schedule = MagicMock()
     fake_scheduler.start_job = MagicMock()
 
-    message = MagicMock(spec=discord.Message)
+    message = testutils.new_mock_message()
     with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
         view = JoinGameView(abstractor, message, start_at=999999.0)
 
-    joining_user = make_member(2, "Bob")
-    interaction = make_interaction(2)
+    joining_user = testutils.new_mock_member(2, "Bob")
+    interaction = testutils.new_mock_interaction(user_id=2)
     interaction.user = joining_user
 
     await view.join_game.callback(interaction)
 
     assert owner.id in abstractor.players
     assert joining_user.id in abstractor.players
-    assert isinstance(view.generate_embed(), discord.Embed)
     interaction.response.edit_message.assert_awaited_once()
+    edit_kwargs = interaction.response.edit_message.await_args.kwargs
+    embed = edit_kwargs["embed"]
+    assert isinstance(embed, discord.Embed)
+    assert embed.fields[-1].name == "Players"
+    player_field_value = embed.fields[-1].value
+    assert player_field_value is not None
+    assert "Owner" in player_field_value
+    assert "Bob" in player_field_value
 
 
 @pytest.mark.asyncio
 async def test_join_game_view_start_starts_game_for_owner():
-    abstractor, owner = make_abstractor()
+    abstractor = testutils.new_mock_abstractor()
+    owner = abstractor.owner
 
     fake_scheduler = MagicMock()
     fake_scheduler.schedule = MagicMock()
     fake_scheduler.start_job = MagicMock()
     fake_scheduler.start_job.cancel = MagicMock()
 
-    message = MagicMock(spec=discord.Message)
+    message = testutils.new_mock_message()
     with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
         view = JoinGameView(abstractor, message, start_at=999999.0)
 
-    interaction = make_interaction(owner.id)
+    interaction = testutils.new_mock_interaction(user_id=owner.id)
     interaction.user = owner
 
     with patch("time.time", return_value=12345.0):
@@ -320,17 +306,16 @@ async def test_join_game_view_start_starts_game_for_owner():
 
 @pytest.mark.asyncio
 async def test_settings_view_render_updates_controls_and_lobby_message():
-    abstractor, _owner = make_abstractor()
-    abstractor.players[2] = Player(make_member(2, "Bob"))
-    abstractor.players[3] = Player(make_member(3, "Carl"))
-    abstractor.players[4] = Player(make_member(4, "Dana"))
-    abstractor.players[5] = Player(make_member(5, "Eve"))
+    abstractor = testutils.new_mock_abstractor()
+    abstractor.players[2] = Player(testutils.new_mock_member(2, "Bob"))
+    abstractor.players[3] = Player(testutils.new_mock_member(3, "Carl"))
+    abstractor.players[4] = Player(testutils.new_mock_member(4, "Dana"))
+    abstractor.players[5] = Player(testutils.new_mock_member(5, "Eve"))
 
     game = MagicMock()
     game.abstractor = abstractor
-    game.config = {"mafia": 2, "town": 2, "role_Doctor": True, "role_Sheriff": True}
-    game.message = MagicMock(spec=discord.Message)
-    game.message.edit = AsyncMock()
+    game.config = {"mafia": 2, "town": 3, "role_Doctor": True, "role_Sheriff": True}
+    game.message = testutils.new_mock_message()
     game.lobby = MagicMock()
     game.lobby.generate_embed.return_value = discord.Embed(title="Lobby")
 
@@ -345,6 +330,7 @@ async def test_settings_view_render_updates_controls_and_lobby_message():
     assert view._mafia_display.label.endswith("(2)")
     assert view._town_display.label.endswith("(3)")
     game.message.edit.assert_awaited_once()
+    assert game.message.edit.await_args.kwargs["embed"].title == "Lobby"
 
 
 @pytest.mark.asyncio
@@ -356,7 +342,7 @@ async def test_vote_select_callback_rejects_unauthorized_voter():
     select = next(item for item in view.children if isinstance(item, VoteSelect))
     select._values = ["Alice"]
 
-    interaction = make_interaction(999)
+    interaction = testutils.new_mock_interaction(user_id=999)
     await select.callback(interaction)
 
     assert view.votes == {}
@@ -374,7 +360,7 @@ async def test_vote_select_callback_registers_vote_and_disables_when_complete():
     select = next(item for item in view.children if isinstance(item, VoteSelect))
     select._values = ["Alice"]
 
-    interaction = make_interaction(1)
+    interaction = testutils.new_mock_interaction(user_id=1)
     await select.callback(interaction)
 
     assert view.votes == {1: "Alice"}

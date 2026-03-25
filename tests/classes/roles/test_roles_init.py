@@ -164,7 +164,7 @@ class TestSelectRole:
 
     async def test_on_selected_handles_selection_and_marks_player_acted(self):
         game = testutils.new_mock_game()
-        player = testutils.new_test_player("Doctor")
+        player = testutils.new_test_player("Doctor", id=111)
         target = testutils.new_test_player("Alice")
         interaction = testutils.new_mock_interaction(user_id=111)
         interaction.data = {"values": ["0"]}
@@ -187,7 +187,7 @@ class TestSelectRole:
 
     async def test_on_selected_abstain_marks_player_acted(self):
         game = testutils.new_mock_game()
-        player = testutils.new_test_player("Doctor")
+        player = testutils.new_test_player("Doctor", id=111)
         interaction = testutils.new_mock_interaction(user_id=111)
         interaction.data = {"values": ["abstain"]}
         action_view = MagicMock()
@@ -209,7 +209,7 @@ class TestSelectRole:
 
     async def test_on_selected_blocks_double_act_when_called_twice(self):
         game = testutils.new_mock_game()
-        player = testutils.new_test_player("Doctor")
+        player = testutils.new_test_player("Doctor", id=111)
         target = testutils.new_test_player("Alice")
 
         interaction_first = testutils.new_mock_interaction(user_id=111)
