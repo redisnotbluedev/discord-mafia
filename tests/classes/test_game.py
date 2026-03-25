@@ -1,4 +1,5 @@
 import random
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
@@ -8,8 +9,40 @@ from classes.game import MafiaGame
 from classes.player import AIAbstraction, Player
 from classes.roles import Alignment, JESTER, MAFIA, TOWN, VIGILANTE
 from classes.scheduler import MafiaSchedulerConfig
+from classes.turnmanager import TurnManager
 
 import tests.testutils as testutils
+
+
+class FakeMafiaTurns:
+    def __init__(self, *, vote_result=None):
+        self.channel = None
+        self.participants = []
+        self.channel_during_round = None
+        self.participants_during_round = None
+        self.channel_during_vote = None
+        self.participants_during_vote = None
+        self.broadcast_messages = []
+        self.vote_result = vote_result
+
+    def set_channel(self, channel):
+        self.channel = channel
+
+    def set_participants(self, participants):
+        self.participants = participants
+
+    def broadcast(self, message):
+        self.broadcast_messages.append((self.channel, message))
+
+    async def run_round(self, *, rounds):
+        self.channel_during_round = self.channel
+        self.participants_during_round = list(self.participants)
+
+    async def run_vote(self, **kwargs):
+        self.channel_during_vote = self.channel
+        self.participants_during_vote = list(self.participants)
+        self.vote_kwargs = kwargs
+        return self.vote_result
 
 
 def make_game() -> MafiaGame:
@@ -207,20 +240,26 @@ async def test_mafia_choose_target_broadcasts_mafia_context_and_targets_only_non
     town_two = testutils.make_player("TownTwo", TOWN, alive=True)
     game.players = [mafia_one, mafia_two, town_one, town_two]
 
-    turns = testutils.new_mock_turn_manager()
-    turns.run_vote = AsyncMock(return_value=town_one)
-    game.turns = turns
+    turns = FakeMafiaTurns(vote_result=town_one)
+    game.turns = cast(TurnManager, turns)
 
     await game.mafia_choose_target()
 
-    turns.broadcast.assert_called_once_with(
-        "You are part of the Mafia! Your team consists of: MafOne, MafTwo. Choose wisely who to eliminate."
-    )
-    turns.run_round.assert_awaited_once_with(rounds=2)
-    turns.run_vote.assert_awaited_once()
-    vote_kwargs = turns.run_vote.await_args.kwargs
+    assert turns.channel_during_round is game.mafia_chat
+    assert turns.channel_during_vote is game.mafia_chat
+    assert turns.participants_during_round == [mafia_one, mafia_two]
+    assert turns.participants_during_vote == [mafia_one, mafia_two]
+    assert turns.broadcast_messages == [
+        (
+            game.mafia_chat,
+            "You are part of the Mafia! Your team consists of: MafOne, MafTwo. Choose wisely who to eliminate.",
+        )
+    ]
+    vote_kwargs = turns.vote_kwargs
     assert vote_kwargs["candidates"] == [town_one, town_two]
     assert vote_kwargs["break_ties_random"] is True
+    assert turns.channel is game.channel
+    assert turns.participants == [mafia_one, mafia_two, town_one, town_two]
     assert game.night_actions["mafia_kill"] is town_one
 
 

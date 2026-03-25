@@ -96,6 +96,62 @@ class TestKickCommand:
         await cog.kick.callback(cog, mock_interaction, player)
         assert 888 not in abstractor.players
 
+    async def test_owner_cannot_kick_missing_player(self, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        owner.id = 111
+        existing_player = MagicMock()
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.owner = owner
+        abstractor.players = {777: existing_player}
+        abstractor.game = MagicMock()
+        abstractor.game.scheduler = None
+        mock_bot.abstractors = [abstractor]
+
+        cog = _make_cog(mock_bot)
+        mock_interaction.channel = MagicMock(spec=discord.TextChannel)
+        mock_interaction.channel.id = 123
+        mock_interaction.user = owner
+
+        player = MagicMock(spec=discord.User)
+        player.id = 888
+        player.mention = "<@888>"
+
+        await cog.kick.callback(cog, mock_interaction, player)
+
+        assert abstractor.players == {777: existing_player}
+        mock_interaction.response.send_message.assert_called_once()
+        assert "isn't in the game" in mock_interaction.response.send_message.call_args[0][0]
+        assert mock_interaction.response.send_message.call_args.kwargs.get("ephemeral") is True
+
+    async def test_owner_cannot_kick_player_twice(self, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        owner.id = 111
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.owner = owner
+        abstractor.players = {888: MagicMock()}
+        abstractor.game = MagicMock()
+        abstractor.game.scheduler = None
+        mock_bot.abstractors = [abstractor]
+
+        cog = _make_cog(mock_bot)
+        mock_interaction.channel = MagicMock(spec=discord.TextChannel)
+        mock_interaction.channel.id = 123
+        mock_interaction.user = owner
+
+        player = MagicMock(spec=discord.User)
+        player.id = 888
+        player.mention = "<@888>"
+
+        await cog.kick.callback(cog, mock_interaction, player)
+        mock_interaction.response.send_message.reset_mock()
+
+        await cog.kick.callback(cog, mock_interaction, player)
+
+        assert 888 not in abstractor.players
+        assert "isn't in the game" in mock_interaction.response.send_message.call_args[0][0]
+
 
 class TestLlama10Command:
     async def test_no_lobby_active(self, mock_bot, mock_interaction):

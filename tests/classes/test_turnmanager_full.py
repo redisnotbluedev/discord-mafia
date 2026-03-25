@@ -10,17 +10,6 @@ from classes.views import VoteView
 import tests.testutils as testutils
 
 
-def _human_player(user_id: int, name: str) -> Player:
-    return testutils.new_test_player(name, id=user_id, role=TOWN)
-
-
-def _ai_player(name: str = "AI One", model: str = "gpt-test") -> Player:
-    player = testutils.new_test_player(name, role=TOWN, is_ai=True)
-    assert isinstance(player.user, AIAbstraction)
-    player.user.model = model
-    return player
-
-
 @patch(
     "json.load",
     return_value={"discussion_analyser": "gpt-test", "webhook_url": "https://example.com"},
@@ -38,7 +27,10 @@ def build_turn_manager(
     bot: discord.Client | None = None,
     client=None,
 ) -> TurnManager:
-    participants = participants or [_human_player(1, "Alice"), _ai_player("Bot")]
+    participants = participants or [
+        testutils.new_test_player("Alice", id=1, role=TOWN),
+        testutils.new_test_ai_player("Bot", model="gpt-test", role=TOWN),
+    ]
     channel = channel or MagicMock(spec=discord.TextChannel)
     channel.id = 123
     bot = bot or MagicMock(spec=discord.Client)
@@ -47,7 +39,7 @@ def build_turn_manager(
 
 
 def test_init_sets_core_state_and_defaults():
-    participants = [_human_player(1, "Alice")]
+    participants = [testutils.new_test_player("Alice", id=1, role=TOWN)]
     channel = MagicMock(spec=discord.TextChannel)
     channel.id = 456
     bot = MagicMock(spec=discord.Client)
@@ -69,7 +61,7 @@ def test_init_sets_core_state_and_defaults():
 
 
 def test_set_channel_updates_channel_reference():
-    turn_manager = build_turn_manager(participants=[_human_player(1, "Alice")])
+    turn_manager = build_turn_manager(participants=[testutils.new_test_player("Alice", id=1, role=TOWN)])
     new_channel = MagicMock(spec=discord.TextChannel)
     new_channel.id = 789
 
@@ -79,8 +71,8 @@ def test_set_channel_updates_channel_reference():
 
 
 def test_set_participants_replaces_participant_list():
-    turn_manager = build_turn_manager(participants=[_human_player(1, "Alice")])
-    new_participants = [_human_player(2, "Bob")]
+    turn_manager = build_turn_manager(participants=[testutils.new_test_player("Alice", id=1, role=TOWN)])
+    new_participants = [testutils.new_test_player("Bob", id=2, role=TOWN)]
 
     turn_manager.set_participants(new_participants)
 
@@ -88,7 +80,7 @@ def test_set_participants_replaces_participant_list():
 
 
 def test_set_context_replaces_ai_context():
-    ai_player = _ai_player("Bot")
+    ai_player = testutils.new_test_ai_player("Bot", model="gpt-test", role=TOWN)
     turn_manager = build_turn_manager(participants=[ai_player])
     ai_user = cast(AIAbstraction, ai_player.user)
     new_context: dict[AIAbstraction, list[dict[str, str]]] = {
@@ -101,9 +93,9 @@ def test_set_context_replaces_ai_context():
 
 
 def test_broadcast_appends_message_to_all_ai_contexts():
-    ai_one = _ai_player("Bot One")
-    ai_two = _ai_player("Bot Two")
-    human = _human_player(1, "Alice")
+    ai_one = testutils.new_test_ai_player("Bot One", model="gpt-test", role=TOWN)
+    ai_two = testutils.new_test_ai_player("Bot Two", model="gpt-test", role=TOWN)
+    human = testutils.new_test_player("Alice", id=1, role=TOWN)
     turn_manager = build_turn_manager(participants=[human, ai_one, ai_two])
     ai_one_user = cast(AIAbstraction, ai_one.user)
     ai_two_user = cast(AIAbstraction, ai_two.user)
@@ -118,8 +110,8 @@ def test_broadcast_appends_message_to_all_ai_contexts():
 
 
 def test_broadcast_respects_exclude_player():
-    ai_one = _ai_player("Bot One")
-    ai_two = _ai_player("Bot Two")
+    ai_one = testutils.new_test_ai_player("Bot One", model="gpt-test", role=TOWN)
+    ai_two = testutils.new_test_ai_player("Bot Two", model="gpt-test", role=TOWN)
     turn_manager = build_turn_manager(participants=[ai_one, ai_two])
     ai_one_user = cast(AIAbstraction, ai_one.user)
     ai_two_user = cast(AIAbstraction, ai_two.user)
@@ -135,7 +127,7 @@ def test_broadcast_respects_exclude_player():
 
 
 def test_clean_ai_content_removes_think_blocks_and_markdown_inside_them():
-    turn_manager = build_turn_manager(participants=[_human_player(1, "Alice")])
+    turn_manager = build_turn_manager(participants=[testutils.new_test_player("Alice", id=1, role=TOWN)])
 
     cleaned = turn_manager._clean_ai_content(
         "  <think>## **private reasoning**</think>Visible answer  "
@@ -145,8 +137,8 @@ def test_clean_ai_content_removes_think_blocks_and_markdown_inside_them():
 
 
 def test_candidate_by_name_exact_match():
-    alpha = _human_player(1, "Alpha")
-    beta = _human_player(2, "Beta")
+    alpha = testutils.new_test_player("Alpha", id=1, role=TOWN)
+    beta = testutils.new_test_player("Beta", id=2, role=TOWN)
     turn_manager = build_turn_manager(participants=[alpha, beta])
 
     found = turn_manager._candidate_by_name([alpha, beta], "beta")
@@ -155,8 +147,8 @@ def test_candidate_by_name_exact_match():
 
 
 def test_candidate_by_name_returns_none_when_missing():
-    alpha = _human_player(1, "Alpha")
-    beta = _human_player(2, "Beta")
+    alpha = testutils.new_test_player("Alpha", id=1, role=TOWN)
+    beta = testutils.new_test_player("Beta", id=2, role=TOWN)
     turn_manager = build_turn_manager(participants=[alpha, beta])
 
     found = turn_manager._candidate_by_name([alpha, beta], "Gamma")
@@ -166,7 +158,7 @@ def test_candidate_by_name_returns_none_when_missing():
 
 @pytest.mark.asyncio
 async def test_create_ai_completion_returns_clean_content_on_success():
-    ai_player = _ai_player("Bot")
+    ai_player = testutils.new_test_ai_player("Bot", model="gpt-test", role=TOWN)
     ai_user = cast(AIAbstraction, ai_player.user)
 
     response = MagicMock()
@@ -191,7 +183,7 @@ async def test_create_ai_completion_returns_clean_content_on_success():
 
 @pytest.mark.asyncio
 async def test_create_ai_completion_returns_empty_string_on_exception():
-    ai_player = _ai_player("Bot")
+    ai_player = testutils.new_test_ai_player("Bot", model="gpt-test", role=TOWN)
 
     client = MagicMock()
     client.chat = MagicMock()
@@ -209,7 +201,7 @@ async def test_create_ai_completion_returns_empty_string_on_exception():
 
 @pytest.mark.asyncio
 async def test_on_message_queues_matching_author_when_running():
-    human = _human_player(42, "Alice")
+    human = testutils.new_test_player("Alice", id=42, role=TOWN)
     turn_manager = build_turn_manager(participants=[human])
     turn_manager.running = True
     turn_manager.required_author = 42
@@ -227,7 +219,7 @@ async def test_on_message_queues_matching_author_when_running():
 
 @pytest.mark.asyncio
 async def test_on_message_ignores_non_matching_author():
-    human = _human_player(42, "Alice")
+    human = testutils.new_test_player("Alice", id=42, role=TOWN)
     turn_manager = build_turn_manager(participants=[human])
     turn_manager.required_author = 42
 
@@ -242,8 +234,8 @@ async def test_on_message_ignores_non_matching_author():
 
 
 def test_format_vote_details_formats_votes_and_abstain():
-    alice = _human_player(1, "Alice")
-    bob = _human_player(2, "Bob")
+    alice = testutils.new_test_player("Alice", id=1, role=TOWN)
+    bob = testutils.new_test_player("Bob", id=2, role=TOWN)
     turn_manager = build_turn_manager(participants=[alice, bob])
 
     votes = {1: "Alice", 2: "Abstain", 3: "Alice"}
@@ -261,8 +253,8 @@ def test_format_vote_details_formats_votes_and_abstain():
 
 
 def test_format_vote_details_returns_no_votes_yet_when_empty():
-    alice = _human_player(1, "Alice")
-    bob = _human_player(2, "Bob")
+    alice = testutils.new_test_player("Alice", id=1, role=TOWN)
+    bob = testutils.new_test_player("Bob", id=2, role=TOWN)
     turn_manager = build_turn_manager(participants=[alice, bob])
 
     details = turn_manager._format_vote_details(
@@ -277,9 +269,9 @@ def test_format_vote_details_returns_no_votes_yet_when_empty():
 
 @pytest.mark.asyncio
 async def test_initialize_ai_context_builds_system_prompts_for_ai_players_only():
-    human = _human_player(1, "Alice")
-    ai_one = _ai_player("Bot One")
-    ai_two = _ai_player("Bot Two")
+    human = testutils.new_test_player("Alice", id=1, role=TOWN)
+    ai_one = testutils.new_test_ai_player("Bot One", model="gpt-test", role=TOWN)
+    ai_two = testutils.new_test_ai_player("Bot Two", model="gpt-test", role=TOWN)
 
     turn_manager = build_turn_manager(participants=[human, ai_one, ai_two])
     context = turn_manager._initialize_ai_context([human, ai_one, ai_two])
@@ -298,10 +290,10 @@ async def test_initialize_ai_context_builds_system_prompts_for_ai_players_only()
 
 @pytest.mark.asyncio
 async def test_get_next_speaker_parses_ai_mentions_and_excludes_speaker_and_dead_players():
-    speaker = _human_player(1, "Speaker")
-    asked = _human_player(2, "Asked")
-    casual = _human_player(3, "Casual")
-    dead = _human_player(4, "Ghost")
+    speaker = testutils.new_test_player("Speaker", id=1, role=TOWN)
+    asked = testutils.new_test_player("Asked", id=2, role=TOWN)
+    casual = testutils.new_test_player("Casual", id=3, role=TOWN)
+    dead = testutils.new_test_player("Ghost", id=4, role=TOWN)
     dead.alive = False
 
     response = MagicMock()
@@ -323,8 +315,8 @@ async def test_get_next_speaker_parses_ai_mentions_and_excludes_speaker_and_dead
 
 @pytest.mark.asyncio
 async def test_run_round_cycles_human_and_ai_players():
-    human = _human_player(1, "Alice")
-    ai = _ai_player("Bot")
+    human = testutils.new_test_player("Alice", id=1, role=TOWN)
+    ai = testutils.new_test_ai_player("Bot", model="gpt-test", role=TOWN)
 
     response = MagicMock()
     response.choices = [MagicMock(message=MagicMock(content="<think>internal</think>AI speaks"))]
@@ -366,10 +358,10 @@ async def test_run_round_cycles_human_and_ai_players():
 
 @pytest.mark.asyncio
 async def test_run_vote_sets_up_vote_view_and_returns_none_for_tie():
-    ai_one = _ai_player("AI One")
-    ai_two = _ai_player("AI Two")
-    alice = _human_player(10, "Alice")
-    bob = _human_player(20, "Bob")
+    ai_one = testutils.new_test_ai_player("AI One", model="gpt-test", role=TOWN)
+    ai_two = testutils.new_test_ai_player("AI Two", model="gpt-test", role=TOWN)
+    alice = testutils.new_test_player("Alice", id=10, role=TOWN)
+    bob = testutils.new_test_player("Bob", id=20, role=TOWN)
 
     first_vote = MagicMock()
     first_vote.choices = [MagicMock(message=MagicMock(content="Alice"))]
@@ -405,10 +397,10 @@ async def test_run_vote_sets_up_vote_view_and_returns_none_for_tie():
 
 @pytest.mark.asyncio
 async def test_run_vote_breaks_ties_when_enabled():
-    ai_one = _ai_player("AI One")
-    ai_two = _ai_player("AI Two")
-    alice = _human_player(10, "Alice")
-    bob = _human_player(20, "Bob")
+    ai_one = testutils.new_test_ai_player("AI One", model="gpt-test", role=TOWN)
+    ai_two = testutils.new_test_ai_player("AI Two", model="gpt-test", role=TOWN)
+    alice = testutils.new_test_player("Alice", id=10, role=TOWN)
+    bob = testutils.new_test_player("Bob", id=20, role=TOWN)
 
     first_vote = MagicMock()
     first_vote.choices = [MagicMock(message=MagicMock(content="Alice"))]

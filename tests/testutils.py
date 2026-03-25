@@ -48,6 +48,19 @@ def make_player(
     return player
 
 
+def new_test_ai_player(
+    name: str = "AIPlayer",
+    *,
+    model: str = "gpt-4o-mini",
+    role: Role = TOWN,
+    alive: bool = True,
+) -> Player:
+    player = new_test_player(name, role=role, alive=alive, is_ai=True)
+    assert isinstance(player.user, AIAbstraction)
+    player.user.model = model
+    return player
+
+
 def new_mock_member(user_id: int, name: str = "User") -> MagicMock:
     member = MagicMock(spec=discord.Member)
     member.id = user_id
