@@ -1,52 +1,39 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+import discord
 from classes.roles import VIGILANTE, Alignment
 
-
-@pytest.fixture
-def mock_game():
-    game = MagicMock()
-    game.night_actions = {}
-    game.get_alive_players.return_value = []
-    return game
+import tests.testutils as testutils
 
 
-@pytest.fixture
-def mock_player():
-    player = MagicMock()
-    player.alive = True
-    player.role_state = {}
-    player.user = MagicMock()
-    return player
+def test_vigilante_can_act_no_has_shot():
+    player = testutils.new_test_player()
+    assert VIGILANTE.can_act(player) is True
 
 
-def test_vigilante_can_act_no_has_shot(mock_player):
-    result = VIGILANTE.can_act(mock_player)
-    assert result is True
+def test_vigilante_can_act_has_shot_false():
+    player = testutils.new_test_player()
+    player.role_state["has_shot"] = False
+    assert VIGILANTE.can_act(player) is True
 
 
-def test_vigilante_can_act_has_shot_false(mock_player):
-    mock_player.role_state["has_shot"] = False
-    result = VIGILANTE.can_act(mock_player)
-    assert result is True
-
-
-def test_vigilante_can_act_has_shot_true(mock_player):
-    mock_player.role_state["has_shot"] = True
-    result = VIGILANTE.can_act(mock_player)
-    assert result is False
+def test_vigilante_can_act_has_shot_true():
+    player = testutils.new_test_player()
+    player.role_state["has_shot"] = True
+    assert VIGILANTE.can_act(player) is False
 
 
 @pytest.mark.asyncio
-async def test_vigilante_handle_selection(mock_game, mock_player):
-    target = MagicMock()
-    target.alive = True
-    
-    await VIGILANTE.handle_selection(mock_game, mock_player, target)
-    
-    assert mock_player.role_state["has_shot"] is True
-    assert "kills" in mock_game.night_actions
-    assert target in mock_game.night_actions["kills"]
+async def test_vigilante_handle_selection():
+    target = testutils.new_test_player()
+    player = testutils.new_test_player()
+    game = testutils.new_mock_game()
+
+    await VIGILANTE.handle_selection(game, player, target)
+
+    assert player.role_state["has_shot"] is True
+    assert "kills" in game.night_actions
+    assert target in game.night_actions["kills"]
 
 
 def test_vigilante_skippable():
@@ -70,10 +57,9 @@ def test_vigilante_name():
 
 
 @pytest.mark.asyncio
-async def test_vigilante_handle_button_click_already_shot(mock_game, mock_player):
-    from unittest.mock import AsyncMock
-    import discord
-    mock_player.role_state["has_shot"] = True
+async def test_vigilante_handle_button_click_already_shot():
+    player = testutils.new_test_player(id=123)
+    player.role_state["has_shot"] = True
     interaction = MagicMock(spec=discord.Interaction)
     interaction.response = MagicMock()
     interaction.response.send_message = AsyncMock()
@@ -81,8 +67,9 @@ async def test_vigilante_handle_button_click_already_shot(mock_game, mock_player
     interaction.user.id = 123
     action_view = MagicMock()
     action_view.pending_humans = {123}
-    
-    await VIGILANTE.handle_button_click(mock_game, mock_player, interaction, action_view)
-    
+    game = testutils.new_mock_game()
+
+    await VIGILANTE.handle_button_click(game, player, interaction, action_view)
+
     interaction.response.send_message.assert_called_once()
     assert 123 not in action_view.pending_humans

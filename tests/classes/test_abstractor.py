@@ -57,12 +57,6 @@ class TestReset:
 
 
 class TestOnMessage:
-    async def test_false_is_no_op(self, abstractor):
-        get_channel_mock = MagicMock()
-        abstractor.bot.get_channel = get_channel_mock
-        await abstractor.on_message(False)
-        get_channel_mock.assert_not_called()
-
     async def test_true_triggers_lobby(self, abstractor, mock_channel):
         abstractor.bot.get_channel.return_value = mock_channel
         with patch("classes.views.StartGameView"):

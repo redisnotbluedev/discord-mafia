@@ -2,22 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from classes.roles import MAFIA, Alignment
 
-
-@pytest.fixture
-def mock_game():
-    game = MagicMock()
-    game.night_actions = {}
-    game.get_alive_players.return_value = []
-    return game
-
-
-@pytest.fixture
-def mock_player():
-    player = MagicMock()
-    player.alive = True
-    player.role_state = {}
-    player.user = MagicMock()
-    return player
+import tests.testutils as testutils
 
 
 def test_mafia_is_special():
@@ -40,17 +25,14 @@ def test_mafia_name():
     assert MAFIA.name == "Mafia"
 
 
-def test_mafia_collective_kill_not_human_special_action(mock_player):
-    assert MAFIA.is_special() is False
-    assert MAFIA.can_act(mock_player) is True
-
-
 @pytest.mark.asyncio
-async def test_mafia_handle_selection(mock_game, mock_player):
-    target = MagicMock()
-    target.alive = True
-    
-    await MAFIA.handle_selection(mock_game, mock_player, target)
-    
-    assert "kills" in mock_game.night_actions
-    assert target in mock_game.night_actions["kills"]
+async def test_mafia_handle_selection():
+    target = testutils.new_test_player("Alice")
+    player = testutils.new_test_player()
+    game = testutils.new_mock_game()
+
+    await MAFIA.handle_selection(game, player, target)
+
+    assert "kills" in game.night_actions
+    assert target in game.night_actions["kills"]
+    assert target.alive is True

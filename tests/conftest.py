@@ -4,6 +4,8 @@ import pytest
 import discord
 from discord.ext import commands
 
+import tests.testutils as testutils
+
 @pytest.fixture
 def mock_bot():
     bot = MagicMock(spec=commands.Bot)
@@ -103,3 +105,9 @@ def _patch_data(request):
 def _patch_sleep():
     with patch("asyncio.sleep", new_callable=AsyncMock):
         yield
+
+
+@pytest.fixture(autouse=True)
+def reset_id_counter():
+    testutils.id_counter = 100
+    yield

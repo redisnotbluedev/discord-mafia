@@ -1,89 +1,70 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
-from classes.roles import DOCTOR
+from unittest.mock import AsyncMock, MagicMock
+from classes.roles import DOCTOR, Alignment
+
+import tests.testutils as testutils
 
 
-@pytest.fixture
-def mock_game():
-    game = MagicMock()
-    game.night_actions = {}
-    game.get_alive_players.return_value = []
-    return game
+def test_doctor_get_options_no_last_saved():
+    p1 = testutils.new_test_player()
+    p2 = testutils.new_test_player()
+    p3 = testutils.new_test_player()
+    player = testutils.new_test_player()
 
+    game = testutils.new_mock_game(players=[p1, p2, p3])
 
-@pytest.fixture
-def mock_player():
-    player = MagicMock()
-    player.alive = True
-    player.role_state = {}
-    player.user = MagicMock()
-    return player
+    options = DOCTOR.get_options(game, player)
 
-
-def test_doctor_get_options_no_last_saved(mock_game, mock_player):
-    p1 = MagicMock()
-    p1.alive = True
-    p2 = MagicMock()
-    p2.alive = True
-    p3 = MagicMock()
-    p3.alive = True
-    
-    mock_game.get_alive_players.return_value = [p1, p2, p3]
-    
-    options = DOCTOR.get_options(mock_game, mock_player)
-    
     assert len(options) == 3
     assert p1 in options
     assert p2 in options
     assert p3 in options
 
 
-def test_doctor_get_options_with_last_saved(mock_game, mock_player):
-    p1 = MagicMock()
-    p1.alive = True
-    p2 = MagicMock()
-    p2.alive = True
-    p3 = MagicMock()
-    p3.alive = True
-    
-    mock_game.get_alive_players.return_value = [p1, p2, p3]
-    mock_player.role_state["last_saved"] = p2
-    
-    options = DOCTOR.get_options(mock_game, mock_player)
-    
+def test_doctor_get_options_with_last_saved():
+    p1 = testutils.new_test_player()
+    p2 = testutils.new_test_player()
+    p3 = testutils.new_test_player()
+    player = testutils.new_test_player()
+    player.role_state["last_saved"] = p2
+
+    game = testutils.new_mock_game(players=[p1, p2, p3])
+
+    options = DOCTOR.get_options(game, player)
+
     assert len(options) == 2
     assert p1 in options
     assert p3 in options
     assert p2 not in options
 
 
-def test_doctor_get_options_can_save_self(mock_game, mock_player):
-    p1 = MagicMock()
-    p1.alive = True
-    
-    mock_game.get_alive_players.return_value = [mock_player, p1]
-    
-    options = DOCTOR.get_options(mock_game, mock_player)
-    
+def test_doctor_get_options_can_save_self():
+    player = testutils.new_test_player()
+    p1 = testutils.new_test_player()
+
+    game = testutils.new_mock_game(players=[player, p1])
+
+    options = DOCTOR.get_options(game, player)
+
     assert len(options) == 2
-    assert mock_player in options
+    assert player in options
     assert p1 in options
 
 
 @pytest.mark.asyncio
-async def test_doctor_handle_selection(mock_game, mock_player):
-    target = MagicMock()
-    target.alive = True
-    
-    await DOCTOR.handle_selection(mock_game, mock_player, target)
-    
-    assert "saves" in mock_game.night_actions
-    assert target in mock_game.night_actions["saves"]
-    assert mock_player.role_state["pending_save"] == target
+async def test_doctor_handle_selection():
+    target = testutils.new_test_player()
+    player = testutils.new_test_player()
+    game = testutils.new_mock_game()
+
+    await DOCTOR.handle_selection(game, player, target)
+
+    assert "saves" in game.night_actions
+    assert target in game.night_actions["saves"]
+    assert player.role_state["pending_save"] == target
 
 
 def test_doctor_alignment():
-    from classes.roles import Alignment
     assert DOCTOR.alignment == Alignment.TOWN
 
 
@@ -96,21 +77,65 @@ def test_doctor_night_action_type():
 
 
 @pytest.mark.asyncio
-async def test_doctor_blocks_repeat_action_when_already_acted(mock_game, mock_player):
-    target = MagicMock()
-    target.name = "Alice"
-    interaction = MagicMock()
-    interaction.data = {"values": ["0"]}
-    interaction.user.id = 123
-    interaction.response.edit_message = AsyncMock()
+async def test_doctor_blocks_repeat_action_when_called_twice():
+    target = testutils.new_test_player("Alice")
+    player = testutils.new_test_player(id=123)
+
+    interaction_first = testutils.new_mock_interaction(user_id=123)
+    interaction_first.data = {"values": ["0"]}
+    interaction_second = testutils.new_mock_interaction(user_id=123)
+    interaction_second.data = {"values": ["0"]}
+
     action_view = MagicMock()
-    action_view.acted_players = {123}
+    action_view.acted_players = set()
     action_view.pending_humans = {123}
+    game = testutils.new_mock_game()
 
-    await DOCTOR.on_selected(mock_game, mock_player, interaction, [target], action_view)
+    await DOCTOR.on_selected(game, player, interaction_first, [target], action_view)
+    await DOCTOR.on_selected(game, player, interaction_second, [target], action_view)
 
-    interaction.response.edit_message.assert_awaited_once_with(
+    assert "saves" in game.night_actions
+    interaction_second.response.edit_message.assert_awaited_once_with(
         content="You have already performed your action!",
         view=None,
     )
-    assert "saves" not in mock_game.night_actions
+    assert 123 in action_view.acted_players
+
+
+@pytest.mark.asyncio
+async def test_doctor_rejects_invalid_interaction_user():
+    target = testutils.new_test_player("Alice")
+    player = testutils.new_test_player(id=123)
+    interaction = testutils.new_mock_interaction(user_id=999)
+    interaction.data = {"values": ["0"]}
+    action_view = MagicMock()
+    action_view.acted_players = set()
+    action_view.pending_humans = {123}
+    game = testutils.new_mock_game()
+
+    await DOCTOR.on_selected(game, player, interaction, [target], action_view)
+
+    assert "saves" not in game.night_actions
+    interaction.response.edit_message.assert_awaited_once_with(
+        content="This action is no longer valid.",
+        view=None,
+    )
+    assert action_view.acted_players == set()
+    assert action_view.pending_humans == {123}
+
+
+@pytest.mark.asyncio
+async def test_doctor_rejects_missing_action_view():
+    target = testutils.new_test_player("Alice")
+    player = testutils.new_test_player(id=123)
+    interaction = testutils.new_mock_interaction(user_id=123)
+    interaction.data = {"values": ["0"]}
+    game = testutils.new_mock_game()
+
+    await DOCTOR.on_selected(game, player, interaction, [target], None)
+
+    assert "saves" not in game.night_actions
+    interaction.response.edit_message.assert_awaited_once_with(
+        content="This action is no longer valid.",
+        view=None,
+    )

@@ -20,6 +20,7 @@ class TestSetupCommand:
         assert mock_interaction.response.send_message.call_args.kwargs.get("ephemeral") is True
         msg = mock_interaction.response.send_message.call_args[0][0]
         assert "not allowed" in msg.lower()
+        mock_interaction.channel.create_webhook.assert_not_called()
 
     @patch.dict("os.environ", {"ADMIN_USERS": "111"})
     async def test_checks_send_messages_permission(self, mock_bot, mock_interaction):
@@ -36,6 +37,7 @@ class TestSetupCommand:
         await cog.setup.callback(cog, mock_interaction)
         msg = mock_interaction.response.send_message.call_args[0][0]
         assert "Send Messages" in msg
+        channel.create_webhook.assert_not_called()
 
     @patch.dict("os.environ", {"ADMIN_USERS": "111"})
     async def test_rejects_already_setup_channel(self, mock_bot, mock_interaction):

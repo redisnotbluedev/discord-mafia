@@ -1,15 +1,6 @@
-import pytest
-from unittest.mock import MagicMock
 from classes.roles import TOWN, Alignment
 
-
-@pytest.fixture
-def mock_player():
-    player = MagicMock()
-    player.alive = True
-    player.role_state = {}
-    player.user = MagicMock()
-    return player
+import tests.testutils as testutils
 
 
 def test_town_is_special():
@@ -30,13 +21,3 @@ def test_town_night_action_type():
 
 def test_town_name():
     assert TOWN.name == "Town"
-
-
-def test_town_can_act(mock_player):
-    result = TOWN.can_act(mock_player)
-    assert result is True
-
-
-def test_town_has_no_special_action_button(mock_player):
-    assert TOWN.is_special() is False
-    assert TOWN.can_act(mock_player) is True

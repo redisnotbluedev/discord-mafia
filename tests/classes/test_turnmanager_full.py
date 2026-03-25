@@ -1,5 +1,3 @@
-# pyright: reportMissingImports=false
-
 import discord
 import pytest
 from typing import cast
@@ -8,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 from classes.player import AIAbstraction, Player
 from classes.roles import TOWN
 from classes.turnmanager import TurnManager
+from classes.views import VoteView
 
 
 def _human_player(user_id: int, name: str) -> Player:
@@ -110,9 +109,12 @@ def test_broadcast_appends_message_to_all_ai_contexts():
     ai_two_user = cast(AIAbstraction, ai_two.user)
 
     turn_manager.broadcast("Night falls")
+    turn_manager.broadcast("Dawn breaks")
 
-    assert turn_manager.context[ai_one_user][-1] == {"role": "user", "content": "Night falls"}
-    assert turn_manager.context[ai_two_user][-1] == {"role": "user", "content": "Night falls"}
+    assert turn_manager.context[ai_one_user][-2] == {"role": "user", "content": "Night falls"}
+    assert turn_manager.context[ai_one_user][-1] == {"role": "user", "content": "Dawn breaks"}
+    assert turn_manager.context[ai_two_user][-2] == {"role": "user", "content": "Night falls"}
+    assert turn_manager.context[ai_two_user][-1] == {"role": "user", "content": "Dawn breaks"}
 
 
 def test_broadcast_respects_exclude_player():
@@ -122,13 +124,14 @@ def test_broadcast_respects_exclude_player():
     ai_one_user = cast(AIAbstraction, ai_one.user)
     ai_two_user = cast(AIAbstraction, ai_two.user)
 
-    before_len_one = len(turn_manager.context[ai_one_user])
-    before_len_two = len(turn_manager.context[ai_two_user])
+    initial_len_one = len(turn_manager.context[ai_one_user])
+    initial_len_two = len(turn_manager.context[ai_two_user])
 
     turn_manager.broadcast("Secret update", exclude=ai_two)
 
-    assert len(turn_manager.context[ai_one_user]) == before_len_one + 1
-    assert len(turn_manager.context[ai_two_user]) == before_len_two
+    assert len(turn_manager.context[ai_one_user]) == initial_len_one + 1
+    assert turn_manager.context[ai_one_user][-1] == {"role": "user", "content": "Secret update"}
+    assert len(turn_manager.context[ai_two_user]) == initial_len_two
 
 
 def test_clean_ai_content_removes_think_blocks_and_markdown_inside_them():
@@ -282,12 +285,15 @@ async def test_initialize_ai_context_builds_system_prompts_for_ai_players_only()
     context = turn_manager._initialize_ai_context([human, ai_one, ai_two])
 
     assert set(context.keys()) == {cast(AIAbstraction, ai_one.user), cast(AIAbstraction, ai_two.user)}
-    system_prompt = context[cast(AIAbstraction, ai_one.user)][0]["content"]
-    assert "Your name is Bot One" in system_prompt
-    assert "Players:" in system_prompt
-    assert "Alice" in system_prompt
-    assert "Bot Two" in system_prompt
-    assert "There are [3] players" in system_prompt
+    prompt_one = context[cast(AIAbstraction, ai_one.user)][0]["content"]
+    prompt_two = context[cast(AIAbstraction, ai_two.user)][0]["content"]
+    assert "Your name is Bot One" in prompt_one
+    assert "Players:" in prompt_one
+    assert "Alice" in prompt_one
+    assert "Bot Two" in prompt_one
+    assert "There are [3] players" in prompt_one
+    assert "Your name is Bot Two" in prompt_two
+    assert "Bot One" in prompt_two
 
 
 @pytest.mark.asyncio
@@ -344,7 +350,7 @@ async def test_run_round_cycles_human_and_ai_players():
     human_message.content = "Human speaks"
     turn_manager.message_queue.get = AsyncMock(return_value=human_message)
 
-    with patch("random.shuffle", side_effect=lambda seq: None):
+    with patch("random.shuffle", side_effect=lambda seq: seq):
         await turn_manager.run_round(analyse=False, rounds=2)
 
     assert turn_manager.required_author == -1
@@ -358,8 +364,6 @@ async def test_run_round_cycles_human_and_ai_players():
 
 @pytest.mark.asyncio
 async def test_run_vote_sets_up_vote_view_and_returns_none_for_tie():
-    from classes.views import VoteView
-
     ai_one = _ai_player("AI One")
     ai_two = _ai_player("AI Two")
     alice = _human_player(10, "Alice")

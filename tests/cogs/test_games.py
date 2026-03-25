@@ -13,7 +13,7 @@ def _make_cog(bot):
         def __init__(self, *args, **kwargs):
             pass
 
-    mock_main.BotWithAbstractors = _MockBot
+    mock_main.BotWithAbstractors = _MockBot  # type: ignore[attr-defined]
     sys.modules["main"] = mock_main
     sys.modules.pop("cogs.games", None)
     GamesCog = importlib.import_module("cogs.games").GamesCog
@@ -28,11 +28,26 @@ class TestGamesCogInit:
 
 class TestKickCommand:
     async def test_cannot_kick_self(self, mock_bot, mock_interaction):
+        user = MagicMock(spec=discord.User)
+        user.id = 111
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.owner = user
+        abstractor.players = {111: MagicMock()}
+        abstractor.game = MagicMock()
+        abstractor.game.scheduler = None
+        mock_bot.abstractors = [abstractor]
+
         cog = _make_cog(mock_bot)
-        mock_interaction.user = MagicMock(spec=discord.User)
-        await cog.kick.callback(cog, mock_interaction, mock_interaction.user)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = user
+
+        await cog.kick.callback(cog, mock_interaction, user)
+
         msg = mock_interaction.response.send_message.call_args[0][0]
         assert "yourself" in msg.lower()
+        assert 111 in abstractor.players
 
     async def test_no_game_in_channel(self, mock_bot, mock_interaction):
         cog = _make_cog(mock_bot)
@@ -197,3 +212,25 @@ class TestStopCommand:
 
         await cog.stop.callback(cog, mock_interaction)
         assert abstractor.game.running is False
+
+    @patch.dict("os.environ", {"ADMIN_USERS": ""})
+    async def test_unauthorized_user_cannot_stop_game(self, mock_bot, mock_interaction):
+        owner = MagicMock(spec=discord.User)
+        owner.id = 222
+        stranger = MagicMock(spec=discord.User)
+        stranger.id = 999
+        abstractor = MagicMock()
+        abstractor.channel = 123
+        abstractor.running = True
+        abstractor.owner = owner
+        abstractor.game = MagicMock()
+        abstractor.game.running = True
+        mock_bot.abstractors = [abstractor]
+
+        cog = _make_cog(mock_bot)
+        mock_interaction.channel = MagicMock()
+        mock_interaction.channel.id = 123
+        mock_interaction.user = stranger
+
+        await cog.stop.callback(cog, mock_interaction)
+        assert abstractor.game.running is True

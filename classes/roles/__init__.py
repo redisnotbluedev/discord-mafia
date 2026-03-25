@@ -187,6 +187,9 @@ class SelectRole(Role):
 
 		Marks the player as having acted and delegates to handle_selection().
 		"""
+		if action_view is None or interaction.user.id != player.user.id:
+			await interaction.response.edit_message(content="This action is no longer valid.", view=None)
+			return
 		if action_view and interaction.user.id in action_view.acted_players:
 			await interaction.response.edit_message(content="You have already performed your action!", view=None)
 			return
@@ -300,7 +303,9 @@ class InvestigateRole(SelectRole):
 		return [p for p in game.get_alive_players() if p.alive and p != player]
 
 	async def on_selected(self, game: "MafiaGame", player: "Player", interaction: discord.Interaction, options: "list[Player]", action_view: "SpecialActionsView | None"=None) -> None:
-		"""Handle the human player's target selection from the select menu."""
+		if action_view is None or interaction.user.id != player.user.id:
+			await interaction.response.edit_message(content="This action is no longer valid.", view=None)
+			return
 		if action_view and interaction.user.id in action_view.acted_players:
 			await interaction.response.edit_message(content="You have already performed your action!", view=None)
 			return

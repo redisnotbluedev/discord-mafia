@@ -2,33 +2,25 @@ import pytest
 from unittest.mock import MagicMock
 from classes.roles import JESTER, Alignment
 
+import tests.testutils as testutils
 
-@pytest.fixture
-def mock_player():
-    player = MagicMock()
-    player.alive = True
+
+def test_jester_win_condition_lynch():
+    player = testutils.new_test_player()
+    player.death_reason = "lynch"
+    assert JESTER.win_condition(player, [])
+
+
+def test_jester_win_condition_not_lynch():
+    player = testutils.new_test_player()
+    player.death_reason = "mafia"
+    assert not JESTER.win_condition(player, [])
+
+
+def test_jester_win_condition_none():
+    player = testutils.new_test_player()
     player.death_reason = None
-    player.role_state = {}
-    player.user = MagicMock()
-    return player
-
-
-def test_jester_win_condition_lynch(mock_player):
-    mock_player.death_reason = "lynch"
-    result = JESTER.win_condition(mock_player, [])
-    assert result is True
-
-
-def test_jester_win_condition_not_lynch(mock_player):
-    mock_player.death_reason = "killed"
-    result = JESTER.win_condition(mock_player, [])
-    assert result is False
-
-
-def test_jester_win_condition_none(mock_player):
-    mock_player.death_reason = None
-    result = JESTER.win_condition(mock_player, [])
-    assert result is False
+    assert not JESTER.win_condition(player, [])
 
 
 def test_jester_alignment():
@@ -49,8 +41,3 @@ def test_jester_name():
 
 def test_jester_emoji():
     assert JESTER.emoji == "🤡"
-
-
-def test_jester_has_no_special_action_button(mock_player):
-    assert JESTER.is_special() is False
-    assert JESTER.can_act(mock_player) is True

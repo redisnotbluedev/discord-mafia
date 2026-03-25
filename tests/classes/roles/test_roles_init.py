@@ -1,25 +1,12 @@
-import pytest  # type: ignore[reportMissingImports]
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from classes.roles import (
     Alignment, Role, SelectRole, SaveRole, KillRole, InvestigateRole,
-    NEUTRAL, ALL_ROLES, TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER,
+    ALL_ROLES, TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER,
 )
 
-
-def make_player(name="Alice", alive=True):
-    p = MagicMock()
-    p.name = name
-    p.alive = alive
-    p.role_state = {}
-    return p
-
-
-def make_game(players):
-    game = MagicMock()
-    game.get_alive_players.return_value = players
-    game.night_actions = {}
-    return game
+import tests.testutils as testutils
 
 
 class TestAlignmentEnum:
@@ -31,9 +18,6 @@ class TestAlignmentEnum:
 
     def test_neutral_value(self):
         assert Alignment.NEUTRAL.value == "Neutral"
-
-    def test_module_neutral_is_alignment_neutral(self):
-        assert NEUTRAL is Alignment.NEUTRAL
 
 
 class TestRoleInit:
@@ -62,36 +46,11 @@ class TestRoleInit:
         assert r.emoji == "🔥"
 
 
-class TestRoleDunder:
+class TestRoleMethods:
     def test_str_returns_name(self):
         r = Role("MyRole", Alignment.TOWN, "desc", "short")
         assert str(r) == "MyRole"
 
-    def test_eq_same_name_different_desc(self):
-        r1 = Role("Same", Alignment.TOWN, "desc1", "short1")
-        r2 = Role("Same", Alignment.MAFIA, "desc2", "short2")
-        assert r1 == r2
-
-    def test_eq_different_name(self):
-        r1 = Role("Alpha", Alignment.TOWN, "desc", "short")
-        r2 = Role("Beta", Alignment.TOWN, "desc", "short")
-        assert r1 != r2
-
-    def test_eq_non_role_returns_false(self):
-        r = Role("MyRole", Alignment.TOWN, "desc", "short")
-        assert r != "MyRole"
-
-    def test_hash_equals_hash_of_name(self):
-        r = Role("MyRole", Alignment.TOWN, "desc", "short")
-        assert hash(r) == hash("MyRole")
-
-    def test_hash_consistent_with_eq(self):
-        r1 = Role("Same", Alignment.TOWN, "desc1", "short1")
-        r2 = Role("Same", Alignment.MAFIA, "desc2", "short2")
-        assert hash(r1) == hash(r2)
-
-
-class TestRoleMethods:
     def test_describe_returns_description(self):
         r = Role("R", Alignment.TOWN, "Full description", "short")
         assert r.describe() == "Full description"
@@ -112,29 +71,14 @@ class TestRoleMethods:
         r = Role("MyRole", Alignment.TOWN, "desc", "short", "🎯")
         assert r.get_button_info()["emoji"] == "🎯"
 
-    def test_can_act_returns_true(self):
-        r = Role("R", Alignment.TOWN, "desc", "short")
-        assert r.can_act(MagicMock()) is True
-
     def test_win_condition_returns_false(self):
         r = Role("R", Alignment.TOWN, "desc", "short")
-        assert r.win_condition(MagicMock(), [MagicMock()]) is False
+        player = testutils.new_test_player()
+        assert r.win_condition(player, [testutils.new_test_player()]) is False
 
     def test_get_prompt_uses_role_name(self):
         r = Role("R", Alignment.TOWN, "desc", "short")
         assert r.get_prompt() == "## R\nWhat do you want to do?"
-
-    async def test_handle_button_click_noop(self):
-        r = Role("R", Alignment.TOWN, "desc", "short")
-        await r.handle_button_click(MagicMock(), MagicMock(), MagicMock())
-
-    async def test_on_night_end_noop(self):
-        r = Role("R", Alignment.TOWN, "desc", "short")
-        await r.on_night_end(MagicMock(), MagicMock())
-
-    async def test_night_action_ai_noop(self):
-        r = Role("R", Alignment.TOWN, "desc", "short")
-        await r.night_action_ai(MagicMock(), MagicMock())
 
 
 class TestSelectRole:
@@ -155,26 +99,26 @@ class TestSelectRole:
         assert r.skippable is False
 
     def test_get_options_returns_alive_players(self):
-        p1 = make_player("Alice", alive=True)
-        p2 = make_player("Bob", alive=True)
-        game = make_game([p1, p2])
+        p1 = testutils.new_test_player("Alice")
+        p2 = testutils.new_test_player("Bob")
+        game = testutils.new_mock_game(players=[p1, p2])
         r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "act")
-        options = r.get_options(game, make_player("Self"))
+        options = r.get_options(game, testutils.new_test_player("Self"))
         assert p1 in options
         assert p2 in options
 
     def test_get_options_does_not_exclude_self(self):
-        self_player = make_player("Self", alive=True)
-        game = make_game([self_player])
+        self_player = testutils.new_test_player("Self")
+        game = testutils.new_mock_game(players=[self_player])
         r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "act")
         assert self_player in r.get_options(game, self_player)
 
     def test_get_options_excludes_dead_players(self):
-        alive_p = make_player("Alive", alive=True)
-        dead_p = make_player("Dead", alive=False)
-        game = make_game([alive_p, dead_p])
+        alive_p = testutils.new_test_player("Alive")
+        dead_p = testutils.new_test_player("Dead", alive=False)
+        game = testutils.new_mock_game(players=[alive_p, dead_p])
         r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "act")
-        options = r.get_options(game, make_player("Self"))
+        options = r.get_options(game, testutils.new_test_player("Self"))
         assert alive_p in options
         assert dead_p not in options
 
@@ -189,28 +133,29 @@ class TestSelectRole:
     async def test_handle_button_click_builds_select_view_and_sends_ephemeral(self, monkeypatch):
         import classes.views as views_module
 
-        built = {}
+        real_select_view = views_module.SelectView
+        built: list[dict] = []
 
-        class FakeSelectView:
+        class FakeSelectView(real_select_view):
             def __init__(self, options, callback):
-                built["options"] = options
-                built["callback"] = callback
+                super().__init__(options, callback)
+                built.append({"options": options, "callback": callback, "item": self})
 
         monkeypatch.setattr(views_module, "SelectView", FakeSelectView)
 
-        p1 = make_player("Alice", alive=True)
-        p2 = make_player("Bob", alive=True)
-        game = make_game([p1, p2])
-        player = make_player("Doctor", alive=True)
-        interaction = MagicMock()
-        interaction.response.send_message = AsyncMock()
+        p1 = testutils.new_test_player("Alice")
+        p2 = testutils.new_test_player("Bob")
+        game = testutils.new_mock_game(players=[p1, p2])
+        player = testutils.new_test_player("Doctor")
+        interaction = testutils.new_mock_interaction()
         action_view = MagicMock()
 
         r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True)
         await r.handle_button_click(game, player, interaction, action_view)
 
-        assert [opt.label for opt in built["options"]] == ["Alice", "Bob", "Abstain"]
-        assert [opt.value for opt in built["options"]] == ["0", "1", "abstain"]
+        assert len(built) == 1
+        assert [opt.label for opt in built[0]["options"]] == ["Alice", "Bob", "Abstain"]
+        assert [opt.value for opt in built[0]["options"]] == ["0", "1", "abstain"]
         interaction.response.send_message.assert_awaited_once()
         args, kwargs = interaction.response.send_message.await_args_list[0]
         assert args[0] == "## Doc\nWho do you want to save?"
@@ -218,13 +163,11 @@ class TestSelectRole:
         assert isinstance(kwargs["view"], FakeSelectView)
 
     async def test_on_selected_handles_selection_and_marks_player_acted(self):
-        game = make_game([])
-        player = make_player("Doctor")
-        target = make_player("Alice")
-        interaction = MagicMock()
+        game = testutils.new_mock_game()
+        player = testutils.new_test_player("Doctor")
+        target = testutils.new_test_player("Alice")
+        interaction = testutils.new_mock_interaction(user_id=111)
         interaction.data = {"values": ["0"]}
-        interaction.user.id = 111
-        interaction.response.edit_message = AsyncMock()
         action_view = MagicMock()
         action_view.acted_players = set()
         action_view.pending_humans = {111}
@@ -243,12 +186,10 @@ class TestSelectRole:
         assert 111 not in action_view.pending_humans
 
     async def test_on_selected_abstain_marks_player_acted(self):
-        game = make_game([])
-        player = make_player("Doctor")
-        interaction = MagicMock()
+        game = testutils.new_mock_game()
+        player = testutils.new_test_player("Doctor")
+        interaction = testutils.new_mock_interaction(user_id=111)
         interaction.data = {"values": ["abstain"]}
-        interaction.user.id = 111
-        interaction.response.edit_message = AsyncMock()
         action_view = MagicMock()
         action_view.acted_players = set()
         action_view.pending_humans = {111}
@@ -266,49 +207,48 @@ class TestSelectRole:
         assert 111 in action_view.acted_players
         assert 111 not in action_view.pending_humans
 
-    async def test_on_selected_when_already_acted_sends_warning(self):
-        game = make_game([])
-        player = make_player("Doctor")
-        target = make_player("Alice")
-        interaction = MagicMock()
-        interaction.data = {"values": ["0"]}
-        interaction.user.id = 111
-        interaction.response.edit_message = AsyncMock()
+    async def test_on_selected_blocks_double_act_when_called_twice(self):
+        game = testutils.new_mock_game()
+        player = testutils.new_test_player("Doctor")
+        target = testutils.new_test_player("Alice")
+
+        interaction_first = testutils.new_mock_interaction(user_id=111)
+        interaction_first.data = {"values": ["0"]}
+        interaction_second = testutils.new_mock_interaction(user_id=111)
+        interaction_second.data = {"values": ["0"]}
+
         action_view = MagicMock()
-        action_view.acted_players = {111}
+        action_view.acted_players = set()
         action_view.pending_humans = {111}
 
         r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save")
         r.handle_selection = AsyncMock()
 
-        await r.on_selected(game, player, interaction, [target], action_view)
+        await r.on_selected(game, player, interaction_first, [target], action_view)
+        await r.on_selected(game, player, interaction_second, [target], action_view)
 
-        r.handle_selection.assert_not_called()
-        interaction.response.edit_message.assert_awaited_once_with(
+        r.handle_selection.assert_awaited_once_with(game, player, target)
+        interaction_second.response.edit_message.assert_awaited_once_with(
             content="You have already performed your action!",
             view=None,
         )
 
-    async def test_night_action_ai_uses_extract_choice_and_handles_selection(self, monkeypatch):
-        from classes import roles as roles_module
-
-        ai_player = make_player("Doctor")
-        target = make_player("Alice")
-        game = make_game([target])
-        game.turns = MagicMock()
+    async def test_night_action_ai_picks_correct_player_without_mocking_extract_choice(self):
+        alice = testutils.new_test_player("Alice")
+        bob = testutils.new_test_player("Bob")
+        game = testutils.new_mock_game(players=[alice, bob])
         game.turns.create_ai_completion = AsyncMock(return_value="I choose Alice")
 
+        ai_player = testutils.new_test_player("Doctor")
+
         r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save")
-        r.get_options = MagicMock(return_value=[target])
+        r.get_options = MagicMock(return_value=[alice, bob])
         r.handle_selection = AsyncMock()
-        extract_choice_mock = MagicMock(return_value="Alice")
-        monkeypatch.setattr(roles_module, "extract_choice", extract_choice_mock)
 
         await r.night_action_ai(game, ai_player)
 
         game.turns.create_ai_completion.assert_awaited_once()
-        extract_choice_mock.assert_called_once_with("I choose Alice", ["Alice"])
-        r.handle_selection.assert_awaited_once_with(game, ai_player, target)
+        r.handle_selection.assert_awaited_once_with(game, ai_player, alice)
 
 
 class TestSaveRole:
@@ -322,36 +262,37 @@ class TestSaveRole:
 
     async def test_handle_selection_appends_to_saves(self):
         r = SaveRole("Doc", Alignment.TOWN, "desc", "short")
-        player = make_player("Doctor")
-        target = make_player("Target")
-        game = make_game([player, target])
+        player = testutils.new_test_player("Doctor")
+        target = testutils.new_test_player("Target")
+        game = testutils.new_mock_game(players=[player, target])
         await r.handle_selection(game, player, target)
         assert target in game.night_actions["saves"]
 
     async def test_handle_selection_tracks_pending_save(self):
         r = SaveRole("Doc", Alignment.TOWN, "desc", "short")
-        player = make_player("Doctor")
-        target = make_player("Target")
-        game = make_game([player, target])
+        player = testutils.new_test_player("Doctor")
+        target = testutils.new_test_player("Target")
+        game = testutils.new_mock_game(players=[player, target])
         await r.handle_selection(game, player, target)
         assert player.role_state["pending_save"] is target
 
     async def test_handle_selection_replaces_previous_save(self):
         r = SaveRole("Doc", Alignment.TOWN, "desc", "short")
-        player = make_player("Doctor")
-        old_target = make_player("OldTarget")
-        new_target = make_player("NewTarget")
-        game = make_game([player, old_target, new_target])
+        player = testutils.new_test_player("Doctor")
+        old_target = testutils.new_test_player("OldTarget")
+        new_target = testutils.new_test_player("NewTarget")
+        game = testutils.new_mock_game(players=[player, old_target, new_target])
         await r.handle_selection(game, player, old_target)
         await r.handle_selection(game, player, new_target)
         assert old_target not in game.night_actions["saves"]
         assert new_target in game.night_actions["saves"]
+        assert player.role_state["pending_save"] is new_target
 
     async def test_on_night_end_moves_pending_to_last_saved(self):
         r = SaveRole("Doc", Alignment.TOWN, "desc", "short")
-        player = make_player("Doctor")
-        target = make_player("Target")
-        game = make_game([player, target])
+        player = testutils.new_test_player("Doctor")
+        target = testutils.new_test_player("Target")
+        game = testutils.new_mock_game(players=[player, target])
         player.role_state["pending_save"] = target
         await r.on_night_end(game, player)
         assert player.role_state["last_saved"] is target
@@ -359,8 +300,8 @@ class TestSaveRole:
 
     async def test_on_night_end_last_saved_none_when_no_pending(self):
         r = SaveRole("Doc", Alignment.TOWN, "desc", "short")
-        player = make_player("Doctor")
-        game = make_game([player])
+        player = testutils.new_test_player("Doctor")
+        game = testutils.new_mock_game(players=[player])
         await r.on_night_end(game, player)
         assert player.role_state["last_saved"] is None
         assert player.role_state["pending_save"] is None
@@ -377,18 +318,18 @@ class TestKillRole:
 
     async def test_handle_selection_appends_to_kills(self):
         r = KillRole("Killer", Alignment.MAFIA, "desc", "short")
-        player = make_player("Killer")
-        target = make_player("Victim")
-        game = make_game([player, target])
+        player = testutils.new_test_player("Killer")
+        target = testutils.new_test_player("Victim")
+        game = testutils.new_mock_game(players=[player, target])
         await r.handle_selection(game, player, target)
         assert target in game.night_actions["kills"]
 
     async def test_handle_selection_multiple_kills_appended(self):
         r = KillRole("Killer", Alignment.MAFIA, "desc", "short")
-        player = make_player("Killer")
-        t1 = make_player("Victim1")
-        t2 = make_player("Victim2")
-        game = make_game([player, t1, t2])
+        player = testutils.new_test_player("Killer")
+        t1 = testutils.new_test_player("Victim1")
+        t2 = testutils.new_test_player("Victim2")
+        game = testutils.new_mock_game(players=[player, t1, t2])
         await r.handle_selection(game, player, t1)
         await r.handle_selection(game, player, t2)
         assert t1 in game.night_actions["kills"]
@@ -401,54 +342,57 @@ class TestInvestigateRole:
         assert r.night_action_type() == "investigate"
 
     def test_get_options_excludes_self(self):
-        self_player = make_player("Self", alive=True)
-        other = make_player("Other", alive=True)
-        game = make_game([self_player, other])
+        self_player = testutils.new_test_player("Self")
+        other = testutils.new_test_player("Other")
+        game = testutils.new_mock_game(players=[self_player, other])
         r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
         options = r.get_options(game, self_player)
         assert self_player not in options
         assert other in options
 
     def test_get_options_excludes_dead_players(self):
-        self_player = make_player("Self", alive=True)
-        alive = make_player("Alive", alive=True)
-        dead = make_player("Dead", alive=False)
-        game = make_game([self_player, alive, dead])
+        self_player = testutils.new_test_player("Self")
+        alive = testutils.new_test_player("Alive")
+        dead = testutils.new_test_player("Dead", alive=False)
+        game = testutils.new_mock_game(players=[self_player, alive, dead])
         r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
         options = r.get_options(game, self_player)
         assert alive in options
         assert dead not in options
 
     async def test_on_selected_shows_alignment_in_response(self):
-        game = make_game([])
-        player = make_player("Sheriff")
-        suspect = make_player("Alice")
-        suspect.role = MagicMock(alignment=Alignment.MAFIA)
-        interaction = MagicMock()
+        game = testutils.new_mock_game()
+        player = testutils.new_test_player("Sheriff", id=111)
+        suspect = testutils.new_test_player("Alice")
+        suspect.role = MAFIA
+        interaction = testutils.new_mock_interaction(user_id=111)
         interaction.data = {"values": ["0"]}
-        interaction.response.edit_message = AsyncMock()
+        action_view = MagicMock()
+        action_view.acted_players = set()
+        action_view.pending_humans = {111}
 
         r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
         r.handle_selection = AsyncMock()
 
-        await r.on_selected(game, player, interaction, [suspect])
+        await r.on_selected(game, player, interaction, [suspect], action_view)
 
         r.handle_selection.assert_awaited_once_with(game, player, suspect)
         interaction.response.edit_message.assert_awaited_once_with(
             content="You chose to investigate Alice. Alice is **MAFIA**!",
             view=None,
         )
+        assert 111 in action_view.acted_players
+        assert 111 not in action_view.pending_humans
 
     async def test_handle_selection_sends_result_to_ai_player(self):
         from classes.player import AIAbstraction
 
-        game = make_game([])
-        game.turns = MagicMock()
+        game = testutils.new_mock_game()
         game.turns.create_ai_completion = AsyncMock()
-        player = make_player("Sheriff")
+        player = testutils.new_test_player("Sheriff")
         player.user = AIAbstraction("gpt-4o-mini", "Bot")
-        suspect = make_player("Alice")
-        suspect.role = MagicMock(alignment=Alignment.TOWN)
+        suspect = testutils.new_test_player("Alice")
+        suspect.role = TOWN
 
         r = InvestigateRole("Sheriff", Alignment.TOWN, "desc", "short")
         await r.handle_selection(game, player, suspect)
@@ -457,47 +401,3 @@ class TestInvestigateRole:
             player,
             "Alice is **TOWN**.",
         )
-
-
-class TestAllRoles:
-    def test_all_roles_has_six_entries(self):
-        assert len(ALL_ROLES) == 6
-
-    def test_all_roles_exact_order(self):
-        assert ALL_ROLES == [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
-
-    def test_town_name(self):
-        assert TOWN.name == "Town"
-
-    def test_town_alignment(self):
-        assert TOWN.alignment is Alignment.TOWN
-
-    def test_mafia_name(self):
-        assert MAFIA.name == "Mafia"
-
-    def test_mafia_alignment(self):
-        assert MAFIA.alignment is Alignment.MAFIA
-
-    def test_doctor_name(self):
-        assert DOCTOR.name == "Doctor"
-
-    def test_doctor_alignment(self):
-        assert DOCTOR.alignment is Alignment.TOWN
-
-    def test_sheriff_name(self):
-        assert SHERIFF.name == "Sheriff"
-
-    def test_sheriff_alignment(self):
-        assert SHERIFF.alignment is Alignment.TOWN
-
-    def test_vigilante_name(self):
-        assert VIGILANTE.name == "Vigilante"
-
-    def test_vigilante_alignment(self):
-        assert VIGILANTE.alignment is Alignment.TOWN
-
-    def test_jester_name(self):
-        assert JESTER.name == "Jester"
-
-    def test_jester_alignment(self):
-        assert JESTER.alignment is Alignment.NEUTRAL

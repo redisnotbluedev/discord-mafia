@@ -27,12 +27,11 @@ def _make_abstractor(player_count):
 
 
 def _make_channel():
-    channel = MagicMock()
-    channel.__class__ = discord.TextChannel
+    channel = MagicMock(spec=discord.TextChannel)
     channel.id = 123456
     channel.send = AsyncMock()
     channel.set_permissions = AsyncMock()
-    mock_thread = MagicMock()
+    mock_thread = MagicMock(spec=discord.Thread)
     mock_thread.send = AsyncMock()
     mock_thread.edit = AsyncMock()
     mock_thread.add_user = AsyncMock()
@@ -126,22 +125,20 @@ class TestMafiaShedulerInit:
 class TestSetupRoles:
     def _sched(self, player_count=5, **cfg):
         s = _make_scheduler(player_count)
-        s.config.update(cfg)
+        dict.update(s.config, cfg)
         return s
 
     def test_setup_roles_correct_total_assigned(self):
         s = self._sched(5, role_Doctor=False, role_Sheriff=False,
                         role_Vigilante=False, role_Jester=False)
-        with patch("random.shuffle", lambda x: x):
-            s.setup_roles()
+        s.setup_roles()
         assert len(s.game.players) == 5
 
     def test_setup_roles_basic_town_mafia_distribution(self):
         s = self._sched(5, mafia=1, town=4,
                         role_Doctor=False, role_Sheriff=False,
                         role_Vigilante=False, role_Jester=False)
-        with patch("random.shuffle", lambda x: x):
-            s.setup_roles()
+        s.setup_roles()
         roles = [p.role for p in s.game.players]
         assert roles.count(MAFIA) == 1
         assert roles.count(TOWN) == 4
@@ -150,8 +147,7 @@ class TestSetupRoles:
         s = self._sched(5, mafia=1, town=4,
                         role_Doctor=True, role_Sheriff=False,
                         role_Vigilante=False, role_Jester=False)
-        with patch("random.shuffle", lambda x: x):
-            s.setup_roles()
+        s.setup_roles()
         roles = [p.role for p in s.game.players]
         assert DOCTOR in roles
 
@@ -173,8 +169,7 @@ class TestSetupRoles:
         s = self._sched(5, mafia=4, town=4,
                         role_Doctor=False, role_Sheriff=False,
                         role_Vigilante=False, role_Jester=False)
-        with patch("random.shuffle", lambda x: x):
-            s.setup_roles()
+        s.setup_roles()
         assert s.config["mafia"] + s.config["town"] == 5
         assert len(s.game.players) == 5
 
@@ -182,8 +177,7 @@ class TestSetupRoles:
         s = self._sched(6, mafia=1, town=2,
                         role_Doctor=False, role_Sheriff=False,
                         role_Vigilante=False, role_Jester=False)
-        with patch("random.shuffle", lambda x: x):
-            s.setup_roles()
+        s.setup_roles()
         assert s.config["mafia"] + s.config["town"] == 6
         assert len(s.game.players) == 6
 

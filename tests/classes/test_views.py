@@ -1,12 +1,10 @@
-# pyright: reportMissingImports=false
-
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import discord
 import pytest
 
 from classes.player import AIAbstraction, Player
-from classes.roles import Role
+from classes.roles import Role, DOCTOR, SHERIFF, TOWN, VIGILANTE
 from classes.views import (
     ABSTAIN_LABEL,
     ConfirmView,
@@ -19,31 +17,7 @@ from classes.views import (
     VoteView,
 )
 
-
-def make_member(user_id: int, name: str = "User") -> MagicMock:
-    member = MagicMock(spec=discord.Member)
-    member.id = user_id
-    member.name = name
-    return member
-
-
-def make_role(name: str, *, is_special: bool, can_act: bool = True) -> MagicMock:
-    role = MagicMock(spec=Role)
-    role.name = name
-    role.is_special.return_value = is_special
-    role.can_act.return_value = can_act
-    role.get_button_info.return_value = {"label": f"{name} Action", "emoji": "✨"}
-    role.handle_button_click = AsyncMock()
-    return role
-
-
-def make_interaction(user_id: int) -> MagicMock:
-    interaction = MagicMock(spec=discord.Interaction)
-    interaction.user = make_member(user_id)
-    interaction.response = MagicMock()
-    interaction.response.send_message = AsyncMock()
-    interaction.response.edit_message = AsyncMock()
-    return interaction
+import tests.testutils as testutils
 
 
 @pytest.mark.asyncio
@@ -118,25 +92,20 @@ async def test_vote_select_init_creates_one_option_per_player():
 async def test_vote_select_init_adds_abstain_option_when_enabled():
     select = VoteSelect(["A", "B"], "Vote", "🗳️", allow_abstain=True)
 
-    labels = [opt.label for opt in select.options]
-    assert len(labels) == 3
-    assert labels[-1] == ABSTAIN_LABEL
+    assert len(select.options) == 3
+    assert [opt.label for opt in select.options] == ["A", "B", ABSTAIN_LABEL]
 
 
 @pytest.mark.asyncio
 async def test_special_actions_view_tracks_players_and_adds_unique_special_role_buttons():
-    doctor = make_role("Doctor", is_special=True)
-    sheriff = make_role("Sheriff", is_special=True)
-    town = make_role("Town", is_special=False)
-
     p1 = Player(make_member(1, "Doc"))
-    p1.role = doctor
+    p1.role = DOCTOR
     p2 = Player(make_member(2, "Doc2"))
-    p2.role = doctor
+    p2.role = DOCTOR
     p3 = Player(make_member(3, "Sheriff"))
-    p3.role = sheriff
+    p3.role = SHERIFF
     p4 = Player(make_member(4, "Town"))
-    p4.role = town
+    p4.role = TOWN
 
     alive_players = [p1, p2, p3, p4]
     view = SpecialActionsView(alive_players, MagicMock(), MagicMock())
@@ -152,18 +121,18 @@ async def test_special_actions_view_tracks_players_and_adds_unique_special_role_
 
 @pytest.mark.asyncio
 async def test_special_actions_view_pending_humans_only_special_humans_who_can_act():
-    doctor = make_role("Doctor", is_special=True, can_act=True)
-    sheriff_blocked = make_role("Sheriff", is_special=True, can_act=False)
-    town = make_role("Town", is_special=False, can_act=True)
-
     p1 = Player(make_member(10, "Doc"))
-    p1.role = doctor
-    p2 = Player(make_member(20, "Sheriff"))
-    p2.role = sheriff_blocked
+    p1.role = DOCTOR
+
+    p2 = Player(make_member(20, "Vig"))
+    p2.role = VIGILANTE
+    p2.role_state["has_shot"] = True
+
     p3 = Player(make_member(30, "Town"))
-    p3.role = town
+    p3.role = TOWN
+
     p4 = Player(AIAbstraction("gpt-test", "AI"))
-    p4.role = doctor
+    p4.role = DOCTOR
 
     view = SpecialActionsView([p1, p2, p3, p4], MagicMock(), MagicMock())
 

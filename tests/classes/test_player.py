@@ -91,8 +91,11 @@ class TestCreateAIPlayers:
         
         assert len(players) == 2
         assert all(isinstance(p, Player) for p in players)
+        assert all(isinstance(p.user, AIAbstraction) for p in players)
         assert players[0].name == "GPT-4"
+        assert players[0].user.model == "gpt-4o"  # type: ignore[union-attr]
         assert players[1].name == "Claude"
+        assert players[1].user.model == "claude-3"  # type: ignore[union-attr]
 
     def test_create_ai_players_with_selected_models(self):
         models_data = {
@@ -108,8 +111,11 @@ class TestCreateAIPlayers:
             players = create_ai_players(selected_models=["gpt-4o", "llama-2"])
         
         assert len(players) == 2
+        assert all(isinstance(p.user, AIAbstraction) for p in players)
         assert players[0].name == "GPT-4"
+        assert players[0].user.model == "gpt-4o"  # type: ignore[union-attr]
         assert players[1].name == "Llama"
+        assert players[1].user.model == "llama-2"  # type: ignore[union-attr]
 
     def test_create_ai_players_empty_selection(self):
         models_data = {
@@ -183,5 +189,6 @@ class TestCreateAIPlayers:
             players = create_ai_players()
         
         ai = players[0].user
+        assert isinstance(ai, AIAbstraction)
         assert ai.model == "gpt-4o"
         assert ai.id == -1
