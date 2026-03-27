@@ -1,5 +1,6 @@
 .env
 data.json
+logs/
 
 venv/*
 **/__pycache__/*
