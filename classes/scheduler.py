@@ -15,7 +15,7 @@ import discord
 
 import data
 from classes.player import AIAbstraction, Player
-from classes.roles import MAFIA, TOWN, Alignment
+from classes.roles import MAFIA, TOWN, ALL_ROLES, Alignment, get_role, get_enabled_role_groups
 from classes.views import JoinGameView
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,6 @@ class MafiaSchedulerConfig(TypedDict):
     role_Sheriff: bool
     role_Vigilante: bool
     role_Jester: bool
-
 
 class MafiaSheduler:
     """Orchestrates game setup, role assignment, and the game lifecycle.
@@ -324,7 +323,6 @@ class MafiaSheduler:
                 The `self.game.players` list is *not* cleared before the new
                 players are appended.
         """
-        from classes.roles import ALL_ROLES
 
         total_players = len(self.abstractor.players)
         mafia = self.config.get("mafia", max(1, total_players // 3))
@@ -342,20 +340,13 @@ class MafiaSheduler:
 
         players_rolled = 0
 
-        enabled_roles = [
-            role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False)
-        ]
+        roles = get_enabled_role_groups(self.config)
 
-        neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
-        special_town_roles = [
-            r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN
-        ]
-
-        assigned_special = len(neutral_roles) + len(special_town_roles)
+        assigned_special = len(roles.neutral) + len(roles.town)
         available_for_town = max(0, total_players - mafia - assigned_special)
-        town_count = min(town - len(special_town_roles), available_for_town)
+        town_count = min(town - len(roles.town), available_for_town)
 
-        for role in neutral_roles:
+        for role in roles.neutral:
             if players_rolled >= total_players:
                 break
             user = players[players_rolled]
@@ -364,7 +355,7 @@ class MafiaSheduler:
             self.game.players.append(player)
             players_rolled += 1
 
-        for role in special_town_roles:
+        for role in roles.town:
             if players_rolled >= total_players:
                 break
             user = players[players_rolled]

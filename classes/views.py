@@ -14,8 +14,8 @@ Classes are organized by function:
 import discord, time, logging, data, asyncio, json
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, cast
-from classes.roles import Role, Alignment, ALL_ROLES
 from classes.player import Player, create_ai_players, AIAbstraction
+from classes.roles import Role, ALL_ROLES, get_enabled_role_groups
 
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
@@ -369,25 +369,25 @@ class SettingsView(discord.ui.View):
 			mafia = town
 			self.config["mafia"] = mafia
 
+		# Extract enabled roles from config once
+		enabled_roles = get_enabled_role_groups(self.config)
+
 		# Mafia bar - show enabled special mafia roles
-		enabled_special_mafia = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.MAFIA and role.is_special()]
-		mafia_regular = max(mafia - len(enabled_special_mafia), 0)
-		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_mafia)
+		mafia_regular = max(mafia - len(enabled_roles.mafia), 0)
+		mafia_bar = "🔪" * mafia_regular + "".join(role.get_button_info()["emoji"] for role in enabled_roles.mafia)
 		self._mafia_display.label = f"{mafia_bar} ({mafia})"
 		self._mafia_up.disabled = mafia >= town
 
 		# Town bar - show enabled special town roles
-		enabled_special_town = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.TOWN and role.is_special()]
-		town_regular = max(town - len(enabled_special_town), 0)
-		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_special_town)
+		town_regular = max(town - len(enabled_roles.town), 0)
+		town_bar = "🏡" * town_regular + "".join(role.get_button_info()["emoji"] for role in enabled_roles.town)
 		self._town_display.label = f"{town_bar} ({town})"
 		self._town_up.disabled = town >= total_players - 1
 
 		# Neutral bar - show enabled neutral roles
-		enabled_neutral = [role for role in ALL_ROLES if self.config.get(f"role_{role.name}", False) and role.alignment == Alignment.NEUTRAL]
-		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_neutral)
+		neutral_bar = "".join(role.get_button_info()["emoji"] for role in enabled_roles.neutral)
 		neutral_display = discord.utils.get(self.children, custom_id="neutral_display")
-		if enabled_neutral:
+		if enabled_roles.neutral:
 			if not neutral_display:
 				nd = NeutralDisplay()
 				self.add_item(nd)
