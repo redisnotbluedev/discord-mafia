@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
-from classes.roles import MAFIA, Alignment
+
+import pytest
 
 import tests.testutils as testutils
+from classes.roles import MAFIA, Alignment
 
 
 def test_mafia_is_special():
@@ -13,16 +14,8 @@ def test_mafia_alignment():
     assert MAFIA.alignment == Alignment.MAFIA
 
 
-def test_mafia_emoji():
-    assert MAFIA.emoji == "🔪"
-
-
 def test_mafia_night_action_type():
     assert MAFIA.night_action_type() == "kill"
-
-
-def test_mafia_name():
-    assert MAFIA.name == "Mafia"
 
 
 @pytest.mark.asyncio

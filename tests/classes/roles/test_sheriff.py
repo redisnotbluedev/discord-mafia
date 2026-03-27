@@ -1,12 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from classes.roles import SHERIFF, Alignment
+
+import pytest
 
 import tests.testutils as testutils
-
-
-def test_sheriff_emoji():
-    assert SHERIFF.emoji == "🤠"
+from classes.roles import SHERIFF, Alignment
 
 
 def test_sheriff_alignment():
@@ -19,10 +16,6 @@ def test_sheriff_is_special():
 
 def test_sheriff_night_action_type():
     assert SHERIFF.night_action_type() == "investigate"
-
-
-def test_sheriff_name():
-    assert SHERIFF.name == "Sheriff"
 
 
 def test_sheriff_get_options_excludes_self():

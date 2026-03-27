@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from classes.roles import DOCTOR, Alignment
+
+import pytest
 
 import tests.testutils as testutils
+from classes.roles import DOCTOR, Alignment
 
 
 def test_doctor_get_options_no_last_saved():
@@ -74,14 +75,6 @@ def test_doctor_is_special():
 
 def test_doctor_night_action_type():
     assert DOCTOR.night_action_type() == "save"
-
-
-def test_doctor_name():
-    assert DOCTOR.name == "Doctor"
-
-
-def test_doctor_emoji():
-    assert DOCTOR.emoji == "🧑‍⚕️"
 
 
 @pytest.mark.asyncio

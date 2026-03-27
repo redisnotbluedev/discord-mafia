@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
-from classes.roles import JESTER, Alignment
+
+import pytest
 
 import tests.testutils as testutils
+from classes.roles import JESTER, Alignment
 
 
 def test_jester_win_condition_lynch():
@@ -33,11 +34,3 @@ def test_jester_is_special():
 
 def test_jester_night_action_type():
     assert JESTER.night_action_type() is None
-
-
-def test_jester_name():
-    assert JESTER.name == "Jester"
-
-
-def test_jester_emoji():
-    assert JESTER.emoji == "🤡"

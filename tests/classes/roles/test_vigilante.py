@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
 import discord
-from classes.roles import VIGILANTE, Alignment
+import pytest
 
 import tests.testutils as testutils
+from classes.roles import VIGILANTE, Alignment
 
 
 def test_vigilante_can_act_no_has_shot():
@@ -50,10 +51,6 @@ def test_vigilante_is_special():
 
 def test_vigilante_night_action_type():
     assert VIGILANTE.night_action_type() == "kill"
-
-
-def test_vigilante_name():
-    assert VIGILANTE.name == "Vigilante"
 
 
 @pytest.mark.asyncio

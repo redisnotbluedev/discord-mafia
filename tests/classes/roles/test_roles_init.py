@@ -1,12 +1,23 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from classes.roles import (
-    Alignment, Role, SelectRole, SaveRole, KillRole, InvestigateRole,
-    ALL_ROLES, TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER,
-)
+import pytest
 
 import tests.testutils as testutils
+from classes.roles import (
+    ALL_ROLES,
+    DOCTOR,
+    JESTER,
+    MAFIA,
+    SHERIFF,
+    TOWN,
+    VIGILANTE,
+    Alignment,
+    InvestigateRole,
+    KillRole,
+    Role,
+    SaveRole,
+    SelectRole,
+)
 
 
 class TestAlignmentEnum:
@@ -91,7 +102,9 @@ class TestSelectRole:
         assert r.action_label == "save"
 
     def test_stores_skippable_true(self):
-        r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "act", skippable=True)
+        r = SelectRole(
+            "SR", Alignment.TOWN, "desc", "short", "🎯", "act", skippable=True
+        )
         assert r.skippable is True
 
     def test_skippable_defaults_false(self):
@@ -130,7 +143,9 @@ class TestSelectRole:
         r = SelectRole("SR", Alignment.TOWN, "desc", "short", "🎯", "investigate")
         assert r.get_prompt() == "## SR\nWho do you want to investigate?"
 
-    async def test_handle_button_click_builds_select_view_and_sends_ephemeral(self, monkeypatch):
+    async def test_handle_button_click_builds_select_view_and_sends_ephemeral(
+        self, monkeypatch
+    ):
         import classes.views as views_module
 
         real_select_view = views_module.SelectView
@@ -150,7 +165,9 @@ class TestSelectRole:
         interaction = testutils.new_mock_interaction()
         action_view = MagicMock()
 
-        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True)
+        r = SelectRole(
+            "Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True
+        )
         await r.handle_button_click(game, player, interaction, action_view)
 
         assert len(built) == 1
@@ -194,7 +211,9 @@ class TestSelectRole:
         action_view.acted_players = set()
         action_view.pending_humans = {111}
 
-        r = SelectRole("Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True)
+        r = SelectRole(
+            "Doc", Alignment.TOWN, "desc", "short", "🎯", "save", skippable=True
+        )
         r.handle_selection = AsyncMock()
 
         await r.on_selected(game, player, interaction, [], action_view)
@@ -233,7 +252,9 @@ class TestSelectRole:
             view=None,
         )
 
-    async def test_night_action_ai_picks_correct_player_without_mocking_extract_choice(self):
+    async def test_night_action_ai_picks_correct_player_without_mocking_extract_choice(
+        self,
+    ):
         alice = testutils.new_test_player("Alice")
         bob = testutils.new_test_player("Bob")
         game = testutils.new_mock_game(players=[alice, bob])
