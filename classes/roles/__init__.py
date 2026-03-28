@@ -9,8 +9,7 @@ not in the Role instances themselves.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING, Literal, TypedDict 
-
+from typing import TYPE_CHECKING, Literal, TypedDict, NamedTuple
 import discord
 
 from classes.turnmanager import extract_choice
@@ -71,16 +70,6 @@ class Role:
 
 	def __str__(self) -> str:
 		return self.name
-
-	def __eq__(self, other: object) -> bool:
-		"""Compares roles by name."""
-		if isinstance(other, Role):
-			return self.name == other.name
-		return False
-
-	def __hash__(self) -> int:
-		"""Returns the hash of the role name."""
-		return hash(self.name)
 
 	def describe(self) -> str:
 		"""Return the full role description text."""
@@ -342,4 +331,43 @@ from .jester import Jester, JESTER
 
 ALL_ROLES = [TOWN, MAFIA, DOCTOR, SHERIFF, VIGILANTE, JESTER]
 
-__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES']
+def get_role(name: str) -> Role | None:
+	"""Look up a role by name, case-insensitive.
+	
+	Accepts but does not require a 'role_' prefix.
+	"""
+	name = name.lower()
+	if name.startswith("role_"):
+		name = name[5:]
+	
+	for r in ALL_ROLES:
+		if r.name.lower() == name:
+			return r
+	return None
+
+class GroupedRoles(NamedTuple):
+	neutral: list["Role"]
+	town: list["Role"]
+	mafia: list["Role"]
+
+def get_enabled_role_groups(
+	config: "MafiaSchedulerConfig",
+) -> GroupedRoles:
+	"""Filter the config for enabled roles and group them by category.
+
+	Returns: A GroupedRoles object containing (neutral, town, mafia) role lists.
+	"""
+	enabled_roles = [
+		r for k, v in config.items() if v is True and (r := get_role(str(k))) is not None
+	]
+
+	neutral_roles = [r for r in enabled_roles if r.alignment == Alignment.NEUTRAL]
+	special_town_roles = [
+		r for r in enabled_roles if r.is_special() and r.alignment == Alignment.TOWN
+	]
+	special_mafia_roles = [
+		r for r in enabled_roles if r.is_special() and r.alignment == Alignment.MAFIA
+	]
+	return GroupedRoles(neutral_roles, special_town_roles, special_mafia_roles)
+
+__all__ = ['Alignment', 'Role', 'SaveRole', 'KillRole', 'InvestigateRole', 'Town', 'Mafia', 'Doctor', 'Sheriff', 'Vigilante', 'Jester', 'TOWN', 'MAFIA', 'DOCTOR', 'SHERIFF', 'VIGILANTE', 'JESTER', 'NEUTRAL', 'ALL_ROLES', 'get_role', 'get_enabled_role_groups', 'GroupedRoles']
