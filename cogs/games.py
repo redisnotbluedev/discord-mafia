@@ -33,8 +33,11 @@ class GamesCog(commands.Cog):
 		abstractor = next((a for a in self.bot.abstractors if a.channel == channel.id), None)
 		if abstractor:
 			if abstractor.owner == interaction.user:
-				if player.id in abstractor.players:
-					del abstractor.players[player.id]
+				if player.id not in abstractor.players:
+					await interaction.response.send_message(f"{player.mention} isn't in the game.", ephemeral=True)
+					return
+
+				del abstractor.players[player.id]
 
 				scheduler = getattr(abstractor.game, "scheduler", None)
 				if scheduler and scheduler.lobby:
@@ -135,7 +138,7 @@ class GamesCog(commands.Cog):
 		assert admin_users is not None
 		assert abstractor.owner is not None
 
-		if str(interaction.user.id) not in admin_users.split(",") + [abstractor.owner.id]:
+		if str(interaction.user.id) not in admin_users.split(",") + [str(abstractor.owner.id)]:
 			await interaction.response.send_message("<:pointlaugh:1474657622509486130> You're not allowed to use this command!\n-# Allowed: Owner, Admins", ephemeral=True)
 			return
 

@@ -3,3 +3,5 @@ python-dotenv
 psutil
 openai
 pytest
+pytest-asyncio
+pytest-cov
