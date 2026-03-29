@@ -20,7 +20,7 @@ from classes.roles import Role, ALL_ROLES, get_enabled_role_groups
 if TYPE_CHECKING:
 	from classes.abstractor import GameAbstractor
 	from classes.game import MafiaGame
-	from classes.scheduler import MafiaSheduler
+	from classes.scheduler import MafiaScheduler
 	from classes.turnmanager import TurnManager
 
 logger = logging.getLogger(__name__)
@@ -130,11 +130,11 @@ class JoinGameView(discord.ui.View):
 	"""
 
 	def __init__(self, abstractor, message, start_at):
-		from classes.scheduler import MafiaSheduler
+		from classes.scheduler import MafiaScheduler
 
 		self.abstractor: "GameAbstractor" = abstractor
 		self.start_at = int(start_at)
-		self.game: "MafiaSheduler" = MafiaSheduler(self.abstractor, self, message)
+		self.game: "MafiaScheduler" = MafiaScheduler(self.abstractor, self, message)
 		self.running = False
 		self.game.schedule(start_at)
 		super().__init__(timeout=1000)
@@ -347,27 +347,11 @@ class SettingsView(discord.ui.View):
 		"""
 		total_players = len(self.game.abstractor.players)
 
-		# Auto-adjust if total players changed
-		current_mafia = self.config.get("mafia", 0)
-		current_town = self.config.get("town", 0)
-		if current_mafia + current_town > total_players:
-			# Keep mafia, adjust town down
-			self.config["town"] = max(1, total_players - current_mafia)
-		elif current_mafia + current_town < total_players:
-			# Add to town
-			self.config["town"] = current_town + (total_players - (current_mafia + current_town))
-
-		# Smart distribution: Mafia = ~1/3 of players, but keep Town > Mafia
-		mafia = max(1, min(total_players // 3, total_players - 3))
-		town = max(mafia + 1, total_players - mafia)
+		# Ensure counts are consistent with total players without a full reset.
+		self.config.clamp(total_players)
 
 		mafia = self.config["mafia"]
 		town = self.config["town"]
-
-		# Ensure mafia <= town
-		if mafia > town:
-			mafia = town
-			self.config["mafia"] = mafia
 
 		# Extract enabled roles from config once
 		enabled_roles = get_enabled_role_groups(self.config)
@@ -527,9 +511,7 @@ class MafiaUp(discord.ui.Button):
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
-		new_mafia = view.config["mafia"] + 1
-		if new_mafia <= view.config["town"]:
-			view.config["mafia"] = min(new_mafia, total_players - 3)
+		view.config.increment_mafia(total_players)
 		await view.render(interaction)
 
 class MafiaDisplay(discord.ui.Button):
@@ -547,13 +529,7 @@ class TownUp(discord.ui.Button):
 	async def callback(self, interaction: discord.Interaction):
 		view: SettingsView = self.view  # type: ignore
 		total_players = len(view.game.abstractor.players)
-		new_town = view.config["town"] + 1
-		view.config["town"] = min(new_town, total_players - 1)
-		if view.config["mafia"] > view.config["town"]:
-			view.config["mafia"] = view.config["town"]
-		# If town + mafia exceeds total, auto-decrement mafia
-		if view.config["town"] + view.config["mafia"] > total_players:
-			view.config["mafia"] = max(1, total_players - view.config["town"])
+		view.config.increment_town(total_players)
 		await view.render(interaction)
 
 class TownDisplay(discord.ui.Button):
@@ -597,10 +573,7 @@ class DefaultButton(discord.ui.Button):
 		view.config["role_Mafia"] = True
 
 		# Reset counts to smart defaults
-		mafia = max(1, min(total_players // 3, total_players - 3))
-		town = max(mafia + 1, total_players - mafia)
-		view.config["mafia"] = mafia
-		view.config["town"] = town
+		view.config.apply_smart_defaults(total_players)
 
 		# Reset models to defaults (all 10)
 		try:

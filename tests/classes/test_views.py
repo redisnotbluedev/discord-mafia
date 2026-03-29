@@ -5,6 +5,7 @@ import pytest
 
 from classes.player import AIAbstraction, Player
 from classes.roles import DOCTOR, MAFIA, SHERIFF, TOWN, VIGILANTE
+from classes.scheduler import GameConfig
 from classes.views import (
     ABSTAIN_LABEL,
     ConfirmView,
@@ -231,7 +232,7 @@ async def test_start_game_view_start_game_reads_models_and_creates_ai_players():
 
     with patch("builtins.open", mock_open(read_data="{}")), patch(
         "json.load", return_value=models_data
-    ), patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler), patch(
+    ), patch("classes.scheduler.MafiaScheduler", return_value=fake_scheduler), patch(
         "classes.views.create_ai_players", return_value=[ai_one, ai_two]
     ) as create_ai_players_mock, patch("data.update_game_status") as update_status_mock:
         view = StartGameView(abstractor)
@@ -257,7 +258,7 @@ async def test_join_game_view_adds_player_and_updates_lobby_embed():
     fake_scheduler.start_job = MagicMock()
 
     message = testutils.new_mock_message()
-    with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
+    with patch("classes.scheduler.MafiaScheduler", return_value=fake_scheduler):
         view = JoinGameView(abstractor, message, start_at=999999.0)
 
     joining_user = testutils.new_mock_member(2, "Bob")
@@ -290,7 +291,7 @@ async def test_join_game_view_start_starts_game_for_owner():
     fake_scheduler.start_job.cancel = MagicMock()
 
     message = testutils.new_mock_message()
-    with patch("classes.scheduler.MafiaSheduler", return_value=fake_scheduler):
+    with patch("classes.scheduler.MafiaScheduler", return_value=fake_scheduler):
         view = JoinGameView(abstractor, message, start_at=999999.0)
 
     interaction = testutils.new_mock_interaction(user_id=owner.id)
@@ -314,7 +315,7 @@ async def test_settings_view_render_updates_controls_and_lobby_message():
 
     game = MagicMock()
     game.abstractor = abstractor
-    game.config = {"mafia": 2, "town": 3, "role_Doctor": True, "role_Sheriff": True}
+    game.config = GameConfig({"mafia": 2, "town": 3, "role_Doctor": True, "role_Sheriff": True})
     game.message = testutils.new_mock_message()
     game.lobby = MagicMock()
     game.lobby.generate_embed.return_value = discord.Embed(title="Lobby")

@@ -1,6 +1,9 @@
+.coverage
 .env
+.DS_Store
 data.json
 logs/
+htmlcov/*
 
 venv/*
 **/__pycache__/*

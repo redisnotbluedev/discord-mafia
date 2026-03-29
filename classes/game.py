@@ -6,7 +6,7 @@ and special actions.
 """
 
 from classes.player import Player, AIAbstraction
-from classes.scheduler import MafiaSchedulerConfig
+from classes.scheduler import GameConfig
 from classes.turnmanager import TurnManager
 from classes.views import SpecialActionsView
 from openai import AsyncOpenAI
@@ -30,16 +30,16 @@ class MafiaGame():
 		day_number: Current day count (starts at 0, incremented on entry).
 		night_actions: Dict collecting actions during the night phase
 			(e.g. 'mafia_kill', 'saves', 'kills').  Cleared after resolution.
-		config: Shared settings dict from MafiaScheduler/SettingsView.
+		config: Shared GameConfig object from MafiaScheduler/SettingsView.
 		turns: TurnManager instance (created on first run).
 	"""
 
-	def __init__(self, abstractor, scheduler, config: MafiaSchedulerConfig):
+	def __init__(self, abstractor, scheduler, config: GameConfig):
 		"""Initialize a new game.
 
 		Args:
 			abstractor: The GameAbstractor for this channel.
-			scheduler: The MafiaSheduler that owns this game, needed to
+			scheduler: The MafiaScheduler that owns this game, needed to
 				access the JoinGameView for lobby updates.
 		"""
 		self.players = []

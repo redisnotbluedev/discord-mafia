@@ -8,7 +8,7 @@ import pytest
 from classes.game import MafiaGame
 from classes.player import AIAbstraction, Player
 from classes.roles import Alignment, JESTER, MAFIA, TOWN, VIGILANTE
-from classes.scheduler import MafiaSchedulerConfig
+from classes.scheduler import MafiaSchedulerConfig, GameConfig
 from classes.turnmanager import TurnManager
 
 import tests.testutils as testutils
@@ -58,7 +58,7 @@ def make_game() -> MafiaGame:
         "role_Jester": True,
     }
     with patch("classes.game.AsyncOpenAI", return_value=MagicMock()):
-        return MafiaGame(abstractor, scheduler, config)
+        return MafiaGame(abstractor, scheduler, GameConfig(config))
 
 
 def test_init_sets_expected_defaults():
