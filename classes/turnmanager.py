@@ -219,7 +219,8 @@ You are {p.role_or_die.describe()}
 Players:
 {player_list}
 
-There are {[len(participants)]} players: {"\n".join(f"  - {role_counts.get(role, 0)} {role.name.lower()}" for role in ALL_ROLES)}
+There are {[len(participants)]} players: {"\n".join(f"  - {role_counts.get(role, 0)} {role.name.title()} ({role.short_description or "No description"})" for role in ALL_ROLES)}
+The Mafia will attack one town-aligned player each night. If a player is attacked, or saved by the Doctor, they are hard-cleared town. Players can claim their roles and while this should be treated with scrutiny, it is a valid play to roleclaim early in the game.
 
 CRITICAL FORMAT RULES
 - Reply in 1-3 short sentences.
