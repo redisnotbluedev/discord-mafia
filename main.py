@@ -70,13 +70,13 @@ async def setup_hook():
 @bot.event
 async def on_message(message: discord.Message):
 	"""Route incoming messages to game abstractors.
-	
+
 	Also implements a debugging hook.
 	"""
 	if message.author == bot.user:
 		return
 
-	if message.content.startswith("!eval") and message.author.id == 1337909802931716197:
+	if message.content.startswith("!eval") and message.author.id in [1337909802931716197, 1282734265955520545]:
 		code = message.content[6:].strip()
 		try:
 			abstractor = None
