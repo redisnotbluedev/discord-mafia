@@ -7,7 +7,7 @@ import discord
 
 from classes.abstractor import GameAbstractor
 from classes.player import Player, AIAbstraction
-from classes.scheduler import MafiaSheduler, MafiaSchedulerConfig
+from classes.scheduler import MafiaScheduler, MafiaSchedulerConfig
 from classes.roles import TOWN, MAFIA, DOCTOR, SHERIFF, JESTER
 import tests.testutils as testutils
 
@@ -47,7 +47,7 @@ def _make_scheduler(player_count=6):
     with patch("classes.game.MafiaGame") as MockGame:
         mock_game = _make_mock_game()
         MockGame.return_value = mock_game
-        scheduler = MafiaSheduler(abstractor, lobby, message)
+        scheduler = MafiaScheduler(abstractor, lobby, message)
     return scheduler
 
 
@@ -57,7 +57,7 @@ class TestMafiaSchedulerConfig:
         assert required.issubset(set(MafiaSchedulerConfig.__annotations__.keys()))
 
 
-class TestMafiaShedulerInit:
+class TestMafiaSchedulerInit:
     def test_init_role_distribution_6_players(self):
         s = _make_scheduler(6)
         assert s.config["mafia"] == 2
@@ -83,7 +83,7 @@ class TestMafiaShedulerInit:
         with patch("classes.game.MafiaGame") as MockGame:
             mock_game = _make_mock_game()
             MockGame.return_value = mock_game
-            MafiaSheduler(abstractor, lobby, message)
+            MafiaScheduler(abstractor, lobby, message)
         assert abstractor.game is mock_game
 
     def test_init_default_config_doctor_sheriff_enabled(self):
@@ -100,7 +100,7 @@ class TestMafiaShedulerInit:
 class TestSetupRoles:
     def _sched(self, player_count=5, **cfg):
         s = _make_scheduler(player_count)
-        dict.update(s.config, cfg)
+        s.config.update(cfg)
         return s
 
     def test_setup_roles_correct_total_assigned(self):

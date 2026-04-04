@@ -1,6 +1,6 @@
 """Game scheduling, role assignment, and lifecycle management.
 
-Contains MafiaSheduler which manages the pre-game lobby countdown, role
+Contains MafiaScheduler which manages the pre-game lobby countdown, role
 distribution, Discord permission setup, and the overall game lifecycle.
 """
 
@@ -15,7 +15,7 @@ import discord
 
 import data
 from classes.player import AIAbstraction, Player
-from classes.roles import MAFIA, TOWN, ALL_ROLES, Alignment, get_role, get_enabled_role_groups
+from classes.roles import MAFIA, TOWN, ALL_ROLES, Alignment, get_enabled_role_groups
 from classes.views import JoinGameView
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,91 @@ class MafiaSchedulerConfig(TypedDict):
     role_Vigilante: bool
     role_Jester: bool
 
-class MafiaSheduler:
+class GameConfig:
+    """Manages game configuration and enforces balancing rules.
+    
+    This class wraps the settings dictionary and provides methods to
+    ensure the configuration remains consistent even as player counts
+    change.
+    """
+    def __init__(self, config: MafiaSchedulerConfig):
+        self._config = config
+
+    def __getitem__(self, key):
+        return self._config[key]
+
+    def __setitem__(self, key, value):
+        self._config[key] = value
+
+    def __contains__(self, key):
+        return key in self._config
+
+    def get(self, key, default=None):
+        return self._config.get(key, default)
+
+    def setdefault(self, key, default=None):
+        return self._config.setdefault(key, default)
+
+    def items(self):
+        return self._config.items()
+
+    def update(self, other: dict):
+        return self._config.update(other)
+
+    def copy(self):
+        return self._config.copy()
+
+    def clamp(self, total_players: int):
+        """Ensures mafia + town == total_players and mafia <= town.
+        
+        This uses heuristics to restore consistency without a full reset.
+        If counts mismatch total_players, Mafia is clamped first to 
+        valid range, then Town takes the remainder.
+        """
+        mafia = self._config.get("mafia", 1)
+        
+        # 1. Enforce mafia constraints:
+        # - At least 1 mafia
+        # - At most half players (mafia <= town)
+        # - At least 3 non-mafia (for breathing room)
+        max_mafia = min(total_players // 2, total_players - 3)
+        mafia = max(1, min(mafia, max_mafia))
+        
+        # 2. Town takes all remaining slots
+        town = total_players - mafia
+            
+        self._config["mafia"] = mafia
+        self._config["town"] = town
+
+    def apply_smart_defaults(self, total_players: int):
+        """Reset Mafia assignment to approximately 1/3 of total players."""
+        mafia = max(1, min(total_players // 3, total_players - 3))
+        town = total_players - mafia
+        self._config["mafia"] = mafia
+        self._config["town"] = town
+
+    def increment_mafia(self, total_players: int):
+        """Increments mafia count while decreasing town to keep total same.
+        
+        Enforces mafia <= town and at least 3 non-mafia.
+        """
+        new_mafia = self._config["mafia"] + 1
+        max_mafia = min(total_players // 2, total_players - 3)
+        if new_mafia <= max_mafia:
+            self._config["mafia"] = new_mafia
+            self._config["town"] = total_players - new_mafia
+
+    def increment_town(self, total_players: int):
+        """Increments town count while decreasing mafia to keep total same.
+        
+        Enforces town < total_players (must have at least 1 mafia).
+        """
+        new_town = self._config["town"] + 1
+        if new_town < total_players:
+            self._config["town"] = new_town
+            self._config["mafia"] = total_players - new_town
+
+class MafiaScheduler:
     """Orchestrates game setup, role assignment, and the game lifecycle.
 
     Created by JoinGameView when a player clicks Play.  Manages:
@@ -62,7 +146,7 @@ class MafiaSheduler:
         total_players = len(self.abstractor.players)
         mafia = max(1, total_players // 3)
         town = max(mafia + 1, total_players - mafia)
-        self.config: MafiaSchedulerConfig = {
+        config_data: MafiaSchedulerConfig = {
             "mafia": mafia,
             "town": town,
             "role_Doctor": True,
@@ -70,6 +154,7 @@ class MafiaSheduler:
             "role_Vigilante": False,
             "role_Jester": False,
         }
+        self.config = GameConfig(config_data)
         self.game = MafiaGame(abstractor, self, self.config)
         self.abstractor.game = self.game
 
@@ -142,7 +227,6 @@ class MafiaSheduler:
         assert guild is not None
 
         try:
-            self.game.config = self.config
             await self.message.edit(
                 view=None, embed=self.lobby.generate_embed(show_starting_soon=False)
             )
@@ -325,16 +409,9 @@ class MafiaSheduler:
         """
 
         total_players = len(self.abstractor.players)
-        mafia = self.config.get("mafia", max(1, total_players // 3))
-        town = self.config.get("town", max(mafia + 1, total_players - mafia))
-
-        if mafia + town > total_players:
-            mafia = min(mafia, (total_players - 1) // 2)
-            town = total_players - mafia
-        elif mafia + town < total_players:
-            town += total_players - (mafia + town)
-        self.config["mafia"] = mafia
-        self.config["town"] = town
+        self.config.clamp(total_players)
+        mafia = self.config["mafia"]
+        town = self.config["town"]
         players = list(self.abstractor.players.values())
         random.shuffle(players)
 
