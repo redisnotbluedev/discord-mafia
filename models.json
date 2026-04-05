@@ -14,8 +14,8 @@
 			"emoji": "<:gpt52:1468393997352570933>"
 		},
 		{
-			"model": "deepseek-r1",
-			"name": "DeepSeek R1",
+			"model": "deepseek-3.2",
+			"name": "DeepSeek 3.2",
 			"avatar": "deepseek",
 			"emoji": "<:deepseek:1468394312860438708>"
 		},
@@ -50,8 +50,8 @@
 			"emoji": "<:flash:1468394382242742333>"
 		},
 		{
-			"model": "kimi-k2",
-			"name": "Kimi K2",
+			"model": "kimi-k2.5",
+			"name": "Kimi K2.5",
 			"avatar": "kimi",
 			"emoji": "<:kimi:1468394507006382283>"
 		},
