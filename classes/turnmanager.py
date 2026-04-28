@@ -99,8 +99,29 @@ class TurnManager:
 		"""
 		if not content:
 			return ""
-		content = re.sub(r'<think>.*?(?:</think>|$)', '', content, flags=re.DOTALL | re.IGNORECASE)
+		content = re.sub(r"<think>.*?(?:</think>|$)", "", content, flags=re.DOTALL | re.IGNORECASE)
 		return content.strip()
+
+	async def _create_chat_completion(self, model: str, messages: list, **kwargs):
+		"""Wrapper for chat completions to disable reasoning efforts.
+
+		Sets reasoning_effort="none" to ensure models do not perform
+		extended reasoning.
+
+		Args:
+			model: The model identifier to use.
+			messages: The conversation history/prompt.
+			**kwargs: Additional arguments for the completion call.
+
+		Returns:
+			The completion response.
+		"""
+		kwargs.setdefault("reasoning_effort", "none")
+		return await self.client.chat.completions.create(
+			model=model,
+			messages=messages,
+			**kwargs
+		)
 
 	def __init__(self, participants: list[Player], channel: discord.TextChannel | discord.Thread, bot: discord.Client, client: AsyncOpenAI | None = None):
 		"""Initialize the turn manager for a new game.
@@ -506,7 +527,7 @@ CRITICAL FORMAT RULES
 				messages = self.context.setdefault(player.user, [])
 				text = ""
 				try:
-					response = await self.client.chat.completions.create(
+					response = await self._create_chat_completion(
 						model=player.user.model,
 						messages=messages,
 						max_tokens=100
@@ -601,7 +622,7 @@ CRITICAL FORMAT RULES
 			Empty list if the LLM returns NONE or an error occurs.
 		"""
 		try:
-			response = await self.client.chat.completions.create(
+			response = await self._create_chat_completion(
 				messages=[
 					{"role": "system", "content": """
 You are analysing Mafia game chat to identify which players are mentioned and should respond.
@@ -893,7 +914,7 @@ Message: '{text}'"""}
 
 		content = ""
 		try:
-			response = await self.client.chat.completions.create(
+			response = await self._create_chat_completion(
 				model=ai_player.user.model,
 				messages=messages
 			)
